@@ -1,0 +1,390 @@
+{
+  "_comment": "FROZEN evaluation set. Do not edit after the first baseline run.",
+  "cases": [
+    {
+      "id": "c01",
+      "tag": "weak_os",
+      "target_role": "Java Backend Developer",
+      "resume_text": "Student A\nB.E. ISE\nSkills: Java, SQL, Git\nProject: Hostel booking REST API in Spring Boot with MySQL",
+      "week_no": 2,
+      "scores": {
+        "OS": 30,
+        "DBMS": 70,
+        "DSA": 75,
+        "CN": 65,
+        "OOP": 80,
+        "Aptitude": 70
+      },
+      "quiz_topic": "OS",
+      "difficulty": "medium",
+      "previous_questions": [
+        "What is a deadlock?",
+        "Which scheduling algorithm can cause starvation?"
+      ]
+    },
+    {
+      "id": "c02",
+      "tag": "weak_dbms_dsa",
+      "target_role": "Java Backend Developer",
+      "resume_text": "Student B\nB.E. CSE\nSkills: Java, Object-Oriented Programming, Data Structures, Algorithms, Multithreading, REST APIs, Spring Boot, Git\nProject: Chat server using Java sockets and thread pools\nInternship: Backend intern, 8 weeks",
+      "week_no": 3,
+      "scores": {
+        "OS": 70,
+        "DBMS": 35,
+        "DSA": 40,
+        "CN": 70,
+        "OOP": 75,
+        "Aptitude": 65
+      },
+      "quiz_topic": "DBMS",
+      "difficulty": "medium",
+      "previous_questions": [
+        "Which normal form removes transitive dependency?",
+        "What does ACID stand for?"
+      ]
+    },
+    {
+      "id": "c03",
+      "tag": "first_week",
+      "target_role": "Java Backend Developer",
+      "resume_text": "Student A\nB.E. ISE\nSkills: Java, SQL, Git\nProject: Hostel booking REST API in Spring Boot with MySQL",
+      "week_no": 1,
+      "scores": {},
+      "quiz_topic": "DSA",
+      "difficulty": "medium",
+      "previous_questions": [
+        "What is the time complexity of binary search?",
+        "Which data structure uses LIFO order?"
+      ]
+    },
+    {
+      "id": "c04",
+      "tag": "weak_cn_apt",
+      "target_role": "Java Backend Developer",
+      "resume_text": "Student B\nB.E. CSE\nSkills: Java, Object-Oriented Programming, Data Structures, Algorithms, Multithreading, REST APIs, Spring Boot, Git\nProject: Chat server using Java sockets and thread pools\nInternship: Backend intern, 8 weeks",
+      "week_no": 2,
+      "scores": {
+        "OS": 65,
+        "DBMS": 60,
+        "DSA": 70,
+        "CN": 30,
+        "OOP": 70,
+        "Aptitude": 40
+      },
+      "quiz_topic": "CN",
+      "difficulty": "medium",
+      "previous_questions": [
+        "Which layer of the OSI model handles routing?",
+        "What port does HTTPS use by default?"
+      ]
+    },
+    {
+      "id": "c05",
+      "tag": "weak_os",
+      "target_role": "Python Developer",
+      "resume_text": "Student C\nB.E. ISE\nSkills: Python, Git\nProject: Weather CLI using a public REST API",
+      "week_no": 2,
+      "scores": {
+        "OS": 30,
+        "DBMS": 70,
+        "DSA": 75,
+        "CN": 65,
+        "OOP": 80,
+        "Aptitude": 70
+      },
+      "quiz_topic": "OS",
+      "difficulty": "medium",
+      "previous_questions": [
+        "What is a deadlock?",
+        "Which scheduling algorithm can cause starvation?"
+      ]
+    },
+    {
+      "id": "c06",
+      "tag": "weak_dbms_dsa",
+      "target_role": "Python Developer",
+      "resume_text": "Student D\nB.E. CSE\nSkills: Python, Django, SQL, Data Structures, Unit Testing, REST APIs, Git\nProject: Event registration portal in Django with PostgreSQL",
+      "week_no": 3,
+      "scores": {
+        "OS": 70,
+        "DBMS": 35,
+        "DSA": 40,
+        "CN": 70,
+        "OOP": 75,
+        "Aptitude": 65
+      },
+      "quiz_topic": "DBMS",
+      "difficulty": "medium",
+      "previous_questions": [
+        "Which normal form removes transitive dependency?",
+        "What does ACID stand for?"
+      ]
+    },
+    {
+      "id": "c07",
+      "tag": "first_week",
+      "target_role": "Python Developer",
+      "resume_text": "Student C\nB.E. ISE\nSkills: Python, Git\nProject: Weather CLI using a public REST API",
+      "week_no": 1,
+      "scores": {},
+      "quiz_topic": "DSA",
+      "difficulty": "medium",
+      "previous_questions": [
+        "What is the time complexity of binary search?",
+        "Which data structure uses LIFO order?"
+      ]
+    },
+    {
+      "id": "c08",
+      "tag": "weak_cn_apt",
+      "target_role": "Python Developer",
+      "resume_text": "Student D\nB.E. CSE\nSkills: Python, Django, SQL, Data Structures, Unit Testing, REST APIs, Git\nProject: Event registration portal in Django with PostgreSQL",
+      "week_no": 2,
+      "scores": {
+        "OS": 65,
+        "DBMS": 60,
+        "DSA": 70,
+        "CN": 30,
+        "OOP": 70,
+        "Aptitude": 40
+      },
+      "quiz_topic": "CN",
+      "difficulty": "medium",
+      "previous_questions": [
+        "Which layer of the OSI model handles routing?",
+        "What port does HTTPS use by default?"
+      ]
+    },
+    {
+      "id": "c09",
+      "tag": "weak_os",
+      "target_role": "Full Stack Developer",
+      "resume_text": "Student E\nB.E. ISE\nSkills: HTML, CSS, JavaScript, React\nProject: Portfolio website with React",
+      "week_no": 2,
+      "scores": {
+        "OS": 30,
+        "DBMS": 70,
+        "DSA": 75,
+        "CN": 65,
+        "OOP": 80,
+        "Aptitude": 70
+      },
+      "quiz_topic": "OS",
+      "difficulty": "medium",
+      "previous_questions": [
+        "What is a deadlock?",
+        "Which scheduling algorithm can cause starvation?"
+      ]
+    },
+    {
+      "id": "c10",
+      "tag": "weak_dbms_dsa",
+      "target_role": "Full Stack Developer",
+      "resume_text": "Student F\nB.E. CSE\nSkills: JavaScript, React, Node.js, SQL, HTTP, REST APIs, Git, Database Design\nProject: Food ordering app with React, Node.js and MySQL",
+      "week_no": 3,
+      "scores": {
+        "OS": 70,
+        "DBMS": 35,
+        "DSA": 40,
+        "CN": 70,
+        "OOP": 75,
+        "Aptitude": 65
+      },
+      "quiz_topic": "DBMS",
+      "difficulty": "medium",
+      "previous_questions": [
+        "Which normal form removes transitive dependency?",
+        "What does ACID stand for?"
+      ]
+    },
+    {
+      "id": "c11",
+      "tag": "first_week",
+      "target_role": "Full Stack Developer",
+      "resume_text": "Student E\nB.E. ISE\nSkills: HTML, CSS, JavaScript, React\nProject: Portfolio website with React",
+      "week_no": 1,
+      "scores": {},
+      "quiz_topic": "DSA",
+      "difficulty": "medium",
+      "previous_questions": [
+        "What is the time complexity of binary search?",
+        "Which data structure uses LIFO order?"
+      ]
+    },
+    {
+      "id": "c12",
+      "tag": "weak_cn_apt",
+      "target_role": "Full Stack Developer",
+      "resume_text": "Student F\nB.E. CSE\nSkills: JavaScript, React, Node.js, SQL, HTTP, REST APIs, Git, Database Design\nProject: Food ordering app with React, Node.js and MySQL",
+      "week_no": 2,
+      "scores": {
+        "OS": 65,
+        "DBMS": 60,
+        "DSA": 70,
+        "CN": 30,
+        "OOP": 70,
+        "Aptitude": 40
+      },
+      "quiz_topic": "CN",
+      "difficulty": "medium",
+      "previous_questions": [
+        "Which layer of the OSI model handles routing?",
+        "What port does HTTPS use by default?"
+      ]
+    },
+    {
+      "id": "c13",
+      "tag": "weak_os",
+      "target_role": "Data Analyst",
+      "resume_text": "Student G\nB.E. ISE\nSkills: Excel, Statistics\nProject: Survey analysis in Excel with pivot tables",
+      "week_no": 2,
+      "scores": {
+        "OS": 30,
+        "DBMS": 70,
+        "DSA": 75,
+        "CN": 65,
+        "OOP": 80,
+        "Aptitude": 70
+      },
+      "quiz_topic": "OS",
+      "difficulty": "medium",
+      "previous_questions": [
+        "What is a deadlock?",
+        "Which scheduling algorithm can cause starvation?"
+      ]
+    },
+    {
+      "id": "c14",
+      "tag": "weak_dbms_dsa",
+      "target_role": "Data Analyst",
+      "resume_text": "Student H\nB.E. CSE\nSkills: SQL, Python, Pandas, Power BI, Statistics, Probability, Data Visualization\nProject: Sales forecasting dashboard in Power BI",
+      "week_no": 3,
+      "scores": {
+        "OS": 70,
+        "DBMS": 35,
+        "DSA": 40,
+        "CN": 70,
+        "OOP": 75,
+        "Aptitude": 65
+      },
+      "quiz_topic": "DBMS",
+      "difficulty": "medium",
+      "previous_questions": [
+        "Which normal form removes transitive dependency?",
+        "What does ACID stand for?"
+      ]
+    },
+    {
+      "id": "c15",
+      "tag": "first_week",
+      "target_role": "Data Analyst",
+      "resume_text": "Student G\nB.E. ISE\nSkills: Excel, Statistics\nProject: Survey analysis in Excel with pivot tables",
+      "week_no": 1,
+      "scores": {},
+      "quiz_topic": "DSA",
+      "difficulty": "medium",
+      "previous_questions": [
+        "What is the time complexity of binary search?",
+        "Which data structure uses LIFO order?"
+      ]
+    },
+    {
+      "id": "c16",
+      "tag": "weak_cn_apt",
+      "target_role": "Data Analyst",
+      "resume_text": "Student H\nB.E. CSE\nSkills: SQL, Python, Pandas, Power BI, Statistics, Probability, Data Visualization\nProject: Sales forecasting dashboard in Power BI",
+      "week_no": 2,
+      "scores": {
+        "OS": 65,
+        "DBMS": 60,
+        "DSA": 70,
+        "CN": 30,
+        "OOP": 70,
+        "Aptitude": 40
+      },
+      "quiz_topic": "CN",
+      "difficulty": "medium",
+      "previous_questions": [
+        "Which layer of the OSI model handles routing?",
+        "What port does HTTPS use by default?"
+      ]
+    },
+    {
+      "id": "c17",
+      "tag": "weak_os",
+      "target_role": "Software Engineer",
+      "resume_text": "Student I\nB.E. ISE\nSkills: C++, Data Structures\nProject: Snake game in C++",
+      "week_no": 2,
+      "scores": {
+        "OS": 30,
+        "DBMS": 70,
+        "DSA": 75,
+        "CN": 65,
+        "OOP": 80,
+        "Aptitude": 70
+      },
+      "quiz_topic": "OS",
+      "difficulty": "medium",
+      "previous_questions": [
+        "What is a deadlock?",
+        "Which scheduling algorithm can cause starvation?"
+      ]
+    },
+    {
+      "id": "c18",
+      "tag": "weak_dbms_dsa",
+      "target_role": "Software Engineer",
+      "resume_text": "Student J\nB.E. CSE\nSkills: Java, C++, Data Structures, Algorithms, Object-Oriented Programming, SQL, Operating Systems, Git\nProject: Mini file system simulator in C++",
+      "week_no": 3,
+      "scores": {
+        "OS": 70,
+        "DBMS": 35,
+        "DSA": 40,
+        "CN": 70,
+        "OOP": 75,
+        "Aptitude": 65
+      },
+      "quiz_topic": "DBMS",
+      "difficulty": "medium",
+      "previous_questions": [
+        "Which normal form removes transitive dependency?",
+        "What does ACID stand for?"
+      ]
+    },
+    {
+      "id": "c19",
+      "tag": "first_week",
+      "target_role": "Software Engineer",
+      "resume_text": "Student I\nB.E. ISE\nSkills: C++, Data Structures\nProject: Snake game in C++",
+      "week_no": 1,
+      "scores": {},
+      "quiz_topic": "DSA",
+      "difficulty": "medium",
+      "previous_questions": [
+        "What is the time complexity of binary search?",
+        "Which data structure uses LIFO order?"
+      ]
+    },
+    {
+      "id": "c20",
+      "tag": "weak_cn_apt",
+      "target_role": "Software Engineer",
+      "resume_text": "Student J\nB.E. CSE\nSkills: Java, C++, Data Structures, Algorithms, Object-Oriented Programming, SQL, Operating Systems, Git\nProject: Mini file system simulator in C++",
+      "week_no": 2,
+      "scores": {
+        "OS": 65,
+        "DBMS": 60,
+        "DSA": 70,
+        "CN": 30,
+        "OOP": 70,
+        "Aptitude": 40
+      },
+      "quiz_topic": "CN",
+      "difficulty": "medium",
+      "previous_questions": [
+        "Which layer of the OSI model handles routing?",
+        "What port does HTTPS use by default?"
+      ]
+    }
+  ]
+}
