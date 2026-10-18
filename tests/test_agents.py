@@ -187,3 +187,9 @@ def test_missing_critic_verdict_counts_as_rejection(monkeypatch):
     r = graph.run(agents.QUIZ_TASK, agents.quiz_inputs("OS", "easy", []))
     assert not r.approved
     assert r.reasons[0] == "question 0: the critic gave no verdict"
+
+
+def test_unknown_role_is_rejected_before_any_llm_call():
+    with pytest.raises(ValueError, match="unknown target role"):
+        agents.create_profile(RESUME, "Astronaut")
+    assert db.agent_stats() == []

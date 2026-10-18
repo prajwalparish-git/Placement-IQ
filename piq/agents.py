@@ -74,6 +74,8 @@ PROFILE_TASK = Task(
 def create_profile(
     resume_text: str, target_role: str, on_event: OnEvent | None = None
 ) -> StudentProfile:
+    if target_role not in roles():
+        raise ValueError(f"unknown target role {target_role!r}")
     ext: ProfileExtraction = run_or_raise(
         PROFILE_TASK, {"resume_text": resume_text, "target_role": target_role}, on_event
     )
