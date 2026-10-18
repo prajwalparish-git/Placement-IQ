@@ -134,3 +134,24 @@ def test_live_server_error_is_wrapped(live):
     live(_status_error(groq.InternalServerError, 500, "boom"))
     with pytest.raises(llm.LLMError, match="Groq API error"):
         _call()
+
+
+def _rate_limit(headers: dict) -> groq.RateLimitError:
+    req = httpx.Request("POST", "https://api.groq.com/openai/v1/chat/completions")
+    resp = httpx.Response(429, request=req, headers=headers)
+    return groq.RateLimitError("rate limit reached", response=resp, body=None)
+
+
+def test_live_rate_limit_carries_retry_after(live):
+    live(_rate_limit({"retry-after": "7"}))
+    with pytest.raises(llm.RateLimited, match="about 7 s") as exc:
+        _call()
+    assert exc.value.retry_after == 7.0
+    assert isinstance(exc.value, llm.LLMError)  # the UI's existing error path still applies
+
+
+def test_live_rate_limit_without_hint(live):
+    live(_rate_limit({}))
+    with pytest.raises(llm.RateLimited, match="Try again shortly") as exc:
+        _call()
+    assert exc.value.retry_after is None

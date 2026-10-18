@@ -5,7 +5,7 @@
 Both systems are scored by the same deterministic checks and the same LLM critic.
 Writes to evaluation/results/: cases.csv, questions.csv (for manual labelling),
 summary.json, and a fresh eval.db so the app database is untouched.
-Quota: ~6-10 Groq calls per case.
+Quota: ~6-10 Groq calls per case. Stops early (keeping partial results) on a rate limit.
 """
 
 import argparse
@@ -70,8 +70,8 @@ def _row(case: dict, system: str, plan, quiz, weakness, quiz_inp, attempts=(1, 1
     }
 
 
-def _summary(rows: list[dict], mode: str) -> dict:
-    summary: dict = {"mode": mode}
+def _summary(rows: list[dict], mode: str, stopped: str | None = None) -> dict:
+    summary: dict = {"mode": mode, "stopped_early": stopped}
     for system in ("baseline", "placementiq"):
         rs = [r for r in rows if r["system"] == system]
         if not rs:
@@ -121,7 +121,7 @@ def main(argv: list[str] | None = None) -> dict:
     db.init_db()
 
     cases = json.loads((HERE / "test_cases.json").read_text(encoding="utf-8"))["cases"]
-    rows, questions = [], []
+    rows, questions, stopped = [], [], None
     for case in cases[: args.limit]:
         print(f"{case['id']} {case['target_role']} / {case['tag']} ...", flush=True)
         try:
@@ -162,6 +162,10 @@ def main(argv: list[str] | None = None) -> dict:
                     }
                     for qq in quiz.questions
                 ]
+        except llm.RateLimited as e:  # quota gone: later cases would fail the same way
+            stopped = f"{case['id']}: {e}"
+            print(f"  stopped early: {e}")
+            break
         except (llm.LLMError, graph.CriticRejected) as e:
             print(f"  error: {e}")
             rows.append(
@@ -170,7 +174,7 @@ def main(argv: list[str] | None = None) -> dict:
 
     _write_csv(args.results / "cases.csv", rows)
     _write_csv(args.results / "questions.csv", questions)
-    summary = _summary(rows, mode)
+    summary = _summary(rows, mode, stopped)
     (args.results / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps({k: v for k, v in summary.items() if k != "agent_stats"}, indent=2))
     return summary

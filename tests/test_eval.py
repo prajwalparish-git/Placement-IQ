@@ -37,3 +37,22 @@ def test_csv_writer_handles_error_rows_first(tmp_path):
     with open(tmp_path / "out.csv", encoding="utf-8") as fh:
         header = next(csv.reader(fh))
     assert header == ["case", "system", "reasons", "plan_valid"]
+
+
+def test_rate_limit_stops_the_run_but_keeps_partial_results(tmp_path, monkeypatch):
+    from piq import llm
+
+    real, calls = run_eval._baseline, []
+
+    def limited_after_first(case):
+        calls.append(case["id"])
+        if len(calls) > 1:
+            raise llm.RateLimited(30)
+        return real(case)
+
+    monkeypatch.setattr(run_eval, "_baseline", limited_after_first)
+    summary = run_eval.main(["--limit", "3", "--allow-mock", "--results", str(tmp_path)])
+    assert calls == ["c01", "c02"]  # c03 never attempted
+    assert summary["stopped_early"].startswith("c02: Groq free-tier rate limit")
+    assert summary["placementiq"]["cases"] == 1 and summary["errors"] == 0
+    assert (tmp_path / "cases.csv").exists()

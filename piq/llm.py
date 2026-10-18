@@ -1,7 +1,8 @@
 """The only module that talks to an LLM.
 
 `call()` = JSON mode + Pydantic validation + one repair retry + agent_logs row.
-HTTP 429 backoff is handled by the Groq SDK itself (max_retries).
+HTTP 429 backoff is handled by the Groq SDK itself (max_retries); a 429 that survives
+it becomes `RateLimited` with the server's retry-after hint.
 In MOCK_MODE the response comes from `piq.mock` and still goes through validation.
 """
 
@@ -22,6 +23,22 @@ log = logging.getLogger("piq.llm")
 
 class LLMError(RuntimeError):
     pass
+
+
+class RateLimited(LLMError):
+    """Groq's free-tier quota is exhausted even after the SDK's own retries."""
+
+    def __init__(self, retry_after: float | None):
+        self.retry_after = retry_after
+        hint = f"Try again in about {retry_after:.0f} s." if retry_after else "Try again shortly."
+        super().__init__(f"Groq free-tier rate limit reached. {hint}")
+
+
+def _retry_after(headers) -> float | None:
+    try:
+        return float(headers.get("retry-after"))
+    except (TypeError, ValueError):
+        return None
 
 
 @lru_cache
@@ -53,6 +70,8 @@ def _complete(model: str, messages: list[dict], temperature: float) -> tuple[str
             f"Groq no longer serves model {model!r}. Update GROQ_MODEL_LARGE / "
             "GROQ_MODEL_SMALL in .env (see console.groq.com/docs/models)."
         ) from e
+    except groq.RateLimitError as e:
+        raise RateLimited(_retry_after(e.response.headers)) from e
     except groq.BadRequestError as e:
         # Groq rejects output that is not valid JSON in json_object mode; treat as repairable.
         if "json_validate_failed" in str(e):
