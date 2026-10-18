@@ -1,0 +1,26 @@
+# Planning document — never tracked
+PlacementIQ_Project_Spec*
+
+# Secrets
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Runtime data (recreate with: python -m scripts.seed)
+data/*.db
+data/*.db-journal
+
+# Evaluation output (regenerate with: python -m evaluation.run_eval)
+evaluation/results/*
+!evaluation/results/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
