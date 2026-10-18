@@ -1,0 +1,9 @@
+# Streamlit server settings for PlacementIQ.
+
+[server]
+# Resumes over 5 MB are rejected by piq/resume.py anyway; refuse them before they reach memory.
+maxUploadSize = 5
+
+[browser]
+# The app handles student resumes: send no usage telemetry.
+gatherUsageStats = false
