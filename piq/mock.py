@@ -62,7 +62,6 @@ def _profile(ctx: dict) -> dict:
 def _planner(ctx: dict) -> dict:
     w = ctx["weakness"]
     pool = weak_topics(w) or sorted(TOPICS, key=lambda t: -w[t])
-    weak = set(weak_topics(w))
     days = []
     for i in range(7):
         t = pool[i % len(pool)]
@@ -71,7 +70,7 @@ def _planner(ctx: dict) -> dict:
                 "day": i + 1,
                 "topic": t,
                 "subtopics": [f"{t} core concepts", f"{t} practice problems"],
-                "duration_min": 120 if t in weak else 60,
+                "duration_min": 30 * round((60 + 120 * w[t]) / 30),  # 60-180, grows with weakness
                 "practice_goal": f"Solve 10 {t} questions and review mistakes",
             }
         )
