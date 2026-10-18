@@ -19,8 +19,9 @@ from pydantic import BaseModel
 from piq import db
 from piq.config import settings
 
-# generate(inputs, feedback) -> (output, agent_logs id); verify(inputs, output) -> reasons
-Generate = Callable[[dict, list[str]], tuple[BaseModel, int]]
+# generate(inputs, feedback, previous output or None) -> (output, agent_logs id)
+# verify(inputs, output) -> rejection reasons (empty = approved)
+Generate = Callable[[dict, list[str], Any], tuple[BaseModel, int]]
 Verify = Callable[[dict, BaseModel], list[str]]
 OnEvent = Callable[[str], None]
 
@@ -56,7 +57,7 @@ class CriticRejected(RuntimeError):
 
 def build(task: Task):
     def generate(s: CriticState) -> dict:
-        out, log_id = task.generate(s["inputs"], s["reasons"])
+        out, log_id = task.generate(s["inputs"], s["reasons"], s["output"])
         return {"output": out, "log_id": log_id, "attempt": s["attempt"] + 1}
 
     def verify(s: CriticState) -> dict:

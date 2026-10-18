@@ -8,7 +8,7 @@ def _logged_task(outputs: list[str], name: str = "t") -> graph.Task:
     """generate yields `outputs` in order; verify rejects anything equal to 'bad'."""
     it = iter(outputs)
 
-    def gen(inp, reasons):
+    def gen(inp, reasons, previous):
         return next(it), db.log_call(name, "mock", 0, 0, 0)
 
     return graph.Task(name, gen, lambda inp, out: ["is bad"] if out == "bad" else [])
@@ -44,13 +44,13 @@ def test_zero_retry_budget_means_single_attempt(monkeypatch):
 def test_retry_receives_previous_rejection_reasons():
     seen: list[list[str]] = []
 
-    def gen(inp, reasons):
-        seen.append(list(reasons))
+    def gen(inp, reasons, previous):
+        seen.append((list(reasons), previous))
         return ("good" if reasons else "bad"), db.log_call("r", "mock", 0, 0, 0)
 
     task = graph.Task("r", gen, lambda inp, out: [] if out == "good" else ["must be good"])
     assert graph.run_or_raise(task, {"x": 1}) == "good"
-    assert seen == [[], ["must be good"]]
+    assert seen == [([], None), (["must be good"], "bad")]  # retry sees the rejected output
 
 
 def test_every_attempt_is_marked_in_agent_logs():

@@ -10,6 +10,23 @@ import re
 from piq.config import TOPICS, WEAK_MIN_SHARE, WEAK_THRESHOLD
 from piq.schemas import InterviewTurn, ProfileExtraction, QuizSet, WeeklyPlan
 
+_QUESTION_REASON = re.compile(r"^question (\d+): (.*)$", re.S)
+
+
+def question_reason(index: int, message: str) -> str:
+    return f"question {index}: {message}"
+
+
+def question_issues(reasons: list[str]) -> dict[int, list[str]] | None:
+    """index -> messages when every reason concerns a single question, else None."""
+    issues: dict[int, list[str]] = {}
+    for r in reasons:
+        m = _QUESTION_REASON.match(r)
+        if m is None:
+            return None
+        issues.setdefault(int(m[1]), []).append(m[2])
+    return issues or None
+
 
 def text_hash(text: str) -> str:
     norm = re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
@@ -80,10 +97,12 @@ def check_quiz(
     seen = {text_hash(t) for t in previous}
     for i, q in enumerate(quiz.questions):
         if len({o.strip().lower() for o in q.options}) < 4:
-            reasons.append(f"question {i}: options are not distinct")
+            reasons.append(question_reason(i, "options are not distinct"))
         h = text_hash(q.text)
         if h in seen:
-            reasons.append(f"question {i}: duplicate of an earlier question ({q.text[:60]!r})")
+            reasons.append(
+                question_reason(i, f"duplicate of an earlier question ({q.text[:60]!r})")
+            )
         seen.add(h)
     return reasons
 

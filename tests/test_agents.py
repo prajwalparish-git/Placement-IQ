@@ -134,3 +134,56 @@ def test_interview_final_turn_is_enforced_in_code(profile):
 def test_answer_evaluation_overall_is_mean(profile):
     ev = agents.evaluate_answer(profile, "HR", "Tell me about yourself.", "situation task " * 20)
     assert ev.overall == sum(ev.scores.values()) / 4
+
+
+def test_only_flagged_questions_are_regenerated(monkeypatch):
+    asked: list[int] = []
+    real_quiz = mock._HANDLERS["quiz"]
+    monkeypatch.setitem(
+        mock._HANDLERS, "quiz", lambda ctx: asked.append(ctx["count"]) or real_quiz(ctx)
+    )
+    first = graph.run(agents.QUIZ_TASK, agents.quiz_inputs("DBMS", "easy", []))
+    # attempt 1: 5 questions, q0 has duplicate options; attempt 2 asks for 1 replacement only
+    assert first.approved and asked == [5, 1]
+    assert len({q.text for q in first.output.questions}) == 5
+
+
+def test_critic_judges_each_question_once(monkeypatch):
+    batches: list[int] = []
+    rejected_once = {"done": False}
+
+    def critic(ctx):
+        batches.append(ctx["count"])
+        reject = not rejected_once["done"]
+        rejected_once["done"] = True
+        return {
+            "verdicts": [
+                {"index": i, "valid": not (reject and i == 3), "reason": "ambiguous"}
+                for i in range(ctx["count"])
+            ]
+        }
+
+    monkeypatch.setitem(mock._HANDLERS, "critic", critic)
+    r = graph.run(agents.QUIZ_TASK, agents.quiz_inputs("CN", "medium", []))
+    assert r.approved
+    assert batches == [5, 1]  # the 4 approved questions are not re-sent
+    # Re-verifying the final quiz (as the evaluation harness does) costs no LLM call.
+    assert agents.verify_quiz(agents.quiz_inputs("CN", "medium", []), r.output) == []
+    assert batches == [5, 1]
+
+
+def test_critic_with_one_based_indices_is_understood(monkeypatch):
+    def one_based(ctx):
+        return {
+            "verdicts": [{"index": i + 1, "valid": True, "reason": ""} for i in range(ctx["count"])]
+        }
+
+    monkeypatch.setitem(mock._HANDLERS, "critic", one_based)
+    assert graph.run(agents.QUIZ_TASK, agents.quiz_inputs("OS", "easy", [])).approved
+
+
+def test_missing_critic_verdict_counts_as_rejection(monkeypatch):
+    monkeypatch.setitem(mock._HANDLERS, "critic", lambda ctx: {"verdicts": []})
+    r = graph.run(agents.QUIZ_TASK, agents.quiz_inputs("OS", "easy", []))
+    assert not r.approved
+    assert r.reasons[0] == "question 0: the critic gave no verdict"

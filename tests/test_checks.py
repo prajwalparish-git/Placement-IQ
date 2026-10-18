@@ -113,3 +113,10 @@ def test_turn_checks_single_question_and_repeats():
     ]
     assert checks.check_turn(_turn("Tell me about yourself."), ["tell me about yourself"])
     assert checks.check_turn(_turn("What did you build?"), ["Tell me about yourself."]) == []
+
+
+def test_question_reasons_round_trip():
+    reasons = [checks.question_reason(2, "two answers"), checks.question_reason(0, "dup: a: b")]
+    assert checks.question_issues(reasons) == {2: ["two answers"], 0: ["dup: a: b"]}
+    assert checks.question_issues([*reasons, "topic must be OS, got CN"]) is None
+    assert checks.question_issues([]) is None

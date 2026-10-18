@@ -4,7 +4,9 @@ Agents read inputs and return validated models; they never write domain tables
 (callers persist results). They do write agent_logs via piq.llm.
 """
 
+import hashlib
 import json
+import threading
 from functools import lru_cache
 
 from piq import checks, llm, prompts
@@ -14,6 +16,8 @@ from piq.schemas import (
     AnswerEvaluation,
     InterviewTurn,
     ProfileExtraction,
+    Question,
+    QuestionVerdict,
     QuizCritique,
     QuizSet,
     StudentProfile,
@@ -42,7 +46,7 @@ def missing_topics(profile: StudentProfile) -> set[str]:
 # --- Profile Agent -------------------------------------------------------------
 
 
-def _profile_gen(inp: dict, reasons: list[str]) -> tuple[ProfileExtraction, int]:
+def _profile_gen(inp: dict, reasons: list[str], _prev: object) -> tuple[ProfileExtraction, int]:
     required = list(roles()[inp["target_role"]])
     user = (
         f"Target role: {inp['target_role']}\nRequired skills: {json.dumps(required)}\n\n"
@@ -88,7 +92,7 @@ def create_profile(
 # --- Planner Agent -------------------------------------------------------------
 
 
-def _planner_gen(inp: dict, reasons: list[str]) -> tuple[WeeklyPlan, int]:
+def _planner_gen(inp: dict, reasons: list[str], _prev: object) -> tuple[WeeklyPlan, int]:
     w = inp["weakness"]
     weak = set(checks.weak_topics(w))
     table = "\n".join(
@@ -167,22 +171,88 @@ def suggest_difficulty(last_score: float | None, current: str = "medium") -> str
     return order[i]
 
 
-def _quiz_gen(inp: dict, reasons: list[str]) -> tuple[QuizSet, int]:
-    prev = "\n".join(f"- {q}" for q in inp["previous"][:15]) or "none"
+def _ask_questions(
+    inp: dict, count: int, avoid: list[str], note: str, first: bool
+) -> tuple[QuizSet, int]:
+    existing = "\n".join(f"- {q}" for q in avoid[:20]) or "none"
     user = (
         f"Topic: {inp['topic']}\nDifficulty: {inp['difficulty']}\n"
-        f"Number of questions: {inp['count']}\n\nPrevious questions (do not repeat):\n{prev}"
-        f"{_feedback(reasons)}"
+        f"Number of questions: {count}\n\n"
+        f"Existing questions (do not repeat or paraphrase):\n{existing}{note}"
     )
     return llm.call(
         QuizSet,
         agent="quiz",
         system=prompts.QUIZ,
         user=user,
-        context={**inp, "first_attempt": not reasons},
+        context={**inp, "count": count, "previous": avoid, "first_attempt": first},
         student_id=inp["student_id"],
         temperature=0.8,
     )
+
+
+def _quiz_gen(inp: dict, reasons: list[str], previous: QuizSet | None) -> tuple[QuizSet, int]:
+    issues = checks.question_issues(reasons) if previous else None
+    if not issues:  # first attempt, or a set-level problem: generate the whole quiz
+        return _ask_questions(inp, inp["count"], inp["previous"], _feedback(reasons), not reasons)
+    # Only some questions failed: regenerate just those and keep the approved ones.
+    bad = sorted(i for i in issues if i < len(previous.questions))
+    rejected = "\n".join(f"- {previous.questions[i].text} -> {'; '.join(issues[i])}" for i in bad)
+    note = (
+        f"\n\nWrite {len(bad)} replacement question(s). These were rejected; "
+        f"avoid the same problems:\n{rejected}"
+    )
+    avoid = [q.text for q in previous.questions] + inp["previous"]
+    fresh, log_id = _ask_questions(inp, len(bad), avoid, note, first=False)
+    questions = list(previous.questions)
+    for i, q in zip(bad, fresh.questions, strict=False):
+        questions[i] = q
+    return previous.model_copy(update={"questions": questions}), log_id
+
+
+# Critic verdicts keyed by exact question content: each question is judged once, so a
+# retry only pays for the replacements. Shared across sessions (a verdict does not depend
+# on the student), bounded, and lock-protected for Streamlit's threads.
+_VERDICTS: dict[str, QuestionVerdict] = {}
+_VERDICTS_MAX = 2000
+_VERDICTS_LOCK = threading.Lock()
+
+
+def clear_verdict_cache() -> None:
+    with _VERDICTS_LOCK:
+        _VERDICTS.clear()
+
+
+def _verdict_key(topic: str, q: Question) -> str:
+    raw = json.dumps([topic, q.text, q.options, q.correct_index])
+    return hashlib.sha1(raw.encode()).hexdigest()
+
+
+def _critique(inp: dict, quiz: QuizSet, pending: list[int], keys: list[str]) -> None:
+    listing = "\n\n".join(
+        f"[{n}] {quiz.questions[i].text}\n"
+        + "\n".join(f"  {j}. {o}" for j, o in enumerate(quiz.questions[i].options))
+        + f"\n  marked correct: {quiz.questions[i].correct_index}"
+        for n, i in enumerate(pending)
+    )
+    critique, _ = llm.call(
+        QuizCritique,
+        agent="critic",
+        system=prompts.CRITIC,
+        user=f"Topic: {quiz.topic}\n\n{listing}",
+        context={"count": len(pending)},
+        student_id=inp["student_id"],
+        temperature=0.0,
+    )
+    by_index = {v.index: v for v in critique.verdicts}
+    if 0 not in by_index and set(by_index) == set(range(1, len(pending) + 1)):
+        by_index = {k - 1: v for k, v in by_index.items()}  # tolerate 1-based numbering
+    with _VERDICTS_LOCK:
+        for n, i in enumerate(pending):
+            if (v := by_index.get(n)) is not None:
+                _VERDICTS[keys[i]] = v
+        while len(_VERDICTS) > _VERDICTS_MAX:
+            _VERDICTS.pop(next(iter(_VERDICTS)))
 
 
 def verify_quiz(inp: dict, quiz: QuizSet) -> list[str]:
@@ -191,23 +261,19 @@ def verify_quiz(inp: dict, quiz: QuizSet) -> list[str]:
     )
     if reasons:  # deterministic failures: skip the paid LLM check
         return reasons
-    listing = "\n\n".join(
-        f"[{i}] {q.text}\n"
-        + "\n".join(f"  {j}. {o}" for j, o in enumerate(q.options))
-        + f"\n  marked correct: {q.correct_index}"
-        for i, q in enumerate(quiz.questions)
-    )
-    critique, _ = llm.call(
-        QuizCritique,
-        agent="critic",
-        system=prompts.CRITIC,
-        user=f"Topic: {quiz.topic}\n\n{listing}",
-        context={"count": len(quiz.questions)},
-        student_id=inp["student_id"],
-        temperature=0.0,
-    )
+    keys = [_verdict_key(quiz.topic, q) for q in quiz.questions]
+    with _VERDICTS_LOCK:
+        pending = [i for i, k in enumerate(keys) if k not in _VERDICTS]
+    if pending:
+        _critique(inp, quiz, pending, keys)
+    with _VERDICTS_LOCK:
+        verdicts = [_VERDICTS.get(k) for k in keys]
     return [
-        f"question {v.index}: {v.reason or 'invalid'}" for v in critique.verdicts if not v.valid
+        checks.question_reason(
+            i, "the critic gave no verdict" if v is None else v.reason or "invalid"
+        )
+        for i, v in enumerate(verdicts)
+        if v is None or not v.valid
     ]
 
 
@@ -253,7 +319,7 @@ def _profile_brief(p: StudentProfile) -> str:
     )
 
 
-def _interview_gen(inp: dict, reasons: list[str]) -> tuple[InterviewTurn, int]:
+def _interview_gen(inp: dict, reasons: list[str], _prev: object) -> tuple[InterviewTurn, int]:
     hist = "\n".join(f"Q: {h['question']}\nA: {h['answer']}" for h in inp["history"]) or "none"
     past = "\n".join(f"Q: {h['question']}\nA: {h['answer'][:300]}" for h in inp["past"][:5])
     user = (

@@ -19,6 +19,9 @@ engineering syllabus). Each question has exactly 4 distinct options and exactly 
 defensibly correct answer; `correct_index` is its 0-based index. Stay strictly inside
 the requested topic and difficulty. Do not repeat or paraphrase any listed previous
 question. `explanation` justifies the answer in 1-2 sentences.
+Before answering, check every distractor is clearly wrong. Avoid stems that more than
+one option satisfies (e.g. "Which algorithm is non-preemptive?" when several listed
+options are), "all/none of the above", and NOT-questions where more than one option fails.
 bloom_level is one of: remember, understand, apply, analyze."""
 
 CRITIC = """You are a strict exam moderator. For each multiple-choice question decide if it

@@ -1,6 +1,6 @@
 import pytest
 
-from piq import db
+from piq import agents, db
 from piq.config import settings
 
 
@@ -15,5 +15,6 @@ def isolated(tmp_path, monkeypatch):
         monkeypatch.delenv(k, raising=False)
     settings.cache_clear()
     db.init_db()
+    agents.clear_verdict_cache()
     yield
     settings.cache_clear()
