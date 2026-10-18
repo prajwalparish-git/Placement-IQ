@@ -44,8 +44,8 @@ def test_plan_rejected_when_weak_topics_underweighted():
         topics=("OS", "DSA", "DSA", "CN", "CN", "OOP", "OOP"),
         minutes=(30, 120, 120, 120, 120, 120, 120),
     )
-    [reason] = checks.check_plan(plan, 1, weakness)
-    assert "at least 50%" in reason
+    share, order = checks.check_plan(plan, 1, weakness)
+    assert "at least 50%" in share and "fewer minutes than a non-weak topic" in order
 
 
 def test_plan_rejected_when_a_weak_topic_is_missing():
@@ -120,3 +120,13 @@ def test_question_reasons_round_trip():
     assert checks.question_issues(reasons) == {2: ["two answers"], 0: ["dup: a: b"]}
     assert checks.question_issues([*reasons, "topic must be OS, got CN"]) is None
     assert checks.question_issues([]) is None
+
+
+def test_plan_rejected_when_weak_topic_gets_less_than_a_strong_one():
+    weakness = checks.topic_weakness({"OS": 20.0, "DBMS": 30.0}, set())
+    plan = f.plan(
+        topics=("OS", "OS", "OS", "OS", "DBMS", "DSA", "DSA"),
+        minutes=(120, 120, 120, 120, 60, 120, 120),
+    )
+    [reason] = checks.check_plan(plan, 1, weakness)  # share is fine (66%), order is not
+    assert "['DBMS'] get fewer minutes than a non-weak topic (240)" in reason

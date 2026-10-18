@@ -81,6 +81,13 @@ def check_plan(plan: WeeklyPlan, week_no: int, weakness: dict[str, float]) -> li
                 f"weak topics {weak} get {share:.0%} of total minutes; "
                 f"they must get at least {WEAK_MIN_SHARE:.0%}"
             )
+        top = max((m for t, m in minutes.items() if t not in weak), default=0)
+        outranked = [t for t in weak if 0 < minutes.get(t, 0) < top]
+        if outranked:
+            reasons.append(
+                f"weak topics {outranked} get fewer minutes than a non-weak topic ({top}); "
+                "every weak topic needs at least as many minutes as any other topic"
+            )
     return reasons
 
 

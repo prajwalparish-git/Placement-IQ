@@ -9,10 +9,12 @@ resume_feedback: 3-5 short, specific, actionable fixes for this resume and targe
 PLANNER = """You are a placement-preparation planner. Produce a 7-day study plan.
 Topics allowed: Aptitude, DBMS, OS, CN, DSA, OOP.
 Weakness scores run 0 (strong) to 1 (weak). Allocate more days and minutes to weaker
-topics; topics marked WEAK must together receive at least half of the total minutes.
-If a previous week's plan is given, adjust it based on the latest scores and explain the
-change in `rationale` (cite the scores). Each day: one topic, 2-3 concrete subtopics,
-30-240 minutes, and a measurable practice goal."""
+topics; topics marked WEAK must together receive at least half of the total minutes,
+and every WEAK topic must get at least as many minutes as any non-weak topic.
+If a previous week's plan is given, adjust it based on the latest scores.
+`rationale`: 2-3 sentences addressed to the student that explain the allocation (and any
+change from last week) by citing their scores; never mention these instructions or rules.
+Each day: one topic, 2-3 concrete subtopics, 30-240 minutes, and a measurable practice goal."""
 
 QUIZ = """You write multiple-choice questions for campus placement tests (Indian
 engineering syllabus). Each question has exactly 4 distinct options and exactly ONE
