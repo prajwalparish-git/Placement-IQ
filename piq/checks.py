@@ -69,9 +69,9 @@ def check_plan(plan: WeeklyPlan, week_no: int, weakness: dict[str, float]) -> li
         reasons.append(f"week_no must be {week_no}, got {plan.week_no}")
     if sorted(d.day for d in plan.days) != list(range(1, 8)):
         reasons.append("days must be numbered 1 to 7 exactly once each")
+    minutes = plan.minutes_by_topic()
     weak = weak_topics(weakness)
     if weak:
-        minutes = plan.minutes_by_topic()
         absent = [t for t in weak if t not in minutes]
         if absent:
             reasons.append(f"weak topics missing from the plan: {absent}")
@@ -81,13 +81,25 @@ def check_plan(plan: WeeklyPlan, week_no: int, weakness: dict[str, float]) -> li
                 f"weak topics {weak} get {share:.0%} of total minutes; "
                 f"they must get at least {WEAK_MIN_SHARE:.0%}"
             )
-        top = max((m for t, m in minutes.items() if t not in weak), default=0)
-        outranked = [t for t in weak if 0 < minutes.get(t, 0) < top]
-        if outranked:
-            reasons.append(
-                f"weak topics {outranked} get fewer minutes than a non-weak topic ({top}); "
-                "every weak topic needs at least as many minutes as any other topic"
-            )
+    # Among scheduled topics, minutes must not decrease as weakness increases (ties are free).
+    inversions = sorted(
+        (
+            (a, b)
+            for a in minutes
+            for b in minutes
+            if weakness[a] > weakness[b] and minutes[a] < minutes[b]
+        ),
+        key=lambda p: weakness[p[1]] - weakness[p[0]],
+    )
+    if inversions:
+        pairs = "; ".join(
+            f"{a} ({weakness[a]:.2f}) {minutes[a]} < {b} ({weakness[b]:.2f}) {minutes[b]}"
+            for a, b in inversions[:3]
+        )
+        reasons.append(
+            f"minutes must not decrease as weakness increases: {pairs}; "
+            "a weaker topic must never get fewer minutes than a less-weak one"
+        )
     return reasons
 
 

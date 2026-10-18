@@ -45,7 +45,7 @@ def test_plan_rejected_when_weak_topics_underweighted():
         minutes=(30, 120, 120, 120, 120, 120, 120),
     )
     share, order = checks.check_plan(plan, 1, weakness)
-    assert "at least 50%" in share and "fewer minutes than a non-weak topic" in order
+    assert "at least 50%" in share and "must not decrease as weakness increases" in order
 
 
 def test_plan_rejected_when_a_weak_topic_is_missing():
@@ -122,11 +122,31 @@ def test_question_reasons_round_trip():
     assert checks.question_issues([]) is None
 
 
-def test_plan_rejected_when_weak_topic_gets_less_than_a_strong_one():
+def test_plan_rejected_when_a_weak_topic_gets_less_than_a_strong_one():
     weakness = checks.topic_weakness({"OS": 20.0, "DBMS": 30.0}, set())
     plan = f.plan(
         topics=("OS", "OS", "OS", "OS", "DBMS", "DSA", "DSA"),
         minutes=(120, 120, 120, 120, 60, 120, 120),
     )
     [reason] = checks.check_plan(plan, 1, weakness)  # share is fine (66%), order is not
-    assert "['DBMS'] get fewer minutes than a non-weak topic (240)" in reason
+    assert "DBMS (0.70) 60 < DSA (0.40) 240" in reason
+
+
+def test_plan_rejected_when_the_weakest_topic_is_not_first():
+    # Seen live: after a 20% OS quiz, OS (0.80) got 150 min while DSA (0.70) got 300.
+    weakness = checks.topic_weakness({"OS": 20.0}, missing_topics={"DSA", "DBMS"})
+    plan = f.plan(
+        topics=("DSA", "DSA", "OS", "DBMS", "DSA", "OS", "DBMS"),
+        minutes=(100, 100, 75, 75, 100, 75, 75),
+    )
+    [reason] = checks.check_plan(plan, 1, weakness)
+    assert reason.startswith("minutes must not decrease as weakness increases: OS (0.80) 150 < DSA")
+
+
+def test_plan_ties_in_weakness_are_unconstrained():
+    weakness = checks.topic_weakness({}, missing_topics={"OS", "DBMS"})  # both 0.70
+    plan = f.plan(
+        topics=("OS", "OS", "OS", "OS", "DBMS", "DBMS", "CN"),
+        minutes=(120, 120, 120, 120, 90, 90, 60),
+    )
+    assert checks.check_plan(plan, 1, weakness) == []
