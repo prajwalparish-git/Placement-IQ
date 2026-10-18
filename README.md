@@ -13,15 +13,15 @@ streamlit run app.py
 Without a `.env` file the app runs in **MOCK_MODE**: canned responses and no network.
 
 ## Live mode (Groq free tier)
-1. Copy `.env.example` to `.env`.
-2. Set `GROQ_API_KEY`, `GROQ_MODEL_LARGE` and `GROQ_MODEL_SMALL`, using current model IDs from the Groq console.
-3. Set `MOCK_MODE=false`.
+1. Copy `.env.example` to `.env` and set `GROQ_API_KEY`.
+2. Set `MOCK_MODE=false`. The model IDs are already filled in (`openai/gpt-oss-120b` and `openai/gpt-oss-20b`, verified 2026-10-19).
+3. Before a demo, run `python -m scripts.check_models`. It confirms both models are still served, that JSON mode works, and how much quota is left (each model allows 8,000 tokens/minute and 1,000 requests/day).
 
 ## Demo path
 1. **Onboard:** pick a sample resume. You see the profile, missing skills and readiness.
 2. **Weekly plan:** generate a week. Weak topics get the most minutes.
-3. **Quiz:** take one and score low on purpose. The status box shows the critic rejecting and regenerating.
-4. **Weekly plan:** generate the next week. The chart shows minutes moving toward the low-scoring topic.
+3. **Quiz:** take one and score low on purpose. When the critic rejects a question, the status box shows it, and only that question is regenerated.
+4. **Weekly plan:** generate the next week. The weakest topic now gets the most minutes, and the chart shows the shift.
 5. **Mock interview:** give a vague answer and get a probing follow-up and a rubric score.
 6. **Dashboard:** trends, plus agent latency, tokens and critic rejection rate.
 
@@ -29,7 +29,7 @@ Without a `.env` file the app runs in **MOCK_MODE**: canned responses and no net
 ```
 pip install -r requirements-dev.txt
 pytest                                   # offline, includes headless UI tests
-python -m evaluation.run_eval            # baseline vs PlacementIQ on 20 frozen cases (live mode)
+python -m evaluation.run_eval            # baseline vs PlacementIQ on 20 frozen cases (live, ~150 calls)
 python -m scripts.export_graph           # docs/critic_graph.mmd for the report
 ```
 
