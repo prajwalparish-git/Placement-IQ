@@ -96,3 +96,52 @@ def test_interview_session_runs_to_completion(seeded):
 def test_dashboard_renders(seeded):
     at = _app(seeded, "views/dashboard.py")
     assert at.metric[1].value == "24"  # seeded quizzes
+
+
+def test_onboard_requires_a_resume_or_sample():
+    at = _app()
+    at.text_input[0].input("UI0002")
+    _button(at, "Analyse resume").click().run()
+    assert any("Upload a resume or pick a sample" in e.value for e in at.error)
+    assert db.list_students() == []
+
+
+def test_failed_follow_up_offers_retry_without_reanswering(seeded, monkeypatch):
+    from piq import agents, llm
+
+    real, calls = agents.next_question, []
+
+    def fails_second_time(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 2:
+            raise llm.LLMError("Groq API error: temporarily unavailable")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(agents, "next_question", fails_second_time)
+    at = _app(seeded, "views/interview.py")
+    _button(at, "Start session").click().run()
+    turns_before = len(db.past_turns(seeded))
+    at.chat_input[0].set_value("A complete answer with a concrete example " * 3).run()
+    assert not at.exception
+    retry = _button(at, "Retry next question")  # answer saved, follow-up failed
+    assert any("last run failed" in s.label for s in at.status)
+    assert len(db.past_turns(seeded)) == turns_before + 1
+    retry.click().run()
+    assert not at.exception and not [b for b in at.button if b.label == "Retry next question"]
+    assert at.session_state["interview"].current is not None
+    assert len(db.past_turns(seeded)) == turns_before + 1  # not saved twice
+
+
+def test_failed_quiz_generation_stays_visible(seeded, monkeypatch):
+    from piq import graph, services
+
+    def rejected(*args, **kwargs):
+        raise graph.CriticRejected("quiz", ["question 0: two answers correct"])
+
+    monkeypatch.setattr(services, "start_quiz", rejected)
+    at = _app(seeded, "views/quiz.py")
+    _button(at, "Generate quiz").click().run()
+    assert any("two answers correct" in e.value for e in at.error)
+    at.run()  # any rerun keeps the failure visible
+    assert any(s.label == "Quiz agent — last run failed" for s in at.status)
+    assert "quiz" not in at.session_state

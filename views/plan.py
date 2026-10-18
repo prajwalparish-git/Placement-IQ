@@ -1,42 +1,32 @@
 import streamlit as st
 
-from piq import agents, checks, db, formatter
+from piq import formatter, services
 from piq.ui import require_profile, run_agent, show_last_run
 
 st.header("Weekly plan")
-sid, profile = require_profile()
-
-plans = db.list_plans(sid)
-scores = db.topic_performance(sid)
-weakness = checks.topic_weakness(scores, agents.missing_topics(profile))
-next_week = plans[-1].week_no + 1 if plans else 1
+sid, _ = require_profile()
+ov = services.plan_overview(sid)
 
 left, right = st.columns([1, 2])
 with left:
     st.subheader("Current weakness")
-    st.dataframe(formatter.weakness_table(weakness), width="stretch")
+    st.dataframe(formatter.weakness_table(ov.weakness), width="stretch")
     st.caption("1 = weak. From the last 3 quiz scores per topic, else from resume gaps.")
-    if st.button(f"Generate week {next_week} plan", type="primary"):
-        plan = run_agent(
-            "Planner agent",
-            lambda ev: agents.plan_week(
-                profile, scores, next_week, plans[-1] if plans else None, sid, ev
-            ),
-        )
-        if plan:
-            db.save_plan(sid, plan)
-            st.rerun()
+    if st.button(f"Generate week {ov.next_week} plan", type="primary") and run_agent(
+        "Planner agent", lambda ev: services.generate_next_plan(sid, ev)
+    ):
+        st.rerun()
     show_last_run("Planner agent")
 
 with right:
-    if not plans:
+    if not ov.plans:
         st.info("No plan yet. Generate week 1.")
         st.stop()
-    week = st.selectbox("Week", [p.week_no for p in plans], index=len(plans) - 1)
-    shown = next(p for p in plans if p.week_no == week)
+    week = st.selectbox("Week", [p.week_no for p in ov.plans], index=len(ov.plans) - 1)
+    shown = next(p for p in ov.plans if p.week_no == week)
     st.markdown(f"**Rationale:** {shown.rationale}")
     st.dataframe(formatter.plan_table(shown), width="stretch")
 
-if len(plans) >= 2:
+if len(ov.plans) >= 2:
     st.subheader("Minutes per topic, week over week")
-    st.bar_chart(formatter.plan_minutes(plans[-2:]), stack=False)
+    st.bar_chart(formatter.plan_minutes(ov.plans[-2:]), stack=False)

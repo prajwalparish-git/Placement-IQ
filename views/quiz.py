@@ -1,6 +1,6 @@
 import streamlit as st
 
-from piq import agents, db, formatter
+from piq import formatter, services
 from piq.checks import text_hash
 from piq.config import DIFFICULTIES, TOPICS
 from piq.ui import require_profile, run_agent, show_last_run
@@ -9,9 +9,8 @@ st.header("Quiz")
 sid, _ = require_profile()
 
 if result := st.session_state.get("quiz_result"):
-    quiz, chosen, pct, nxt = result
-    st.markdown(formatter.score_line(pct, quiz.topic, nxt))
-    st.markdown(formatter.quiz_review_md(quiz, chosen))
+    st.markdown(formatter.score_line(result.score_pct, result.quiz.topic, result.next_difficulty))
+    st.markdown(formatter.quiz_review_md(result.quiz, result.chosen))
     if st.button("New quiz"):
         st.session_state.pop("quiz_result")
         st.rerun()
@@ -20,10 +19,7 @@ if result := st.session_state.get("quiz_result"):
 quiz = st.session_state.get("quiz")
 if quiz is None:
     topic = st.selectbox("Topic", TOPICS)
-    last = db.last_attempt(sid, topic)
-    suggested = agents.suggest_difficulty(
-        last["score_pct"] if last else None, last["difficulty"] if last else "medium"
-    )
+    suggested = services.suggested_difficulty(sid, topic)
     difficulty = st.radio(
         "Difficulty",
         DIFFICULTIES,
@@ -32,14 +28,11 @@ if quiz is None:
         help="Pre-selected from your last score on this topic.",
     )
     if st.button("Generate quiz", type="primary"):
-        previous = db.asked_questions(sid, topic)
-        quiz = run_agent(
-            "Quiz agent",
-            lambda ev: agents.make_quiz(topic, difficulty, previous, student_id=sid, on_event=ev),
-        )
+        quiz = run_agent("Quiz agent", lambda ev: services.start_quiz(sid, topic, difficulty, ev))
         if quiz:
             st.session_state["quiz"] = quiz
             st.rerun()
+    show_last_run("Quiz agent")  # keeps a failed generation visible
     st.stop()
 
 st.subheader(f"{quiz.topic} · {quiz.difficulty}")
@@ -57,8 +50,6 @@ with st.form(f"quiz-{qid}"):
         for i, q in enumerate(quiz.questions, 1)
     ]
     if st.form_submit_button("Submit", type="primary"):
-        pct = db.save_quiz_attempt(sid, quiz, chosen)
-        nxt = agents.suggest_difficulty(pct, quiz.difficulty)
-        st.session_state["quiz_result"] = (quiz, chosen, pct, nxt)
+        st.session_state["quiz_result"] = services.submit_quiz(sid, quiz, chosen)
         st.session_state.pop("quiz")
         st.rerun()

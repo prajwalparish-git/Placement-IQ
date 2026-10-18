@@ -4,19 +4,21 @@ from collections.abc import Callable
 
 import streamlit as st
 
-from piq import db
+from piq import services
 from piq.graph import CriticRejected, OnEvent
 from piq.llm import LLMError
+from piq.resume import ResumeError
 from piq.schemas import StudentProfile
 
 NEW = "— new student —"
 PER_STUDENT_KEYS = ("quiz", "quiz_result", "interview")
 RUN_PREFIX = "run:"  # session key prefix for persisted agent step logs
+FAILED = "failed: "
+USER_ERRORS = (CriticRejected, LLMError, services.ServiceError, ResumeError)
 
 
 def student_selector() -> None:
-    students = db.list_students()
-    labels = {f"{s['usn']} — {s['name']}": s["id"] for s in students}
+    labels = {f"{s['usn']} — {s['name']}": s["id"] for s in services.list_students()}
     ids = list(labels.values())
     current = st.session_state.get("student_id")
     index = ids.index(current) + 1 if current in ids else 0
@@ -31,7 +33,7 @@ def student_selector() -> None:
 
 def require_profile() -> tuple[str, StudentProfile]:
     sid = st.session_state.get("student_id")
-    profile = db.latest_profile(sid) if sid else None
+    profile = services.current_profile(sid)
     if not profile:
         st.info("Select a student in the sidebar, or onboard one on the Onboard page.")
         st.stop()
@@ -42,15 +44,22 @@ def _rejected(events: list[str]) -> bool:
     return any(m.startswith("critic rejected") for m in events)
 
 
+def _failed(events: list[str]) -> bool:
+    return any(m.startswith(FAILED) for m in events)
+
+
 def _line(msg: str) -> str:
+    if msg.startswith(FAILED):
+        return "❌ " + msg
     return ("🔁 " if msg.startswith("critic rejected") else "✔️ ") + msg
 
 
 def run_agent[T](label: str, fn: Callable[[OnEvent], T]) -> T | None:
     """Run an agent call inside a live status box that shows every generate/critic step.
 
-    The step log is also kept in session state: views call `st.rerun()` after saving,
-    which would otherwise wipe the only visible evidence of the critic loop.
+    The step log (including a failure) is also kept in session state: views call
+    `st.rerun()` after saving, which would otherwise wipe the only visible evidence
+    of the critic loop. Returns None after showing a user-facing error.
     """
     events: list[str] = []
     with st.status(label, expanded=True) as box:
@@ -61,7 +70,8 @@ def run_agent[T](label: str, fn: Callable[[OnEvent], T]) -> T | None:
 
         try:
             out = fn(on_event)
-        except (CriticRejected, LLMError) as e:
+        except USER_ERRORS as e:
+            events.append(f"{FAILED}{e}")
             box.update(label=f"{label} — failed", state="error")
             st.error(str(e))
             return None
@@ -72,9 +82,17 @@ def run_agent[T](label: str, fn: Callable[[OnEvent], T]) -> T | None:
 
 
 def show_last_run(label: str) -> None:
-    """Re-render the step log of the last `run_agent(label, ...)`; expanded if it had retries."""
+    """Re-render the step log of the last `run_agent(label, ...)`.
+
+    Expanded when it contained a retry or a failure, so neither goes unnoticed.
+    """
     events = st.session_state.get(RUN_PREFIX + label)
     if events:
-        with st.status(f"{label} — last run", state="complete", expanded=_rejected(events)):
+        failed = _failed(events)
+        with st.status(
+            f"{label} — last run{' failed' if failed else ''}",
+            state="error" if failed else "complete",
+            expanded=failed or _rejected(events),
+        ):
             for m in events:
                 st.write(_line(m))
