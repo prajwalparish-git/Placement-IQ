@@ -1,0 +1,6 @@
+Kabir Placeholder
+B.E. Information Science and Engineering, CGPA 8.4 (2027)
+Skills: Excel, Python, Pandas, SQL, Power BI, Statistics
+Project: Canteen Sales Dashboard - Power BI dashboard over 6 months of sales data, found 3 peak-hour patterns
+Project: Student Result Analysis - Pandas and Matplotlib analysis of 2,000 anonymised result records
+Internship: Data analytics intern (6 weeks) - cleaned survey data and built weekly Excel reports

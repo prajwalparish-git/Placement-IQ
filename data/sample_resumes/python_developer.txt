@@ -1,0 +1,7 @@
+Diya Example
+B.E. Computer Science and Engineering, CGPA 7.6 (2027)
+Skills: Python, Django, SQL, Data Structures, Algorithms, Git, Unit Testing, REST APIs
+Project: Attendance Tracker - Django web app with role-based access and CSV export, used by 3 classes
+Project: Pathfinding Visualizer - Python and Pygame, implements BFS, DFS, Dijkstra and A*
+Certifications: Python for Everybody (online course)
+Clubs: Coding club coordinator, organised two coding contests

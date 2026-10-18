@@ -1,0 +1,73 @@
+{
+  "_comment": "role -> required skill -> syllabus topic it is practised under (null = not a quiz topic). Topics must be one of Aptitude, DBMS, OS, CN, DSA, OOP.",
+  "roles": {
+    "Java Backend Developer": {
+      "Java": "OOP",
+      "Object-Oriented Programming": "OOP",
+      "Data Structures": "DSA",
+      "Algorithms": "DSA",
+      "SQL": "DBMS",
+      "Database Design": "DBMS",
+      "Operating Systems": "OS",
+      "Multithreading": "OS",
+      "Computer Networks": "CN",
+      "REST APIs": "CN",
+      "Spring Boot": null,
+      "Git": null
+    },
+    "Python Developer": {
+      "Python": "OOP",
+      "Object-Oriented Programming": "OOP",
+      "Data Structures": "DSA",
+      "Algorithms": "DSA",
+      "SQL": "DBMS",
+      "Operating Systems": "OS",
+      "Computer Networks": "CN",
+      "REST APIs": "CN",
+      "Django": null,
+      "Unit Testing": null,
+      "Git": null
+    },
+    "Full Stack Developer": {
+      "JavaScript": "OOP",
+      "Object-Oriented Programming": "OOP",
+      "Data Structures": "DSA",
+      "SQL": "DBMS",
+      "Database Design": "DBMS",
+      "Computer Networks": "CN",
+      "HTTP": "CN",
+      "REST APIs": "CN",
+      "Operating Systems": "OS",
+      "React": null,
+      "Node.js": null,
+      "HTML": null,
+      "CSS": null,
+      "Git": null
+    },
+    "Data Analyst": {
+      "SQL": "DBMS",
+      "Database Design": "DBMS",
+      "Python": "OOP",
+      "Statistics": "Aptitude",
+      "Probability": "Aptitude",
+      "Data Structures": "DSA",
+      "Excel": null,
+      "Pandas": null,
+      "Data Visualization": null,
+      "Power BI": null
+    },
+    "Software Engineer": {
+      "Data Structures": "DSA",
+      "Algorithms": "DSA",
+      "Object-Oriented Programming": "OOP",
+      "Java": "OOP",
+      "C++": "OOP",
+      "SQL": "DBMS",
+      "Operating Systems": "OS",
+      "Computer Networks": "CN",
+      "Logical Reasoning": "Aptitude",
+      "Quantitative Aptitude": "Aptitude",
+      "Git": null
+    }
+  }
+}

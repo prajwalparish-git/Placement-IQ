@@ -1,0 +1,7 @@
+Aarav Sample
+B.E. Information Science and Engineering, CGPA 8.1 (2027)
+Skills: Java, Object-Oriented Programming, SQL, Git, Spring Boot, HTML
+Project: Library Management System - Spring Boot REST service with MySQL, JWT login, 12 endpoints
+Project: Expense Splitter - Java console app using collections and file persistence
+Internship: Backend intern (8 weeks) - wrote SQL reports and fixed bugs in a Java service
+Achievements: Solved 150 problems on an online judge; college hackathon finalist
