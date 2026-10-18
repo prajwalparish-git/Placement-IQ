@@ -1,0 +1,98 @@
+"""Headless UI smoke tests (Streamlit AppTest) in MOCK_MODE: every page renders and its
+primary action works end to end."""
+
+import pytest
+from streamlit.testing.v1 import AppTest
+
+from piq import db
+from piq.config import INTERVIEW_MAX_TURNS
+from scripts import seed
+
+
+def _app(student_id: str | None = None, page: str | None = None) -> AppTest:
+    at = AppTest.from_file("../app.py", default_timeout=60)
+    if student_id:
+        at.session_state["student_id"] = student_id
+    if page:
+        at.switch_page(page)
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    return at
+
+
+def _button(at: AppTest, label: str):
+    return next(b for b in at.button if b.label == label)
+
+
+def _md(at: AppTest) -> str:
+    return "\n".join(m.value for m in at.markdown)
+
+
+@pytest.fixture
+def seeded() -> str:
+    seed.main()
+    return next(s["id"] for s in db.list_students() if s["usn"] == seed.USN)
+
+
+def test_onboard_with_sample_resume():
+    at = _app()
+    at.text_input[0].input("ui0001")
+    next(s for s in at.selectbox if s.label.startswith("…or use")).select(
+        "java_backend_fresher.txt"
+    )
+    _button(at, "Analyse resume").click().run()
+    assert not at.exception
+    assert at.session_state["student_id"]
+    assert "Readiness:" in _md(at)
+    assert [s["usn"] for s in db.list_students()] == ["UI0001"]
+
+
+def test_onboard_rejects_missing_usn():
+    at = _app()
+    _button(at, "Analyse resume").click().run()
+    assert any("USN is required" in e.value for e in at.error)
+
+
+def test_pages_require_a_student():
+    for page in ("views/plan.py", "views/quiz.py", "views/interview.py", "views/dashboard.py"):
+        at = _app(page=page)
+        assert any("Select a student" in i.value for i in at.info)
+
+
+def test_plan_generates_next_week_and_compares(seeded):
+    at = _app(seeded, "views/plan.py")
+    _button(at, "Generate week 5 plan").click().run()
+    assert not at.exception
+    assert [p.week_no for p in db.list_plans(seeded)] == [1, 2, 3, 4, 5]
+    assert at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")
+
+
+def test_quiz_generate_answer_and_review(seeded):
+    at = _app(seeded, "views/quiz.py")
+    _button(at, "Generate quiz").click().run()
+    assert not at.exception and at.session_state["quiz"]
+    assert "critic rejected quiz" in _md(at)  # the loop is visible to the user
+    assert db.recent_rejections()[0]["agent_name"] == "quiz"
+    for r in at.radio:
+        r.set_value(0)
+    _button(at, "Submit").click().run()
+    assert not at.exception
+    assert "next suggested difficulty" in _md(at)
+    assert len(db.quiz_history(seeded)) == 25
+
+
+def test_interview_session_runs_to_completion(seeded):
+    at = _app(seeded, "views/interview.py")
+    _button(at, "Start session").click().run()
+    assert not at.exception
+    at.chat_input[0].set_value("I like coding.").run()  # vague -> mock probes it
+    assert "You said 'I like coding" in _md(at)
+    for _ in range(INTERVIEW_MAX_TURNS - 1):
+        at.chat_input[0].set_value("Situation task action result " * 8).run()
+        assert not at.exception
+    assert any("Session complete" in s.value for s in at.success)
+
+
+def test_dashboard_renders(seeded):
+    at = _app(seeded, "views/dashboard.py")
+    assert at.metric[1].value == "24"  # seeded quizzes
