@@ -15,7 +15,7 @@ Without a `.env` file the app runs in **MOCK_MODE**: canned responses and no net
 ## Live mode (Groq free tier)
 1. Copy `.env.example` to `.env` and set `GROQ_API_KEY`.
 2. Set `MOCK_MODE=false`. The model IDs are already filled in (`openai/gpt-oss-120b` and `openai/gpt-oss-20b`, verified 2026-10-19).
-3. Before a demo, run `python -m scripts.check_models`. It confirms both models are still served, that JSON mode works, and how much quota is left (each model allows 8,000 tokens/minute and 1,000 requests/day).
+3. Before a demo, run `python -m scripts.check_models`. It confirms both models are still served, that JSON mode works, and how much quota is left (each model allows 8,000 tokens/minute, 1,000 requests/day and about 200,000 tokens/day).
 
 ## Deploy (optional): Streamlit Community Cloud
 1. On share.streamlit.io choose **Create app**, pick this repository (a private repo needs GitHub access granted to Streamlit), branch `main`, main file `app.py`, and Python 3.13 under **Advanced settings**.
@@ -43,7 +43,7 @@ Without a `.env` file the app runs in **MOCK_MODE**: canned responses and no net
 ```
 pip install -r requirements-dev.txt
 pytest                                   # offline, includes headless UI tests (CI runs it on every push)
-python -m evaluation.run_eval --consecutive 5 --interviews   # live, 20 frozen cases, ~290 calls
+python -m evaluation.run_eval --consecutive 5 --interviews   # live, 20 frozen cases; needs 2 days of free quota
 python -m evaluation.run_eval --resume   # continue after the daily quota runs out
 python -m evaluation.report              # results/report.md + chart.svg for the report
 ```

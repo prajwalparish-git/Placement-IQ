@@ -74,7 +74,7 @@ python -m scripts.seed                  # demo student with 4 weeks of history
 streamlit run app.py                    # dev server, http://localhost:8501
 pytest                                  # all tests, offline, about 1 min
 ruff format . ; ruff check .            # format + lint (must be clean)
-python -m evaluation.run_eval --consecutive 5 --interviews   # live; ~290 calls, ~1 h
+python -m evaluation.run_eval --consecutive 5 --interviews   # live; ~360k tokens = 2 days of quota
 python -m evaluation.run_eval --resume  # continue a run stopped by the daily quota
 python -m evaluation.report             # results/report.md + chart.svg
 python -m scripts.test_report           # docs/test_report.md from a real test run
@@ -112,5 +112,5 @@ There is no build step. `.env.example` already contains the verified model IDs. 
 - The `scripts/seed.py` trajectory (OS and DBMS start weak) is what the demo depends on. Do not change it casually.
 - `students.usn` is required (`NOT NULL UNIQUE`). Never drop it or make it optional.
 - `schema.sql` has no migrations. After a schema change, delete `data/placementiq.db` and reseed.
-- Groq's free tier is the only external service: each model allows 8,000 tokens/minute and 1,000 requests/day (measured from the response headers). Batch questions into one call, use the small model for extraction, never re-judge questions that were already approved, and keep MOCK_MODE as the default in `.env.example`.
+- Groq's free tier is the only external service: each model allows 8,000 tokens/minute and 1,000 requests/day (from the response headers), and about 200,000 tokens/day (the full evaluation hit it after 15 of 20 cases). Batch questions into one call, use the small model for extraction, never re-judge questions that were already approved, and keep MOCK_MODE as the default in `.env.example`.
 - Out of scope: auth, voice/video, a code judge, scraping, a vector database or embeddings, async, a separate HTTP backend (services are the API surface).

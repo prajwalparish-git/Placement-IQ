@@ -72,7 +72,7 @@ START ─▶ generate ─▶ verify ──approved, or out of retries──▶ E
 | Large: planner, quiz, critic, interviewer, evaluator | `openai/gpt-oss-120b` | Strictest critic in a probe of every chat model Groq serves; it caught real multi-answer questions. It also produced the best plans and evaluations. |
 | Small: profile extraction | `openai/gpt-oss-20b` | Fastest correct extraction, about 2 s. Quotas are per model, so it keeps profile calls out of the large model's token budget. |
 
-Free-tier limits, read from the response headers: **8,000 tokens/minute and 1,000 requests/day per model.** Typical cost measured live:
+Free-tier limits per model: **8,000 tokens/minute and 1,000 requests/day** (read from the response headers), plus a daily token cap of about **200,000 tokens**, which the full evaluation hit after 15 of 20 cases. Typical cost measured live:
 
 | Action | LLM calls | Time |
 |---|---|---|
@@ -80,7 +80,7 @@ Free-tier limits, read from the response headers: **8,000 tokens/minute and 1,00
 | Plan a week | 1 (2 if Groq returns empty JSON) | 5–20 s |
 | Quiz (generate + critic) | 2–4 | 7–17 s |
 | Interview answer (evaluate + next question) | 2 | 2–18 s |
-| One evaluation case | about 7 | 1–2 min, limited by tokens/minute |
+| One evaluation case (with interview probe) | about 10 | 3–5 min and ~12k tokens, limited by tokens/minute |
 
 ## 5. Evaluation
 `python -m evaluation.run_eval` compares a single-prompt baseline with PlacementIQ on 20 frozen cases. Both are judged by the same deterministic checks and the same LLM critic.
