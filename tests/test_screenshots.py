@@ -93,3 +93,10 @@ def test_compress_png_shrinks_and_keeps_the_size(tmp_path):
     assert ss.compress_png(path, max_bytes=50_000) < before
     with Image.open(path) as out:
         assert out.size == (300, 300)
+
+
+def test_pages_filter_parses_known_slugs_only():
+    assert ss.parse_pages("") == {p.slug for p in ss.PAGES}
+    assert ss.parse_pages("onboard, plan") == {"onboard", "plan"}
+    with pytest.raises(ValueError):
+        ss.parse_pages("settings")

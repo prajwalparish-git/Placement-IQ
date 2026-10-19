@@ -125,6 +125,15 @@ def parse_schemes(raw: str) -> list[str]:
     return schemes
 
 
+def parse_pages(raw: str) -> set[str]:
+    """Page slugs to capture ("" = all); flows follow their page."""
+    slugs = {s.strip() for s in raw.split(",") if s.strip()}
+    known = {p.slug for p in PAGES}
+    if slugs - known:
+        raise ValueError(f"pages must be from {sorted(known)}, got {raw!r}")
+    return slugs or known
+
+
 def planned_shots(widths: list[int], schemes: list[str]) -> list[str]:
     """Every file one run writes, in capture order."""
     names = []
@@ -318,8 +327,14 @@ def _capture_widths(
 
 
 def capture_scheme(
-    url: str, out: Path, scheme: str, widths: list[int], errors: list[str]
+    url: str,
+    out: Path,
+    scheme: str,
+    widths: list[int],
+    errors: list[str],
+    only: set[str] | None = None,
 ) -> list[Path]:
+    only = only or {p.slug for p in PAGES}
     from playwright.sync_api import sync_playwright
 
     written: list[Path] = []
@@ -346,46 +361,59 @@ def capture_scheme(
             if state == "demo":
                 where["step"] = "select demo student"
                 _select_student(page, DEMO_OPTION)
-            for p in PAGES:
+            for p in (p for p in PAGES if p.slug in only):
                 where["step"] = f"{p.slug} ({state})"
                 _goto(page, p.title)
                 _capture_widths(page, out, p.slug, state, widths, scheme, written)
 
-        where["step"] = "plan: generate a new week"
-        _goto(page, "Weekly plan")
-        _click(page, "Generate week", exact=False)
-        _capture_widths(page, out, "plan", "newweek", widths, scheme, written)
-
-        where["step"] = "quiz: generate (critic loop)"
-        _goto(page, "Quiz")
-        _click(page, "Generate quiz")
-        _capture_widths(page, out, "quiz", "critic", widths, scheme, written)
-        where["step"] = "quiz: answer"
-        radios = page.get_by_test_id("stRadio").all()
-        for radio in radios:
-            radio.get_by_role("radio").first.check(force=True)  # inputs are visually hidden
-        page.wait_for_timeout(300)
-        checked = page.locator("[data-testid=stRadio] input[type=radio]:checked").count()
-        if not radios or checked != len(radios):
-            raise SystemExit(f"quiz-taking: {checked} of {len(radios)} questions answered")
-        _capture_widths(page, out, "quiz", "taking", widths, scheme, written)
-        where["step"] = "quiz: review"
-        _click(page, "Submit")
-        _capture_widths(page, out, "quiz", "review", widths, scheme, written)
-
-        where["step"] = "interview: start and answer vaguely"
-        _goto(page, "Mock interview")
-        _click(page, "Start session")
-        _answer_chat(page, "I like coding.")
-        _capture_widths(page, out, "interview", "mid", widths, scheme, written)
-        where["step"] = "interview: finish"
-        for answer in INTERVIEW_ANSWERS * 2:  # bounded; the chat input goes when it completes
-            if not page.get_by_test_id("stChatInputTextArea").count():
-                break
-            _answer_chat(page, answer)
-        _capture_widths(page, out, "interview", "complete", widths, scheme, written)
+        if "plan" in only:
+            where["step"] = "plan: generate a new week"
+            _goto(page, "Weekly plan")
+            _click(page, "Generate week", exact=False)
+            _capture_widths(page, out, "plan", "newweek", widths, scheme, written)
+        if "quiz" in only:
+            _quiz_flow(page, out, widths, scheme, written, where)
+        if "interview" in only:
+            _interview_flow(page, out, widths, scheme, written, where)
         browser.close()
     return written
+
+
+def _quiz_flow(
+    page: "Page", out: Path, widths: list[int], scheme: str, written: list[Path], where: dict
+) -> None:
+    where["step"] = "quiz: generate (critic loop)"
+    _goto(page, "Quiz")
+    _click(page, "Generate quiz")
+    _capture_widths(page, out, "quiz", "critic", widths, scheme, written)
+    where["step"] = "quiz: answer"
+    radios = page.get_by_test_id("stRadio").all()
+    for radio in radios:
+        radio.get_by_role("radio").first.check(force=True)  # inputs are visually hidden
+    page.wait_for_timeout(300)
+    checked = page.locator("[data-testid=stRadio] input[type=radio]:checked").count()
+    if not radios or checked != len(radios):
+        raise SystemExit(f"quiz-taking: {checked} of {len(radios)} questions answered")
+    _capture_widths(page, out, "quiz", "taking", widths, scheme, written)
+    where["step"] = "quiz: review"
+    _click(page, "Submit")
+    _capture_widths(page, out, "quiz", "review", widths, scheme, written)
+
+
+def _interview_flow(
+    page: "Page", out: Path, widths: list[int], scheme: str, written: list[Path], where: dict
+) -> None:
+    where["step"] = "interview: start and answer vaguely"
+    _goto(page, "Mock interview")
+    _click(page, "Start session")
+    _answer_chat(page, "I like coding.")
+    _capture_widths(page, out, "interview", "mid", widths, scheme, written)
+    where["step"] = "interview: finish"
+    for answer in INTERVIEW_ANSWERS * 2:  # bounded; the chat input goes when it completes
+        if not page.get_by_test_id("stChatInputTextArea").count():
+            break
+        _answer_chat(page, answer)
+    _capture_widths(page, out, "interview", "complete", widths, scheme, written)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -394,8 +422,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--widths", default="1440,1366,390")
     ap.add_argument("--schemes", default="light,dark")
     ap.add_argument("--port", type=int, default=PORT)
+    ap.add_argument("--pages", default="", help="page slugs, e.g. onboard,plan (default all)")
     args = ap.parse_args(argv)
     widths, schemes = parse_widths(args.widths), parse_schemes(args.schemes)
+    only = parse_pages(args.pages)
     args.out.mkdir(parents=True, exist_ok=True)
 
     errors: list[str] = []
@@ -408,7 +438,7 @@ def main(argv: list[str] | None = None) -> int:
                 running_app(isolated_env(Path(tmp)), args.port) as url,
             ):
                 print(f"{scheme}: capturing ...", flush=True)
-                written += capture_scheme(url, args.out, scheme, widths, errors)
+                written += capture_scheme(url, args.out, scheme, widths, errors, only)
 
     sizes = [p.stat().st_size for p in written]
     print(
