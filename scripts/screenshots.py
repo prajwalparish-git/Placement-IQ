@@ -81,7 +81,7 @@ MARKERS = {
     ("dashboard", "demo"): "Quizzes taken",
     ("results", "demo"): "Baseline",
     ("plan", "newweek"): "Generate week 6 plan",
-    ("quiz", "critic"): "critic rejected quiz",
+    ("quiz", "critic"): "Critic rejected the quiz",
     ("quiz", "taking"): "Submit",
     ("quiz", "review"): "next suggested difficulty",
     ("interview", "mid"): "You said 'I like coding",

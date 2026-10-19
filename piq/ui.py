@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 import streamlit as st
+from streamlit.delta_generator import DeltaGenerator
 
 from piq import formatter, services
 from piq.config import STATIC_DIR
@@ -17,7 +18,7 @@ from piq.schemas import StudentProfile
 NEW = "— new student —"
 PER_STUDENT_KEYS = ("quiz", "quiz_result", "interview")
 RUN_PREFIX = "run:"  # session key prefix for persisted agent step logs
-FAILED = "failed: "
+FAILED = formatter.FAILED
 USER_ERRORS = (CriticRejected, LLMError, services.ServiceError, ResumeError)
 
 
@@ -84,11 +85,16 @@ def _failed(events: list[str]) -> bool:
     return any(m.startswith(FAILED) for m in events)
 
 
-def _line(msg: str) -> str:
-    text = formatter.critic_text(msg)  # critic reasons quote LLM output
-    if msg.startswith(FAILED):
-        return "❌ " + text
-    return ("🔁 " if msg.startswith("critic rejected") else "✔️ ") + text
+def _step(parent: DeltaGenerator, step: formatter.TrailStep) -> None:
+    """One step of the critic trail. Steps are native timeline steps (icon column and a
+    connecting line); each carries a line of content, because an empty step ends the line."""
+    state = "error" if step.failed else "complete"
+    box = parent.status(f"**{step.title}**", type="step", state=state, expanded=True)
+    if step.reasons:  # the critic's own words, at the step title's size
+        lines = [f":small[{r}]" for r in step.reasons]
+        box.markdown(lines[0] if len(lines) == 1 else "\n".join(f"- {line}" for line in lines))
+    if step.note:
+        box.caption(step.note)
 
 
 def run_agent[T](label: str, fn: Callable[[OnEvent], T]) -> T | None:
@@ -103,12 +109,13 @@ def run_agent[T](label: str, fn: Callable[[OnEvent], T]) -> T | None:
 
         def on_event(msg: str) -> None:
             events.append(msg)
-            box.write(_line(msg))
+            _step(box, formatter.trail_steps(events)[-1])
 
         try:
             out = fn(on_event)
         except USER_ERRORS as e:
             events.append(f"{FAILED}{e}")
+            _step(box, formatter.trail_steps(events)[-1])
             box.update(label=f"{label} — failed", state="error")
             st.error(formatter.critic_text(str(e)))
             return None
@@ -130,9 +137,9 @@ def show_last_run(label: str) -> None:
             f"{label} — last run{' failed' if failed else ''}",
             state="error" if failed else "complete",
             expanded=failed or _rejected(events),
-        ):
-            for m in events:
-                st.write(_line(m))
+        ) as box:
+            for step in formatter.trail_steps(events):
+                _step(box, step)
 
 
 # --- design-system components -------------------------------------------------------

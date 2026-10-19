@@ -183,7 +183,14 @@ def test_quiz_generate_answer_and_review(seeded):
     at = _app(seeded, "views/quiz.py")
     _button(at, "Generate quiz").click().run()
     assert not at.exception and at.session_state["quiz"]
-    assert "critic rejected quiz" in _md(at)  # the loop is visible to the user
+    # The loop is visible to the user, step by step, with the critic's reason.
+    assert [s.label for s in at.status][1:] == [
+        "**Generated the quiz**",
+        "**Critic rejected the quiz**",
+        "**Regenerated the quiz**",
+        "**Critic approved the quiz**",
+    ]
+    assert ":small[Q1: options are not distinct]" in _md(at)
     assert db.recent_rejections()[0]["agent_name"] == "quiz"
     for r in at.radio:
         r.set_value(0)
@@ -196,7 +203,8 @@ def test_quiz_generate_answer_and_review(seeded):
 def test_critic_log_numbers_questions_like_the_quiz(seeded):
     at = _app(seeded, "views/quiz.py")
     _button(at, "Generate quiz").click().run()
-    assert "critic rejected quiz: Q1: options are not distinct" in _md(at)
+    assert any(s.label == "**Critic rejected the quiz**" for s in at.status)
+    assert ":small[Q1: options are not distinct]" in _md(at)
     assert "question 0" not in _md(at)
 
 

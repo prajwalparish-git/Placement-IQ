@@ -4,7 +4,8 @@ Pure functions, no Streamlit import, so every rendering decision is unit-testabl
 """
 
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from html import escape
 
 import pandas as pd
@@ -270,3 +271,65 @@ def results_svg(table: pd.DataFrame) -> str:
             out.append(f'<text x="{left + w + 6}" y="{by + 14}">{float(v):.2f}</text>')
     out.append("</svg>")
     return "\n".join(out) + "\n"
+
+
+# --- the critic loop, as a trail ----------------------------------------------------
+
+FAILED = "failed: "  # prefix ui.run_agent gives a failure in the step log
+# graph.Task names -> what the student sees being made
+ARTEFACTS = {
+    "quiz": "quiz",
+    "planner": "plan",
+    "profile": "profile",
+    "interviewer": "next question",
+}
+_GENERATED = re.compile(r"^(\w+): generated \(attempt (\d+)\)$")
+_REJECTED = re.compile(r"^critic rejected (\w+): (.*)$", re.S)
+_APPROVED = re.compile(r"^critic approved (\w+)$")
+_GAVE_UP = re.compile(r"^\w+: rejected after retries: ")
+
+
+@dataclass(frozen=True)
+class TrailStep:
+    title: str  # plain words; also the step's status label
+    reasons: tuple[str, ...] = ()  # Markdown, escaped: why the critic said no
+    note: str = ""  # one quiet line: the attempt, or what happened
+    failed: bool = False  # a rejection or a stop: shown in the error state
+
+
+def trail_steps(events: Sequence[str]) -> list[TrailStep]:
+    """The agent step log as a readable trail: generated, critic rejected (with the
+    reasons), regenerated, then approved or stopped. Messages come from graph.run and
+    ui.run_agent; a repeated rejection says so instead of repeating its reasons."""
+    steps: list[TrailStep] = []
+    previous: list[str] | None = None
+    for msg in events:
+        if m := _GENERATED.match(msg):
+            verb = "Generated" if m[2] == "1" else "Regenerated"
+            steps.append(TrailStep(f"{verb} the {_artefact(m[1])}", note=f"Attempt {m[2]}"))
+        elif m := _REJECTED.match(msg):
+            reasons, title = m[2].split("; "), f"Critic rejected the {_artefact(m[1])}"
+            if reasons == previous:
+                steps.append(TrailStep(title, note="Same reason as before.", failed=True))
+            else:
+                steps.append(TrailStep(title, tuple(critic_text(r) for r in reasons), failed=True))
+            previous = reasons
+        elif m := _APPROVED.match(msg):
+            steps.append(
+                TrailStep(f"Critic approved the {_artefact(m[1])}", note="Passed every check.")
+            )
+        elif msg.startswith(FAILED):
+            error = msg.removeprefix(FAILED)
+            if _GAVE_UP.match(error):
+                steps.append(
+                    TrailStep("Stopped", note="The critic rejected every attempt.", failed=True)
+                )
+            else:
+                steps.append(TrailStep("Stopped", (critic_text(error),), failed=True))
+        else:
+            steps.append(TrailStep(critic_text(msg)))
+    return steps
+
+
+def _artefact(task: str) -> str:
+    return ARTEFACTS.get(task, md_escape(task))

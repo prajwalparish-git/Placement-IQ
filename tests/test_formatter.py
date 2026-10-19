@@ -186,3 +186,47 @@ def test_results_svg_is_well_formed_with_one_bar_per_measured_value():
     # background + 2 legend swatches + 2 bars for 4 metrics + 1 bar (baseline not measured)
     assert len(rects) == 1 + 2 + 2 * 4 + 1
     assert "not measured" in svg and formatter.ATTEMPTS not in svg
+
+
+def test_trail_tells_the_critic_loop_in_order():
+    events = [
+        "quiz: generated (attempt 1)",
+        "critic rejected quiz: question 0: options are not distinct; question 2: duplicate",
+        "quiz: generated (attempt 2)",
+        "critic approved quiz",
+    ]
+    steps = formatter.trail_steps(events)
+    assert [s.title for s in steps] == [
+        "Generated the quiz",
+        "Critic rejected the quiz",
+        "Regenerated the quiz",
+        "Critic approved the quiz",
+    ]
+    assert steps[1].reasons == ("Q1: options are not distinct", "Q3: duplicate")
+    assert [s.failed for s in steps] == [False, True, False, False]
+    assert (steps[0].note, steps[2].note, steps[3].note) == (
+        "Attempt 1",
+        "Attempt 2",
+        "Passed every check.",
+    )
+
+
+def test_trail_collapses_repeats_and_explains_a_stop():
+    reason = 'critic rejected interviewer: question already asked: "Tell me about yourself"'
+    events = [
+        "interviewer: generated (attempt 1)",
+        reason,
+        "interviewer: generated (attempt 2)",
+        reason,
+        "failed: interviewer: rejected after retries: question already asked: x",
+    ]
+    steps = formatter.trail_steps(events)
+    assert steps[1].reasons and steps[3].reasons == () and steps[3].note == "Same reason as before."
+    assert steps[1].title == "Critic rejected the next question"
+    assert (steps[4].title, steps[4].note, steps[4].failed) == (
+        "Stopped",
+        "The critic rejected every attempt.",
+        True,
+    )
+    [stop] = formatter.trail_steps(["failed: Groq API error: __init__ <b>"])
+    assert stop.reasons == (r"Groq API error: \_\_init\_\_ \<b\>",)
