@@ -334,6 +334,7 @@ def test_telemetry_tables_are_ready_to_read():
             "avg_latency_ms": 120.0,
             "avg_tokens": 900.0,
             "rejections": 1,
+            "failures": 2,
             "rejection_rate": 0.25,
         },
         {
@@ -349,6 +350,8 @@ def test_telemetry_tables_are_ready_to_read():
     assert list(df.columns) == list(formatter.AGENT_COLUMNS)
     assert df.loc[0, "Agent"] == "Quiz critic" and df.loc[0, "Rejection rate"] == 25.0
     assert df["Rejection rate"].isna().tolist() == [False, True]  # no critic, no rate
+    assert df["Failed calls"].tolist()[0] == 2  # an older summary without the count: blank
+    assert df["Failed calls"].isna().tolist() == [False, True]
     assert list(formatter.agent_table([]).columns) == list(formatter.AGENT_COLUMNS)
     rejected = [
         {

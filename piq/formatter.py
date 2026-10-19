@@ -399,9 +399,10 @@ def agent_table(rows: Iterable[Mapping]) -> pd.DataFrame:
             "Avg latency (ms)": r["avg_latency_ms"],
             "Avg tokens": r["avg_tokens"],
             "Rejected drafts": r["rejections"],
+            "Failed calls": r.get("failures"),  # absent from older summary.json files
             "Rejection rate": None if r["rejection_rate"] is None else 100 * r["rejection_rate"],
         }
-        for r in rows
+        for r in map(dict, rows)
     ]
     return pd.DataFrame(data, columns=AGENT_COLUMNS)
 
@@ -412,6 +413,7 @@ AGENT_COLUMNS = (
     "Avg latency (ms)",
     "Avg tokens",
     "Rejected drafts",
+    "Failed calls",
     "Rejection rate",
 )
 

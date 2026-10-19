@@ -76,6 +76,16 @@ def test_topic_performance_uses_the_three_most_recent_attempts():
     assert stats["OS"]["last_pct"] == 0.0
 
 
+def test_agent_stats_count_failed_calls_apart_from_rejections():
+    rejected = db.log_call("quiz", "mock", 1, 1, 10)
+    db.mark_log(rejected, False, 0, "bad")
+    db.log_call("quiz", "mock", 1, 1, 10, failed="Groq API error")
+    [row] = db.agent_stats()
+    assert (row["calls"], row["rejections"], row["failures"]) == (2, 1, 1)
+    assert row["rejection_rate"] == 1.0  # a failed call had no critic, so it is not a rejection
+    assert [r["reject_reason"] for r in db.recent_rejections()] == ["bad"]
+
+
 def test_past_turns_exclude_current_session_newest_first():
     sid = db.save_profile("P5", f.profile())
     ev = f.evaluation(relevance=5)

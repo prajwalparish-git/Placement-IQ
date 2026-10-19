@@ -62,7 +62,11 @@ def build(task: Task) -> CompiledStateGraph:
         return {"output": out, "log_id": log_id, "attempt": s["attempt"] + 1}
 
     def verify(s: CriticState) -> dict:
-        reasons = task.verify(s["inputs"], s["output"])
+        try:
+            reasons = task.verify(s["inputs"], s["output"])
+        except Exception as e:  # e.g. the critic's own call failed: the draft was never judged
+            db.mark_failed(s["log_id"], s["attempt"] - 1, f"verify raised {type(e).__name__}: {e}")
+            raise
         db.mark_log(s["log_id"], not reasons, s["attempt"] - 1, "; ".join(reasons) or None)
         return {"reasons": reasons}
 

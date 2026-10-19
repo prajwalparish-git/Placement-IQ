@@ -15,6 +15,7 @@ from piq.config import settings
 from piq.schemas import AnswerEvaluation, QuizSet, StudentProfile, WeeklyPlan
 
 SCHEMA = Path(__file__).with_name("schema.sql")
+FAILED = "failed: "  # reject_reason prefix of an agent_logs row whose call or check failed
 
 
 @contextmanager
@@ -280,15 +281,37 @@ def log_call(
     output_tokens: int,
     latency_ms: int,
     student_id: str | None = None,
+    failed: str | None = None,
 ) -> int:
+    """One LLM call. `failed`: why the call produced nothing usable; the row then carries
+    reject_reason "failed: ..." and no critic verdict (agent_logs has no status column,
+    and existing tables are not altered)."""
     with tx() as c:
         cur = c.execute(
-            """INSERT INTO agent_logs
-               (student_id, agent_name, model_used, input_tokens, output_tokens, latency_ms)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (student_id, agent, model, input_tokens, output_tokens, latency_ms),
+            """INSERT INTO agent_logs (student_id, agent_name, model_used, input_tokens,
+                                       output_tokens, latency_ms, reject_reason)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                student_id,
+                agent,
+                model,
+                input_tokens,
+                output_tokens,
+                latency_ms,
+                f"{FAILED}{failed}" if failed else None,
+            ),
         )
         return cur.lastrowid
+
+
+def mark_failed(log_id: int, retry_count: int, reason: str) -> None:
+    """A generated draft that could not be judged (verify raised): failed, not rejected."""
+    with tx() as c:
+        c.execute(
+            "UPDATE agent_logs SET critic_approved = NULL, retry_count = ?, reject_reason = ? "
+            "WHERE id = ?",
+            (retry_count, f"{FAILED}{reason}", log_id),
+        )
 
 
 def mark_log(log_id: int, approved: bool, retry_count: int, reject_reason: str | None) -> None:
@@ -307,6 +330,7 @@ def agent_stats() -> list[sqlite3.Row]:
                       ROUND(AVG(latency_ms)) AS avg_latency_ms,
                       ROUND(AVG(input_tokens + output_tokens)) AS avg_tokens,
                       COALESCE(SUM(critic_approved = 0), 0) AS rejections,
+                      COALESCE(SUM(reject_reason LIKE 'failed: %'), 0) AS failures,
                       ROUND(AVG(CASE WHEN critic_approved IS NOT NULL
                                      THEN critic_approved = 0 END), 2) AS rejection_rate
                FROM agent_logs GROUP BY agent_name ORDER BY agent_name"""
