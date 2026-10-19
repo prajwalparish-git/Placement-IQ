@@ -101,3 +101,54 @@ def test_cached_specs_hand_out_fresh_copies():
     assert len(again["layer"]) == 3
     assert charts.readiness_ring_spec(42) == charts.to_spec(charts.readiness_ring(42))
     assert charts.readiness_ring_spec(42) is not charts.readiness_ring_spec(42)
+
+
+def test_score_spark_draws_one_topic_in_its_colour_without_axes():
+    spec = charts.score_spark("OS", [30, 40, 70]).to_dict()
+    line, points = spec["layer"]
+    assert [line["mark"]["type"], points["mark"]["type"]] == ["line", "circle"]
+    enc = line["encoding"]
+    assert enc["x"]["axis"] is None and enc["y"]["axis"] is None
+    assert enc["y"]["scale"]["domain"] == [0, 100]
+    assert enc["color"]["scale"] == {"domain": list(TOPICS)}
+    rows = spec["datasets"][spec["data"]["name"]]
+    assert [(r["topic"], r["attempt"], r["score"]) for r in rows] == [
+        ("OS", 1, 30.0),
+        ("OS", 2, 40.0),
+        ("OS", 3, 70.0),
+    ]
+    assert "tooltip" in enc
+    one = charts.score_spark("CN", [50]).to_dict()  # a single quiz still gets an x range
+    assert one["layer"][0]["encoding"]["x"]["scale"]["domain"] == [1, 2]
+
+
+def test_week_mix_stacks_topics_in_order_per_week():
+    spec = charts.week_mix({1: {"OS": 300, "DBMS": 120}, 2: {"OS": 420, "CN": 0}}).to_dict()
+    enc = spec["encoding"]
+    assert spec["mark"]["type"] == "bar"
+    assert enc["y"]["sort"] == ["Week 1", "Week 2"]
+    assert enc["color"]["scale"] == {"domain": list(TOPICS)} and enc["order"]["field"] == "rank"
+    rows = spec["datasets"][spec["data"]["name"]]
+    assert ("Week 2", "CN") not in {(r["week"], r["topic"]) for r in rows}  # no empty segment
+    assert {r["topic"]: r["rank"] for r in rows} == {"OS": 2, "DBMS": 1}
+    assert spec["height"] == charts.ROW_PX * 2
+
+
+def test_interview_trend_is_a_0_to_5_line_in_the_brand_teal():
+    spec = charts.interview_trend([2.5, 3.75], ["19 Oct, HR", "20 Oct, HR"]).to_dict()
+    line, points = spec["layer"]
+    assert line["mark"]["color"] == points["mark"]["color"] == charts.BRAND_COLOR
+    y = line["encoding"]["y"]
+    assert y["scale"]["domain"] == [0, 5] and y["axis"]["values"] == [0, 2.5, 5]
+    assert [t["title"] for t in line["encoding"]["tooltip"]] == ["Session", "Average (/5)"]
+
+
+def test_dashboard_specs_match_their_charts():
+    assert charts.score_spark_spec("OS", [30, 70]) == charts.to_spec(
+        charts.score_spark("OS", [30, 70])
+    )
+    weeks = {1: {"OS": 420}}
+    assert charts.week_mix_spec(weeks) == charts.to_spec(charts.week_mix(weeks))
+    assert charts.interview_trend_spec([3.0], ["x"]) == charts.to_spec(
+        charts.interview_trend([3.0], ["x"])
+    )

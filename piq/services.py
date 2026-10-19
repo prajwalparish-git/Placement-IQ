@@ -314,14 +314,21 @@ class Dashboard:
 
 def dashboard(student_id: str, profile: StudentProfile | None = None) -> Dashboard:
     """`profile`: the student's current profile when the caller already loaded it."""
-    return Dashboard(
-        profile=profile or _require_profile(student_id),
-        quiz_history=db.quiz_history(student_id),
-        plans=db.list_plans(student_id),
-        sessions=db.interview_history(student_id),
-        agent_stats=db.agent_stats(),
-        rejections=db.recent_rejections(),
-    )
+    profile = profile or _require_profile(student_id)
+    try:
+        return Dashboard(
+            profile=profile,
+            quiz_history=db.quiz_history(student_id),
+            plans=db.list_plans(student_id),
+            sessions=db.interview_history(student_id),
+            agent_stats=db.agent_stats(),
+            rejections=db.recent_rejections(),
+        )
+    except sqlite3.Error as e:
+        raise ServiceError(
+            "Your progress could not be read. Reload the page, and restart the app if it "
+            "keeps failing."
+        ) from e
 
 
 # --- evaluation ----------------------------------------------------------------

@@ -85,7 +85,7 @@ _QUESTION_N = re.compile(r"\bquestion (\d+):")
 def critic_text(msg: str) -> str:
     """A step or critic message for display: escaped, and the critic's 0-based
     "question N:" (a protocol checks.question_issues parses) shown as the quiz's "Q{N+1}:"."""
-    return _QUESTION_N.sub(lambda m: f"Q{int(m[1]) + 1}:", md_escape(msg))
+    return critic_plain(md_escape(msg))
 
 
 def _bullets(items: Iterable[str], empty: str = "_none_") -> str:
@@ -309,13 +309,117 @@ def evaluation_md(ev: AnswerEvaluation) -> str:
     )
 
 
-def score_trend(rows: Iterable[Mapping]) -> pd.DataFrame:
-    """quiz_history rows -> one column per topic, indexed by attempt order."""
-    df = pd.DataFrame([dict(r) for r in rows])
-    if df.empty:
-        return df
-    df["attempt"] = df.groupby("topic").cumcount() + 1
-    return df.pivot_table(index="attempt", columns="topic", values="score_pct")
+# --- dashboard ----------------------------------------------------------------------------
+
+
+def topic_scores(rows: Iterable[Mapping]) -> dict[str, list[float]]:
+    """quiz_history rows (oldest first) -> each topic's scores in attempt order, every topic
+    present (empty before its first quiz)."""
+    out: dict[str, list[float]] = {t: [] for t in TOPICS}
+    for r in rows:
+        out.setdefault(r["topic"], []).append(float(r["score_pct"]))
+    return out
+
+
+def topic_scores_headline(scores: Mapping[str, Sequence[float]]) -> str:
+    """The quiz charts' takeaway: the biggest rise from a topic's first to its latest quiz."""
+    moved = {t: s[-1] - s[0] for t, s in scores.items() if len(s) >= 2}
+    if not moved:
+        return "Take a second quiz on a topic to see it move"
+    best = max(moved, key=lambda t: moved[t])
+    first, latest = scores[best][0], scores[best][-1]
+    if moved[best] > 0:
+        return f"{best} is up from {first:.0f}% to {latest:.0f}%"
+    worst = min(moved, key=lambda t: moved[t])
+    if moved[worst] < 0:
+        return f"{worst} is down from {scores[worst][0]:.0f}% to {scores[worst][-1]:.0f}%"
+    return "Scores are level since your first quizzes"
+
+
+def week_mix_headline(plans: Sequence[WeeklyPlan]) -> str:
+    """The plan-minutes chart's takeaway: where the latest week's time goes."""
+    latest = plans[-1].minutes_by_topic()
+    top = max(latest, key=lambda t: latest[t])
+    share = latest[top] / sum(latest.values())
+    return f"Week {plans[-1].week_no} puts {share:.0%} of its minutes on {top}"
+
+
+def plan_mix_alt(weeks: Mapping[int, Mapping[str, int]]) -> str:
+    """The weekly-minutes chart in words, for screen readers."""
+    parts = [
+        f"week {w}: " + ", ".join(f"{t} {m}" for t, m in minutes.items() if m)
+        for w, minutes in weeks.items()
+    ]
+    return "Minutes per topic by week. " + "; ".join(parts)
+
+
+def session_labels(sessions: Iterable[Mapping], tz: str = TIMEZONE) -> list[str]:
+    """Interview sessions for a tooltip: the day on the student's calendar and the type."""
+    zone = ZoneInfo(tz)
+    return [
+        f"{datetime.fromisoformat(s['started']).replace(tzinfo=UTC).astimezone(zone):%d %b}, "
+        f"{s['interview_type']}"
+        for s in sessions
+    ]
+
+
+def interview_headline(averages: Sequence[float]) -> str:
+    """The interview chart's takeaway: the latest session against the one before."""
+    latest = averages[-1]
+    if len(averages) == 1:
+        return f"Your first interview averaged {latest:.1f}/5"
+    before = averages[-2]
+    change = "up from" if latest > before else "down from" if latest < before else "level with"
+    return f"Your latest interview averaged {latest:.1f}/5, {change} {before:.1f}"
+
+
+def critic_plain(msg: str) -> str:
+    """A critic message for a table (plain text): the 0-based "question N:" shown as "QN+1:"."""
+    return _QUESTION_N.sub(lambda m: f"Q{int(m[1]) + 1}:", msg)
+
+
+def agent_table(rows: Iterable[Mapping]) -> pd.DataFrame:
+    """agent_stats rows -> one display row per agent; the rejection rate as a percentage."""
+    data = [
+        {
+            "Agent": r["agent_name"].replace("_", " ").capitalize(),
+            "Calls": r["calls"],
+            "Avg latency (ms)": r["avg_latency_ms"],
+            "Avg tokens": r["avg_tokens"],
+            "Rejected drafts": r["rejections"],
+            "Rejection rate": None if r["rejection_rate"] is None else 100 * r["rejection_rate"],
+        }
+        for r in rows
+    ]
+    return pd.DataFrame(data, columns=AGENT_COLUMNS)
+
+
+AGENT_COLUMNS = (
+    "Agent",
+    "Calls",
+    "Avg latency (ms)",
+    "Avg tokens",
+    "Rejected drafts",
+    "Rejection rate",
+)
+
+
+def rejections_table(rows: Iterable[Mapping], tz: str = TIMEZONE) -> pd.DataFrame:
+    """recent_rejections rows -> when (the student's clock), agent, attempt and the reason."""
+    zone = ZoneInfo(tz)
+    data = [
+        {
+            "When": datetime.fromisoformat(r["created_at"])
+            .replace(tzinfo=UTC)
+            .astimezone(zone)
+            .strftime("%d %b, %H:%M"),
+            "Agent": r["agent_name"].replace("_", " ").capitalize(),
+            "Attempt": (r["retry_count"] or 0) + 1,
+            "Critic's reason": critic_plain(r["reject_reason"] or ""),
+        }
+        for r in rows
+    ]
+    return pd.DataFrame(data, columns=["When", "Agent", "Attempt", "Critic's reason"])
 
 
 # --- evaluation results ------------------------------------------------------------

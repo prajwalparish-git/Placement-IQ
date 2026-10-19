@@ -403,7 +403,53 @@ def test_interview_shows_progress_scored_feedback_and_the_critic_trail(seeded):
 
 def test_dashboard_renders(seeded):
     at = _app(seeded, "views/dashboard.py")
-    assert at.metric[1].value == "24"  # seeded quizzes
+    # Was at.metric[1]; found by label now, so adding or reordering metrics cannot break it.
+    metrics = {m.label: m.value for m in at.metric}
+    assert metrics["Quizzes taken"] == "24"  # seeded quizzes
+    assert metrics["Readiness"] == "42/100" and metrics["Interview sessions"] == "2"
+    charts = at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")
+    assert len(charts) == 6 + 2  # a sparkline per topic, plan minutes, interview averages
+    subheaders = [s.value for s in at.subheader]
+    assert "OS is up from 30% to 70%" in subheaders
+    assert "Week 4 puts 100% of its minutes on OS" in subheaders
+    assert any(s.startswith("Your latest interview averaged") for s in subheaders)
+
+
+def test_dashboard_keeps_system_telemetry_in_its_own_section(seeded):
+    from piq import agents
+
+    agents.make_quiz("OS", "medium", [], student_id=seeded)  # mock: one critic rejection
+    at = _app(seeded, "views/dashboard.py")
+    assert [h.value for h in at.header] == ["Under the hood: agents and critic"]
+    stats, rejections = at.dataframe
+    assert "Rejection rate" in stats.value.columns
+    assert rejections.value.loc[0, "Critic's reason"].startswith("Q1: ")
+
+
+def test_dashboard_for_a_new_student_explains_each_empty_section():
+    from piq import services
+
+    sid, _ = services.onboard(
+        "UI0006", "Java Backend Developer", services.load_sample("java_backend_fresher.txt")
+    )
+    at = _app(sid, "views/dashboard.py")
+    assert not at.exception
+    assert {m.label: m.value for m in at.metric}["Quizzes taken"] == "0"
+    subheaders = [s.value for s in at.subheader]
+    assert {"No plan yet", "No interview yet"} <= set(subheaders)
+    assert "No quizzes yet." in _captions(at)
+
+
+def test_dashboard_error_state_offers_a_retry(seeded, monkeypatch):
+    from piq import services
+
+    def unreadable(*args, **kwargs):
+        raise services.ServiceError("Your progress could not be read.")
+
+    monkeypatch.setattr(services, "dashboard", unreadable)
+    at = _app(seeded, "views/dashboard.py")
+    assert "Your dashboard did not load" in [s.value for s in at.subheader]
+    assert _button(at, "Try again")
 
 
 def test_onboard_requires_a_resume_or_sample():

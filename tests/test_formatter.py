@@ -3,6 +3,7 @@ from html import escape
 import pytest
 
 from piq import formatter
+from piq.config import TOPICS
 from tests import factories as f
 
 
@@ -272,15 +273,90 @@ def test_interview_progress_counts_questions(answered, current, shown):
     assert formatter.interview_progress(answered, current, 5) == shown
 
 
-def test_score_trend_pivots_by_attempt_and_handles_empty():
-    assert formatter.score_trend([]).empty
+def test_topic_scores_keep_attempt_order_for_every_topic():
+    assert formatter.topic_scores([]) == {t: [] for t in TOPICS}
     rows = [
         {"attempted_at": "t1", "topic": "OS", "difficulty": "easy", "score_pct": 40.0},
         {"attempted_at": "t2", "topic": "DBMS", "difficulty": "easy", "score_pct": 60.0},
         {"attempted_at": "t3", "topic": "OS", "difficulty": "easy", "score_pct": 80.0},
     ]
-    df = formatter.score_trend(rows)
-    assert df.loc[2, "OS"] == 80.0 and df.loc[1, "DBMS"] == 60.0
+    scores = formatter.topic_scores(rows)
+    assert scores["OS"] == [40.0, 80.0] and scores["DBMS"] == [60.0] and scores["CN"] == []
+
+
+@pytest.mark.parametrize(
+    ("scores", "headline"),
+    [
+        ({"OS": [30, 70], "DBMS": [40, 50]}, "OS is up from 30% to 70%"),
+        ({"OS": [70, 30], "DBMS": [50, 50]}, "OS is down from 70% to 30%"),
+        ({"OS": [50, 50]}, "Scores are level since your first quizzes"),
+        ({"OS": [50], "CN": []}, "Take a second quiz on a topic to see it move"),
+    ],
+)
+def test_topic_scores_headline_names_the_biggest_move(scores, headline):
+    assert formatter.topic_scores_headline(scores) == headline
+
+
+def test_dashboard_headlines_and_alt_text():
+    plans = [f.plan(week=1), f.plan(week=2, topics=("OS",) * 5 + ("DBMS",) * 2)]
+    assert formatter.week_mix_headline(plans) == "Week 2 puts 71% of its minutes on OS"
+    weeks = {p.week_no: p.minutes_by_topic() for p in plans}
+    assert formatter.plan_mix_alt(weeks) == (
+        "Minutes per topic by week. week 1: OS 420; week 2: OS 300, DBMS 120"
+    )
+    assert formatter.interview_headline([3.1]) == "Your first interview averaged 3.1/5"
+    assert formatter.interview_headline([2.5, 3.75]) == (
+        "Your latest interview averaged 3.8/5, up from 2.5"
+    )
+    assert formatter.interview_headline([3.0, 2.0]).endswith("down from 3.0")
+    assert formatter.interview_headline([3.0, 3.0]).endswith("level with 3.0")
+
+
+def test_telemetry_tables_are_ready_to_read():
+    stats = [
+        {
+            "agent_name": "quiz_critic",
+            "calls": 4,
+            "avg_latency_ms": 120.0,
+            "avg_tokens": 900.0,
+            "rejections": 1,
+            "rejection_rate": 0.25,
+        },
+        {
+            "agent_name": "profile",
+            "calls": 1,
+            "avg_latency_ms": 80.0,
+            "avg_tokens": 300.0,
+            "rejections": 0,
+            "rejection_rate": None,
+        },
+    ]
+    df = formatter.agent_table(stats)
+    assert list(df.columns) == list(formatter.AGENT_COLUMNS)
+    assert df.loc[0, "Agent"] == "Quiz critic" and df.loc[0, "Rejection rate"] == 25.0
+    assert df["Rejection rate"].isna().tolist() == [False, True]  # no critic, no rate
+    assert list(formatter.agent_table([]).columns) == list(formatter.AGENT_COLUMNS)
+    rejected = [
+        {
+            "created_at": "2026-10-19 20:00:00",  # UTC; 01:30 the next day in India
+            "agent_name": "quiz",
+            "retry_count": 0,
+            "reject_reason": "question 0: options are not distinct",
+        }
+    ]
+    row = formatter.rejections_table(rejected).iloc[0].to_dict()
+    assert row == {
+        "When": "20 Oct, 01:30",
+        "Agent": "Quiz",
+        "Attempt": 1,
+        "Critic's reason": "Q1: options are not distinct",
+    }
+    sessions = [{"started": "2026-10-19 20:00:00", "interview_type": "HR"}]
+    assert formatter.session_labels(sessions) == ["20 Oct, HR"]
+
+
+def test_critic_plain_renumbers_without_escaping():
+    assert formatter.critic_plain("question 2: __init__ twice") == "Q3: __init__ twice"
 
 
 def test_results_table_includes_only_measured_metrics():

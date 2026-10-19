@@ -12,7 +12,7 @@ Vega-Lite, built once per distinct data (see the note above them).
 
 import json
 import math
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from functools import lru_cache
 
 import altair as alt
@@ -197,3 +197,119 @@ def readiness_ring_spec(score: int) -> dict:
 @lru_cache(maxsize=128)
 def _readiness_ring_json(score: int) -> str:
     return json.dumps(to_spec(readiness_ring(score)))
+
+
+# --- dashboard ----------------------------------------------------------------------------
+
+
+def score_spark(topic: str, scores: Sequence[float]) -> alt.LayerChart:
+    """One topic's quiz scores in attempt order as a sparkline in its colour: 0-100%, no axes
+    (the latest score is written beside it), a tooltip on every point."""
+    df = pd.DataFrame(
+        {"topic": topic, "attempt": range(1, len(scores) + 1), "score": [float(s) for s in scores]}
+    )
+    base = alt.Chart(df).encode(
+        x=alt.X("attempt:Q", axis=None, scale=alt.Scale(domain=[1, max(len(scores), 2)])),
+        y=alt.Y("score:Q", axis=None, scale=alt.Scale(domain=[0, 100])),
+        color=alt.Color("topic:N", scale=TOPIC_SCALE, legend=None),
+        tooltip=[
+            alt.Tooltip("attempt:Q", title="Quiz"),
+            alt.Tooltip("score:Q", title="Score (%)", format=".0f"),
+        ],
+    )
+    line = base.mark_line(strokeWidth=2)
+    points = base.mark_circle(size=36, opacity=1)
+    return themed(alt.layer(line, points).properties(height=56))
+
+
+def week_mix(weeks: Mapping[int, Mapping[str, int]]) -> alt.Chart:
+    """Each week's minutes as one bar, split by topic in topic colours (stacked in TOPICS
+    order), oldest week on top; the legend names the colours."""
+    rows = [
+        {"week": f"Week {w}", "topic": t, "minutes": int(m), "rank": TOPICS.index(t)}
+        for w, minutes in weeks.items()
+        for t, m in minutes.items()
+        if m
+    ]
+    order = [f"Week {w}" for w in weeks]
+    chart = (
+        alt.Chart(pd.DataFrame(rows))
+        .mark_bar(size=18)
+        .encode(
+            y=alt.Y("week:N", sort=order, title=None, axis=alt.Axis(labelFontSize=14)),
+            x=alt.X("minutes:Q", title=None, axis=alt.Axis(format="d", tickCount=3)),
+            color=alt.Color(
+                "topic:N",
+                scale=TOPIC_SCALE,
+                legend=alt.Legend(orient="bottom", title=None, direction="horizontal"),
+            ),
+            order=alt.Order("rank:Q"),
+            tooltip=[
+                alt.Tooltip("week:N", title="Week"),
+                alt.Tooltip("topic:N", title="Topic"),
+                alt.Tooltip("minutes:Q", title="Minutes"),
+            ],
+        )
+        .properties(height=ROW_PX * len(order))
+    )
+    return themed(chart)
+
+
+def interview_trend(averages: Sequence[float], labels: Sequence[str]) -> alt.LayerChart:
+    """Each interview session's average score (0-5) in order, as a line in the brand teal
+    (not a topic, so not a topic colour); `labels` describe each session in the tooltip."""
+    df = pd.DataFrame(
+        {
+            "session": range(1, len(averages) + 1),
+            "average": [float(a) for a in averages],
+            "label": list(labels),
+        }
+    )
+    base = alt.Chart(df).encode(
+        x=alt.X(
+            "session:O",
+            title=None,
+            axis=alt.Axis(labelAngle=0, labelExpr="'Session ' + datum.value"),
+        ),
+        y=alt.Y(
+            "average:Q",
+            title=None,
+            scale=alt.Scale(domain=[0, 5]),
+            axis=alt.Axis(values=[0, 2.5, 5], format=".1f"),
+        ),
+        tooltip=[
+            alt.Tooltip("label:N", title="Session"),
+            alt.Tooltip("average:Q", title="Average (/5)", format=".1f"),
+        ],
+    )
+    line = base.mark_line(strokeWidth=2, color=BRAND_COLOR)
+    points = base.mark_circle(size=60, opacity=1, color=BRAND_COLOR)
+    return themed(alt.layer(line, points).properties(height=180))
+
+
+def score_spark_spec(topic: str, scores: Sequence[float]) -> dict:
+    return json.loads(_score_spark_json(topic, tuple(scores)))
+
+
+@lru_cache(maxsize=256)
+def _score_spark_json(topic: str, scores: tuple[float, ...]) -> str:
+    return json.dumps(to_spec(score_spark(topic, scores)))
+
+
+def week_mix_spec(weeks: Mapping[int, Mapping[str, int]]) -> dict:
+    key = tuple((w, tuple(m.items())) for w, m in weeks.items())
+    return json.loads(_week_mix_json(key))
+
+
+@lru_cache(maxsize=128)
+def _week_mix_json(weeks: tuple[tuple[int, tuple[tuple[str, int], ...]], ...]) -> str:
+    return json.dumps(to_spec(week_mix({w: dict(m) for w, m in weeks})))
+
+
+def interview_trend_spec(averages: Sequence[float], labels: Sequence[str]) -> dict:
+    return json.loads(_interview_trend_json(tuple(averages), tuple(labels)))
+
+
+@lru_cache(maxsize=128)
+def _interview_trend_json(averages: tuple[float, ...], labels: tuple[str, ...]) -> str:
+    return json.dumps(to_spec(interview_trend(averages, labels)))
