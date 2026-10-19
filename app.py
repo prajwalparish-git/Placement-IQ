@@ -5,12 +5,13 @@ import logging
 import streamlit as st
 
 from piq import db, formatter
-from piq.config import ConfigError, settings
+from piq.config import BRAND_DIR, ConfigError, settings
 from piq.ui import student_selector
 from scripts.seed import main as seed_demo
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
-st.set_page_config(page_title="PlacementIQ", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="PlacementIQ", page_icon=str(BRAND_DIR / "mark.svg"), layout="wide")
+st.logo(str(BRAND_DIR / "wordmark.svg"), icon_image=str(BRAND_DIR / "mark.svg"), size="large")
 
 try:
     cfg = settings()
@@ -35,7 +36,6 @@ def _startup() -> None:
 
 _startup()
 
-st.sidebar.title("🎯 PlacementIQ")
 if cfg.mock_mode:
     st.sidebar.warning("MOCK_MODE: canned responses, no API calls.")
 student_selector()

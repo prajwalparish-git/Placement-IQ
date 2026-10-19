@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 RESULTS_DIR = ROOT / "evaluation" / "results"
+BRAND_DIR = ROOT / "static" / "brand"  # mark.svg (icon) and wordmark.svg
 
 TOPICS = ("Aptitude", "DBMS", "OS", "CN", "DSA", "OOP")
 DIFFICULTIES = ("easy", "medium", "hard")
@@ -47,6 +48,10 @@ PALETTE = {
         "primary_text": "#6CCBC4",
     },
 }
+
+# Logo teal (static/brand/*.svg): an <img> cannot follow the theme toggle, so one tone that
+# reads on both sidebars and both page backgrounds (>= 3:1 on each).
+BRAND_COLOR = "#278C93"
 
 # Status colours: always shown with an icon and words, never used for a topic.
 SEMANTIC_COLORS = {

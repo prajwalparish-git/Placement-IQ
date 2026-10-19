@@ -7,7 +7,16 @@ import tomllib
 
 import pytest
 
-from piq.config import PALETTE, ROOT, SCHEMES, SEMANTIC_COLORS, TOPIC_COLORS, TOPICS
+from piq.config import (
+    BRAND_COLOR,
+    BRAND_DIR,
+    PALETTE,
+    ROOT,
+    SCHEMES,
+    SEMANTIC_COLORS,
+    TOPIC_COLORS,
+    TOPICS,
+)
 
 THEME = tomllib.loads((ROOT / ".streamlit" / "config.toml").read_text(encoding="utf-8"))["theme"]
 ALERT_ALPHA = {"light": 0.10, "dark": 0.20}  # Streamlit's alert tint over the background
@@ -166,3 +175,24 @@ def test_sequential_ramp_runs_away_from_the_background(scheme):
     ramp = THEME[scheme]["chartSequentialColors"]
     steps = [contrast(c, PALETTE[scheme]["background"]) for c in ramp]
     assert len(ramp) == 10 and steps == sorted(steps) and steps[-1] >= 4.5
+
+
+@pytest.mark.parametrize("name", ["mark.svg", "wordmark.svg"])
+def test_brand_svgs_are_self_contained_and_on_palette(name):
+    import xml.etree.ElementTree as ET
+
+    text = (BRAND_DIR / name).read_text(encoding="utf-8")
+    root = ET.fromstring(text)
+    ns = "{http://www.w3.org/2000/svg}"
+    assert root.find(f"{ns}title").text == "PlacementIQ"  # accessible name
+    assert root.find(f".//{ns}text") is None  # lettering is outlined: no font needed in <img>
+    assert "href" not in text and "url(" not in text  # nothing fetched from elsewhere
+    assert BRAND_COLOR in text
+
+
+def test_brand_colour_reads_on_every_background():
+    for scheme in SCHEMES:
+        for layer in ("background", "surface"):
+            assert contrast(BRAND_COLOR, PALETTE[scheme][layer]) >= 3, (scheme, layer)
+        for tc in TOPIC_COLORS[scheme].values():
+            assert distance(BRAND_COLOR, tc) >= MIN_STATUS_DISTANCE
