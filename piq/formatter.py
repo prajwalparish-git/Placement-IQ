@@ -302,7 +302,10 @@ def criteria_html(scores: Mapping[str, int]) -> str:
 
 def evaluation_md(ev: AnswerEvaluation) -> str:
     """What to keep, what to change and a model answer, quoted."""
-    quote = "\n".join(f"> {line}" for line in md_escape(ev.model_answer).splitlines())
+    # Every line keeps its own line in the quote (a hard break): consecutive "> " lines
+    # would otherwise run together into one paragraph.
+    lines = md_escape(ev.model_answer).splitlines()
+    quote = "\n".join(f"> {line}  " if line.strip() else ">" for line in lines)
     return (
         f"**Strengths**  \n{list_md(ev.strengths, 'None this time.')}\n\n"
         f"**Improve**  \n{list_md(ev.improvements, 'Nothing to change.')}\n\n"

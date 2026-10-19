@@ -247,6 +247,19 @@ def test_feedback_shows_the_overall_score_then_each_criterion():
     assert "**Strengths**  \n:gray[None this time.]" in formatter.evaluation_md(empty)
 
 
+def test_a_multi_line_model_answer_keeps_its_lines_in_the_quote():
+    answer = "Situation: a slow report.\nTask: speed it up.\n\nResult: 6 minutes, not 40."
+    md = formatter.evaluation_md(f.evaluation().model_copy(update={"model_answer": answer}))
+    quote = md.split("**Model answer**\n", 1)[1]
+    # Each line stays its own line (a hard break), and the blank line still splits paragraphs.
+    assert quote == (
+        "> Situation: a slow report\\.  \n"
+        "> Task: speed it up\\.  \n"
+        ">\n"
+        "> Result: 6 minutes, not 40\\.  "
+    )
+
+
 def test_interview_questions_say_whether_they_follow_up():
     from piq.schemas import InterviewTurn
 
