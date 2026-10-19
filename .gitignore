@@ -26,3 +26,6 @@ evaluation/results/*
 Thumbs.db
 .vscode/
 .idea/
+
+# Local Claude Code settings
+.claude/settings.json
