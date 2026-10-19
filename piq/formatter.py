@@ -105,6 +105,14 @@ def usn_taken_md(usn: str, name: str, role: str) -> str:
     )
 
 
+def delete_warning_md(usn: str, name: str) -> str:
+    """What deleting a student costs, in plain words, before it happens."""
+    return (
+        f"This deletes **{md_escape(name)}** ({md_escape(usn)}) with every profile, plan, quiz "
+        "and interview. It cannot be undone."
+    )
+
+
 def readiness_summary(p: StudentProfile) -> str:
     total = len(p.matched_skills) + len(p.missing_skills)
     role = md_escape(p.target_role)

@@ -7,6 +7,7 @@ from piq import charts, formatter, services
 from piq.ui import current_student, page_header, run_agent, set_student, show_last_run
 
 CONFIRM = "onboard_confirm"  # a submission waiting for "Replace their profile"
+DELETE = "onboard_delete"  # the delete dialog is open
 NEXT = (
     ("badge", "Enter your USN and the role you are aiming for."),
     ("upload_file", "Upload your resume, or pick a sample to try the app."),
@@ -90,6 +91,28 @@ def _confirm_replace() -> None:
         _analyse(pending["usn"], pending["role"], pending["text"])
 
 
+def _close_delete() -> None:
+    st.session_state.pop(DELETE, None)
+
+
+# Open while the session flag is set, so a full rerun does not close it half-way; dismissing
+# it (X, Esc, a click outside) clears the flag.
+@st.dialog("Delete student", icon=":material/delete:", on_dismiss=_close_delete)
+def _delete(student: dict) -> None:
+    """Delete only after the USN is typed: the history cannot be brought back."""
+    st.markdown(formatter.delete_warning_md(student["usn"], student["name"]))
+    typed = st.text_input("Type the USN to confirm", placeholder=student["usn"])
+    if st.button("Delete for good", type="primary", icon=":material/delete_forever:"):
+        try:
+            services.delete_student(student["id"], typed)
+        except services.ServiceError as e:
+            st.error(formatter.md_escape(str(e)), icon=":material/error:")
+            return
+        _close_delete()
+        set_student(None)
+        st.switch_page("views/home.py")
+
+
 def _readiness_card(profile: services.StudentProfile) -> None:
     score = profile.readiness_score
     with st.container(border=True):
@@ -159,3 +182,7 @@ else:
         show_last_run("Profile agent")
         with st.expander("Re-profile with a new resume", icon=":material/refresh:"):
             _form(roles, role_index)
+        if st.button("Delete this student", type="tertiary", icon=":material/delete:"):
+            st.session_state[DELETE] = True
+        if st.session_state.get(DELETE) and (student := current_student()):
+            _delete(student)

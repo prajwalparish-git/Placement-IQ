@@ -62,6 +62,17 @@ def usn_owner(usn: str) -> sqlite3.Row | None:
     return db.student_by_usn(normalise_usn(usn))
 
 
+def delete_student(student_id: str | None, confirm_usn: str | None) -> None:
+    """Delete a student and (by cascade) all of their history, only when `confirm_usn` is
+    their USN: a slip of the finger must not cost a semester of data."""
+    student = next((s for s in db.list_students() if s["id"] == student_id), None)
+    if student is None:
+        raise ServiceError("This student no longer exists.")
+    if (confirm_usn or "").strip().upper() != student["usn"]:
+        raise ServiceError(f"That is not {student['usn']}; nothing was deleted.")
+    db.delete_student(student["usn"])
+
+
 def list_students() -> list[sqlite3.Row]:
     return db.list_students()
 

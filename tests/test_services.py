@@ -349,3 +349,14 @@ def test_usn_owner_finds_the_student_behind_a_usn(student):
     assert services.usn_owner("NOBODY01") is None
     with pytest.raises(ServiceError, match="USN is required"):
         services.usn_owner("bad usn")
+
+
+def test_delete_student_needs_the_matching_usn(student):
+    usn = db.list_students()[0]["usn"]
+    with pytest.raises(ServiceError, match="nothing was deleted"):
+        services.delete_student(student, "WRONG001")
+    assert services.current_profile(student) is not None  # a wrong USN deletes nothing
+    services.delete_student(student, f" {usn.lower()} ")
+    assert db.list_students() == [] and services.current_profile(student) is None
+    with pytest.raises(ServiceError, match="no longer exists"):
+        services.delete_student(student, usn)

@@ -260,6 +260,7 @@ def test_markdown_builders_escape_every_dynamic_value(hostile):
     for md in (
         formatter.readiness_summary(f.profile(role=hostile)),
         formatter.usn_taken_md("USN1", hostile, hostile),
+        formatter.delete_warning_md("USN1", hostile),
         formatter.skill_chips([hostile], present=False),
         formatter.list_md(profile.projects, "none"),
         formatter.fixes_md(profile.resume_feedback),

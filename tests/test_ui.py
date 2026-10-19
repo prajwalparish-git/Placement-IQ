@@ -251,6 +251,24 @@ def test_reprofiling_the_selected_student_needs_no_confirmation(seeded):
     assert any(s.label.startswith("Profile agent — last run") for s in at.status)
 
 
+def test_deleting_a_student_needs_their_usn_then_returns_home(seeded):
+    at = _app(seeded, "views/onboard.py")
+    _button(at, "Delete this student").click().run()
+    assert "with every profile, plan, quiz and interview" in _md(at)
+    confirm = next(t for t in at.text_input if t.label == "Type the USN to confirm")
+    confirm.input("WRONG001")
+    _button(at, "Delete for good").click().run()
+    assert any("nothing was deleted" in e.value for e in at.error)
+    assert [s["usn"] for s in db.list_students()] == [seed.USN]  # still there
+
+    next(t for t in at.text_input if t.label == "Type the USN to confirm").input(seed.USN.lower())
+    _button(at, "Delete for good").click().run()
+    assert not at.exception
+    assert db.list_students() == []
+    assert at.session_state["student_id"] is None
+    assert [t.value for t in at.title] == ["Placement prep that adapts to you"]  # Home
+
+
 def test_onboard_rejects_missing_usn():
     at = _app(page="views/onboard.py")  # Home is the default page now
     _button(at, "Analyse resume").click().run()
