@@ -85,8 +85,8 @@ with main:
         if st.button(action.cta, type="primary", icon=f":material/{action.icon}:", key="next"):
             _go(action.page, **({"quiz_topic": action.topic} if action.topic else {}))
     st.subheader(formatter.weakness_headline(overview.weakness), anchor=False)
-    st.altair_chart(
-        charts.weakness_bars(overview.weakness),
+    st.vega_lite_chart(
+        spec=charts.weakness_spec(overview.weakness),
         width="stretch",
         alt=formatter.weakness_alt(overview.weakness),
     )

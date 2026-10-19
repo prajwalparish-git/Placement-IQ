@@ -66,8 +66,8 @@ def _readiness_card(profile: services.StudentProfile) -> None:
                 help="How much of the target role's skill list the resume shows.",
                 width="content",
             )
-            st.altair_chart(
-                charts.readiness_ring(score),
+            st.vega_lite_chart(
+                spec=charts.readiness_ring_spec(score),
                 width="content",
                 alt=f"Readiness {score} out of 100",
             )

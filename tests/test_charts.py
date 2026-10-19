@@ -82,3 +82,22 @@ def test_shared_theme_sets_fonts_and_drops_the_frame():
     assert config["view"]["strokeWidth"] == 0
     assert (config["title"]["font"], config["title"]["anchor"]) == ("Bricolage Grotesque", "start")
     assert config["axis"]["domain"] is False and config["axis"]["ticks"] is False
+
+
+def test_view_specs_are_the_charts_as_plain_vega_lite_without_altairs_size_default():
+    spec = charts.weakness_spec(WEAKNESS)
+    assert spec == charts.to_spec(charts.weakness_bars(WEAKNESS))
+    assert [layer["mark"]["type"] for layer in spec["layer"]] == ["bar", "rule"]
+    assert "continuousWidth" not in spec["config"]["view"]  # Streamlit sizes charts
+    assert spec["config"]["view"]["strokeWidth"] == 0  # the shared look survives
+    [rows] = [v for v in spec["datasets"].values() if len(v) == len(WEAKNESS)]
+    assert {r["topic"] for r in rows} == set(WEAKNESS)  # data travels inline
+
+
+def test_cached_specs_hand_out_fresh_copies():
+    first = charts.minutes_shift_spec({"OS": 600}, {"OS": 840}, (3, 4))
+    first["layer"].clear()  # a caller changing its copy must not change the next one
+    again = charts.minutes_shift_spec({"OS": 600}, {"OS": 840}, (3, 4))
+    assert len(again["layer"]) == 3
+    assert charts.readiness_ring_spec(42) == charts.to_spec(charts.readiness_ring(42))
+    assert charts.readiness_ring_spec(42) is not charts.readiness_ring_spec(42)

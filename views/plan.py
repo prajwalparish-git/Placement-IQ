@@ -64,8 +64,8 @@ with side_col:
             st.subheader(
                 formatter.minutes_shift_headline(before, after, previous.week_no), anchor=False
             )
-            st.altair_chart(
-                charts.minutes_shift(before, after, pair),
+            st.vega_lite_chart(
+                spec=charts.minutes_shift_spec(before, after, pair),
                 width="stretch",
                 alt=formatter.minutes_shift_alt(before, after, pair),
             )
@@ -75,8 +75,8 @@ with side_col:
             )
     with st.container(border=True):
         st.subheader(formatter.weakness_headline(ov.weakness), anchor=False)
-        st.altair_chart(
-            charts.weakness_bars(ov.weakness),
+        st.vega_lite_chart(
+            spec=charts.weakness_spec(ov.weakness),
             width="stretch",
             alt=formatter.weakness_alt(ov.weakness),
         )

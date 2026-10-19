@@ -5,10 +5,15 @@ Colour comes from the active Streamlit theme, so charts follow the light/dark sw
 topic series use a fixed domain (TOPICS) and no range, and Streamlit fills it with that
 scheme's chartCategoricalColors, which config.toml lists in TOPICS order. OS is therefore
 the same colour in every chart. Neutral marks keep the theme's defaults.
+
+Views render the `*_spec` functions with st.vega_lite_chart: the same charts as plain
+Vega-Lite, built once per distinct data (see the note above them).
 """
 
+import json
 import math
 from collections.abc import Mapping
+from functools import lru_cache
 
 import altair as alt
 import pandas as pd
@@ -143,3 +148,52 @@ def readiness_ring(score: int) -> alt.Chart:
         .properties(width=112, height=112)
     )
     return themed(ring)
+
+
+# --- specs for the views ----------------------------------------------------------------
+# Layering and validating an Altair chart costs 40-60 ms, on every rerun. The views
+# therefore render plain Vega-Lite specs, built once per distinct data and cached as JSON
+# text (immutable; each caller gets a fresh dict). Keyed by the values, never by student, so
+# a cached spec is right for whoever asks, after any write.
+
+
+def to_spec(chart: alt.TopLevelMixin) -> dict:
+    """The chart as a Vega-Lite dict with its data inline. Altair's schema check is skipped
+    (the builders are unit-tested) and so is the default size Altair's theme adds, because
+    Streamlit sizes charts itself."""
+    spec = chart.to_dict(validate=False)
+    view = spec.get("config", {}).get("view", {})
+    for key in ("continuousWidth", "continuousHeight"):
+        view.pop(key, None)
+    return spec
+
+
+def weakness_spec(weakness: Mapping[str, float]) -> dict:
+    return json.loads(_weakness_json(tuple(weakness.items())))
+
+
+@lru_cache(maxsize=128)
+def _weakness_json(items: tuple[tuple[str, float], ...]) -> str:
+    return json.dumps(to_spec(weakness_bars(dict(items))))
+
+
+def minutes_shift_spec(
+    before: Mapping[str, int], after: Mapping[str, int], weeks: tuple[int, int]
+) -> dict:
+    return json.loads(_minutes_shift_json(tuple(before.items()), tuple(after.items()), weeks))
+
+
+@lru_cache(maxsize=128)
+def _minutes_shift_json(
+    before: tuple[tuple[str, int], ...], after: tuple[tuple[str, int], ...], weeks: tuple[int, int]
+) -> str:
+    return json.dumps(to_spec(minutes_shift(dict(before), dict(after), weeks)))
+
+
+def readiness_ring_spec(score: int) -> dict:
+    return json.loads(_readiness_ring_json(score))
+
+
+@lru_cache(maxsize=128)
+def _readiness_ring_json(score: int) -> str:
+    return json.dumps(to_spec(readiness_ring(score)))
