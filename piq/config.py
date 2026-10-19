@@ -33,6 +33,7 @@ class Settings:
     db_path: Path
     max_critic_retries: int
     mock_mode: bool
+    seed_demo: bool = False  # recreate the demo student on start when the DB is empty
 
 
 def _flag(name: str, default: str) -> bool:
@@ -50,6 +51,7 @@ def settings() -> Settings:
         db_path=Path(os.getenv("DB_PATH", str(DATA_DIR / "placementiq.db"))),
         max_critic_retries=int(os.getenv("MAX_CRITIC_RETRIES", "2")),
         mock_mode=_flag("MOCK_MODE", "true"),
+        seed_demo=_flag("SEED_DEMO", "false"),
     )
     if not s.mock_mode:
         missing = [

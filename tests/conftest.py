@@ -11,7 +11,7 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("MOCK_MODE", "true")
     monkeypatch.setenv("DB_PATH", str(tmp_path / "test.db"))
     monkeypatch.setenv("MAX_CRITIC_RETRIES", "2")
-    for k in ("GROQ_API_KEY", "GROQ_MODEL_LARGE", "GROQ_MODEL_SMALL"):
+    for k in ("GROQ_API_KEY", "GROQ_MODEL_LARGE", "GROQ_MODEL_SMALL", "SEED_DEMO"):
         monkeypatch.delenv(k, raising=False)
     settings.cache_clear()
     db.init_db()

@@ -39,3 +39,10 @@ def test_dotenv_file_is_read_without_overriding_real_env(tmp_path, monkeypatch):
     s = settings()
     assert s.max_critic_retries == 5  # taken from the file
     assert s.mock_mode is True  # MOCK_MODE already set in the environment wins
+
+
+def test_seed_demo_is_opt_in(monkeypatch):
+    assert settings().seed_demo is False
+    monkeypatch.setenv("SEED_DEMO", "true")
+    settings.cache_clear()
+    assert settings().seed_demo is True

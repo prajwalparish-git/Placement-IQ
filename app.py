@@ -7,6 +7,7 @@ import streamlit as st
 from piq import db
 from piq.config import ConfigError, settings
 from piq.ui import student_selector
+from scripts.seed import main as seed_demo
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 st.set_page_config(page_title="PlacementIQ", page_icon="🎯", layout="wide")
@@ -21,6 +22,8 @@ except ConfigError as e:
 @st.cache_resource
 def _startup() -> None:
     db.init_db()
+    if cfg.seed_demo and not db.list_students():  # hosted disks reset on every restart
+        seed_demo()
     logging.getLogger("piq").info(
         "mock_mode=%s large=%s small=%s db=%s",
         cfg.mock_mode,

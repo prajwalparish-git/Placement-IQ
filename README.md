@@ -17,6 +17,19 @@ Without a `.env` file the app runs in **MOCK_MODE**: canned responses and no net
 2. Set `MOCK_MODE=false`. The model IDs are already filled in (`openai/gpt-oss-120b` and `openai/gpt-oss-20b`, verified 2026-10-19).
 3. Before a demo, run `python -m scripts.check_models`. It confirms both models are still served, that JSON mode works, and how much quota is left (each model allows 8,000 tokens/minute and 1,000 requests/day).
 
+## Deploy (optional): Streamlit Community Cloud
+1. On share.streamlit.io choose **Create app**, pick this repository (a private repo needs GitHub access granted to Streamlit), branch `main`, main file `app.py`, and Python 3.13 under **Advanced settings**.
+2. Under **Secrets**, add:
+   ```toml
+   GROQ_API_KEY = "your key"
+   GROQ_MODEL_LARGE = "openai/gpt-oss-120b"
+   GROQ_MODEL_SMALL = "openai/gpt-oss-20b"
+   MOCK_MODE = "false"
+   SEED_DEMO = "true"
+   ```
+   Streamlit exposes top-level secrets as environment variables, so no code change is needed.
+3. The hosted disk is not persistent: the SQLite file resets when the app restarts. With `SEED_DEMO=true` the demo student is recreated on start, so the demo always opens with history.
+
 ## Demo path
 1. **Onboard:** pick a sample resume. You see the profile, missing skills and readiness.
 2. **Weekly plan:** generate a week. Weak topics get the most minutes.

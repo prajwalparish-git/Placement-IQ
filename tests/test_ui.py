@@ -161,3 +161,19 @@ def test_results_page_without_and_with_results(tmp_path, monkeypatch):
     at = _app(page="views/results.py")
     assert any("MOCK_MODE" in w.value for w in at.warning)
     assert len(at.dataframe) == 2  # metrics table + agent cost
+
+
+def test_seed_demo_fills_an_empty_database_on_start(monkeypatch):
+    import streamlit as st
+
+    from piq.config import settings
+    from scripts import seed
+
+    monkeypatch.setenv("SEED_DEMO", "true")
+    settings.cache_clear()
+    st.cache_resource.clear()  # _startup runs once per process
+    try:
+        _app()
+        assert [s["usn"] for s in db.list_students()] == [seed.USN]
+    finally:
+        st.cache_resource.clear()
