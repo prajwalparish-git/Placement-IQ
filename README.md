@@ -37,13 +37,20 @@ Without a `.env` file the app runs in **MOCK_MODE**: canned responses and no net
 4. **Weekly plan:** generate the next week. The weakest topic now gets the most minutes, and the chart shows the shift.
 5. **Mock interview:** give a vague answer and get a probing follow-up and a rubric score.
 6. **Dashboard:** trends, plus agent latency, tokens and critic rejection rate.
+7. **Results:** baseline vs PlacementIQ table and chart from the evaluation.
 
 ## Tests and evaluation
 ```
 pip install -r requirements-dev.txt
-pytest                                   # offline, includes headless UI tests
-python -m evaluation.run_eval            # baseline vs PlacementIQ on 20 frozen cases (live, ~150 calls)
-python -m scripts.export_graph           # docs/critic_graph.mmd for the report
+pytest                                   # offline, includes headless UI tests (CI runs it on every push)
+python -m evaluation.run_eval --consecutive 5 --interviews   # live, 20 frozen cases, ~290 calls
+python -m evaluation.run_eval --resume   # continue after the daily quota runs out
+python -m evaluation.report              # results/report.md + chart.svg for the report
 ```
 
-See [CLAUDE.md](CLAUDE.md) for the code map and conventions, and [ARCHITECTURE.md](ARCHITECTURE.md) for the design.
+## Documentation
+- [ARCHITECTURE.md](ARCHITECTURE.md): design, data flow, decisions, limitations
+- [CLAUDE.md](CLAUDE.md): code map, commands and conventions
+- [docs/diagrams.md](docs/diagrams.md): use case, components, DFD level 0/1, ER and sequence diagrams
+- [docs/critic_graph.md](docs/critic_graph.md): the LangGraph critic loop, generated from the code
+- [docs/test_report.md](docs/test_report.md): every test case and its result (`python -m scripts.test_report`)
