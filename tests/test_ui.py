@@ -34,6 +34,53 @@ def seeded() -> str:
     return next(s["id"] for s in db.list_students() if s["usn"] == seed.USN)
 
 
+class _Recorder:
+    """A sqlite3 connection that records every statement it runs, with its parameters."""
+
+    def __init__(self, conn, seen: list):
+        self._conn, self._seen = conn, seen
+
+    def execute(self, sql: str, params=()):
+        self._seen.append((" ".join(sql.split()), tuple(params)))
+        return self._conn.execute(sql, params)
+
+    def __getattr__(self, name: str):
+        return getattr(self._conn, name)
+
+
+PAGES = [
+    "views/onboard.py",
+    "views/plan.py",
+    "views/quiz.py",
+    "views/interview.py",
+    "views/dashboard.py",
+    "views/results.py",
+]
+
+
+@pytest.mark.parametrize("page", PAGES)
+def test_a_page_render_never_repeats_a_query(seeded, monkeypatch, page):
+    from collections import Counter
+    from contextlib import contextmanager
+
+    real, seen = db.tx, []
+
+    @contextmanager
+    def recording_tx():
+        with real() as conn:
+            yield _Recorder(conn, seen)
+
+    monkeypatch.setattr(db, "tx", recording_tx)
+    _app(seeded, page)
+    assert seen
+    assert [q for q, n in Counter(seen).items() if n > 1] == []
+
+
+def test_onboard_prefills_the_selected_students_usn(seeded):
+    at = _app(seeded, "views/onboard.py")
+    assert at.text_input[0].value == seed.USN
+
+
 def test_onboard_with_sample_resume():
     at = _app()
     at.text_input[0].input("ui0001")

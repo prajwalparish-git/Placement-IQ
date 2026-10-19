@@ -22,7 +22,6 @@ def student() -> str:
 def test_onboard_creates_student_and_profile(student):
     [row] = services.list_students()
     assert (row["id"], row["usn"]) == (student, "TEST01")
-    assert services.usn_of(student) == "TEST01" and services.usn_of(None) == ""
     profile = services.current_profile(student)
     assert profile.target_role == ROLE and 0 <= profile.readiness_score <= 100
 
@@ -43,6 +42,21 @@ def test_onboard_rejects_unknown_role_and_empty_resume():
     with pytest.raises(ServiceError, match="empty"):
         services.onboard("TEST02", ROLE, "   ")
     assert services.list_students() == []
+
+
+def test_sample_list_is_read_once(monkeypatch):
+    from pathlib import PurePath
+
+    globs = []
+
+    class Folder:
+        def glob(self, pattern: str) -> list[PurePath]:
+            globs.append(pattern)
+            return [PurePath("b.txt"), PurePath("a.txt")]
+
+    monkeypatch.setattr(services, "SAMPLES_DIR", Folder())
+    assert services.sample_resumes() == services.sample_resumes() == ("a.txt", "b.txt")
+    assert globs == ["*.txt"]
 
 
 def test_samples_load_only_from_the_listed_files():

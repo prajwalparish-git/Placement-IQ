@@ -4,8 +4,8 @@ from piq import formatter, services
 from piq.ui import require_profile, run_agent, show_last_run
 
 st.header("Weekly plan")
-sid, _ = require_profile()
-ov = services.plan_overview(sid)
+sid, profile = require_profile()
+ov = services.plan_overview(sid, profile)
 
 left, right = st.columns([1, 2])
 with left:

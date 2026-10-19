@@ -1,6 +1,6 @@
 import pytest
 
-from piq import agents, db
+from piq import agents, db, services
 from piq.config import settings
 
 
@@ -16,5 +16,7 @@ def isolated(tmp_path, monkeypatch):
     settings.cache_clear()
     db.init_db()
     agents.clear_verdict_cache()
+    services.sample_resumes.cache_clear()
     yield
     settings.cache_clear()
+    services.sample_resumes.cache_clear()

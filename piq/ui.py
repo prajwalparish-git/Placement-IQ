@@ -30,12 +30,21 @@ def set_student(student_id: str | None, keep_runs: tuple[str, ...] = ()) -> None
 
 
 def student_selector() -> None:
-    labels = {f"{s['usn']} — {s['name']}": s["id"] for s in services.list_students()}
+    students = services.list_students()
+    labels = {f"{s['usn']} — {s['name']}": s["id"] for s in students}
     ids = list(labels.values())
     current = st.session_state.get("student_id")
     index = ids.index(current) + 1 if current in ids else 0
     choice = st.sidebar.selectbox("Student", [NEW, *labels], index=index)
     set_student(labels.get(choice))
+    # Refreshed on every run before the page renders, so pages reuse it instead of a query.
+    selected = next((s for s in students if s["id"] == labels.get(choice)), None)
+    st.session_state["student"] = dict(selected) if selected else None
+
+
+def current_student() -> dict | None:
+    """The selected student's row (id, name, usn, target_role, readiness_score), or None."""
+    return st.session_state.get("student")
 
 
 def require_profile() -> tuple[str, StudentProfile]:

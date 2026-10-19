@@ -2,7 +2,7 @@ import streamlit as st
 
 from piq import formatter, services
 from piq.resume import ResumeError
-from piq.ui import run_agent, set_student, show_last_run
+from piq.ui import current_student, run_agent, set_student, show_last_run
 
 st.header("Onboard")
 
@@ -18,7 +18,7 @@ role_index = roles.index(profile.target_role) if profile and profile.target_role
 
 with st.form("onboard"):
     st.subheader("Re-profile this student" if profile else "New student")
-    usn = st.text_input("USN (required)", value=services.usn_of(sid))
+    usn = st.text_input("USN (required)", value=(current_student() or {}).get("usn", ""))
     role = st.selectbox("Target role", roles, index=role_index)
     upload = st.file_uploader("Resume (PDF, DOCX or TXT)", type=["pdf", "docx", "txt"])
     sample = st.selectbox("…or use a sample resume", ["—", *services.sample_resumes()])

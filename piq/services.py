@@ -10,6 +10,7 @@ import re
 import sqlite3
 import uuid
 from dataclasses import dataclass
+from functools import lru_cache
 
 from pydantic import BaseModel
 
@@ -49,10 +50,6 @@ def list_students() -> list[sqlite3.Row]:
     return db.list_students()
 
 
-def usn_of(student_id: str | None) -> str:
-    return next((s["usn"] for s in db.list_students() if s["id"] == student_id), "")
-
-
 def current_profile(student_id: str | None) -> StudentProfile | None:
     return db.latest_profile(student_id) if student_id else None
 
@@ -61,8 +58,10 @@ def target_roles() -> list[str]:
     return list(agents.roles())
 
 
-def sample_resumes() -> list[str]:
-    return sorted(p.name for p in SAMPLES_DIR.glob("*.txt"))
+@lru_cache(maxsize=1)
+def sample_resumes() -> tuple[str, ...]:
+    """The bundled sample files; they ship with the app, so the folder is listed once."""
+    return tuple(sorted(p.name for p in SAMPLES_DIR.glob("*.txt")))
 
 
 def load_sample(name: str) -> str:
@@ -99,8 +98,9 @@ class PlanOverview:
     next_week: int
 
 
-def plan_overview(student_id: str) -> PlanOverview:
-    profile = _require_profile(student_id)
+def plan_overview(student_id: str, profile: StudentProfile | None = None) -> PlanOverview:
+    """`profile`: the student's current profile when the caller already loaded it."""
+    profile = profile or _require_profile(student_id)
     plans = db.list_plans(student_id)
     scores = db.topic_performance(student_id)
     return PlanOverview(
@@ -113,7 +113,7 @@ def plan_overview(student_id: str) -> PlanOverview:
 
 def generate_next_plan(student_id: str, on_event: OnEvent | None = None) -> WeeklyPlan:
     profile = _require_profile(student_id)
-    ov = plan_overview(student_id)
+    ov = plan_overview(student_id, profile)
     previous = ov.plans[-1] if ov.plans else None
     plan = agents.plan_week(profile, ov.scores, ov.next_week, previous, student_id, on_event)
     db.save_plan(student_id, plan)
@@ -260,9 +260,10 @@ class Dashboard:
     rejections: list[sqlite3.Row]
 
 
-def dashboard(student_id: str) -> Dashboard:
+def dashboard(student_id: str, profile: StudentProfile | None = None) -> Dashboard:
+    """`profile`: the student's current profile when the caller already loaded it."""
     return Dashboard(
-        profile=_require_profile(student_id),
+        profile=profile or _require_profile(student_id),
         quiz_history=db.quiz_history(student_id),
         plans=db.list_plans(student_id),
         sessions=db.interview_history(student_id),

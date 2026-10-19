@@ -5,8 +5,8 @@ from piq import formatter, services
 from piq.ui import require_profile
 
 st.header("Dashboard")
-sid, _ = require_profile()
-d = services.dashboard(sid)
+sid, profile = require_profile()
+d = services.dashboard(sid, profile)
 
 c1, c2, c3 = st.columns(3)
 c1.metric("Readiness", f"{d.profile.readiness_score}/100")
