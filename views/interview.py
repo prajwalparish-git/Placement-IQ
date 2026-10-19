@@ -19,8 +19,8 @@ if session is None:
     st.stop()
 
 for turn in session.history:
-    st.chat_message("assistant").markdown(turn.question)
-    st.chat_message("user").markdown(turn.answer)
+    st.chat_message("assistant").markdown(formatter.md_escape(turn.question))
+    st.chat_message("user").markdown(formatter.md_escape(turn.answer))
     with (
         st.chat_message("assistant", avatar="📊"),
         st.expander(f"Feedback — {turn.evaluation.overall}/5"),
@@ -46,7 +46,9 @@ if session.current is None:  # the answer is saved; only the follow-up question 
     st.stop()
 
 current = session.current
-st.chat_message("assistant").markdown(f"{current.question}  \n_{formatter.turn_label(current)}_")
+st.chat_message("assistant").markdown(
+    f"{formatter.md_escape(current.question)}  \n_{formatter.turn_label(current)}_"
+)
 if answer := st.chat_input("Your answer"):
     answered = run_agent("Evaluator", lambda _: services.answer_question(sid, session, answer))
     if answered is None:

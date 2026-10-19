@@ -24,7 +24,7 @@ with right:
         st.stop()
     week = st.selectbox("Week", [p.week_no for p in ov.plans], index=len(ov.plans) - 1)
     shown = next(p for p in ov.plans if p.week_no == week)
-    st.markdown(f"**Rationale:** {shown.rationale}")
+    st.markdown(f"**Rationale:** {formatter.md_escape(shown.rationale)}")
     st.dataframe(formatter.plan_table(shown), width="stretch")
 
 if len(ov.plans) >= 2:

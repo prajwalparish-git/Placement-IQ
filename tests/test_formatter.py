@@ -37,6 +37,52 @@ def test_quiz_review_marks_right_wrong_and_unanswered():
     assert "_no answer_" in md and md.count("Correct:") == 2
 
 
+HOSTILE = ["*p", "__init__", "![x](http://example.com/a.png)", "<script>alert(1)</script>"]
+
+
+@pytest.mark.parametrize(
+    ("raw", "escaped"),
+    [
+        ("*p", r"\*p"),
+        ("__init__", r"\_\_init\_\_"),
+        ("![x](http://example.com/a.png)", r"\!\[x\]\(http://example\.com/a\.png\)"),
+        ("<script>alert(1)</script>", r"\<script\>alert\(1\)\</script\>"),
+        ("Costs $5 to $10", r"Costs \$5 to \$10"),
+        ("# 1. ---", r"\# 1\. \-\-\-"),
+    ],
+)
+def test_md_escape_shows_text_literally(raw, escaped):
+    assert formatter.md_escape(raw) == escaped
+
+
+def test_md_escape_keeps_code_readable():
+    text = "Call `obj.__init__()` first.\n```python\nx = a*b\n```\nUnclosed `tick"
+    assert formatter.md_escape(text) == (
+        "Call `obj.__init__()` first\\.\n```python\nx = a*b\n```\nUnclosed \\`tick"
+    )
+
+
+@pytest.mark.parametrize("hostile", HOSTILE)
+def test_markdown_builders_escape_every_dynamic_value(hostile):
+    safe = formatter.md_escape(hostile)
+    q = f.question(text=f"Explain {hostile} in one line", options=(hostile, "b", "c", "d"))
+    quiz = f.quiz(n=1).model_copy(
+        update={"questions": [q.model_copy(update={"explanation": hostile})]}
+    )
+    ev = f.evaluation().model_copy(
+        update={"strengths": [hostile], "improvements": [hostile], "model_answer": hostile}
+    )
+    profile = f.profile(name=hostile, projects=[hostile], resume_feedback=[hostile])
+    for md in (
+        formatter.profile_md(profile),
+        formatter.quiz_review_md(quiz, [1]),
+        formatter.evaluation_md(ev),
+        formatter.results_caption(f.eval_summary(stopped_early=hostile)),
+    ):
+        assert safe in md
+        assert hostile not in md.replace(safe, "")
+
+
 def test_quiz_review_requires_one_answer_per_question():
     with pytest.raises(ValueError):
         formatter.quiz_review_md(f.quiz(n=2), [0])

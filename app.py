@@ -4,7 +4,7 @@ import logging
 
 import streamlit as st
 
-from piq import db
+from piq import db, formatter
 from piq.config import ConfigError, settings
 from piq.ui import student_selector
 from scripts.seed import main as seed_demo
@@ -15,7 +15,7 @@ st.set_page_config(page_title="PlacementIQ", page_icon="🎯", layout="wide")
 try:
     cfg = settings()
 except ConfigError as e:
-    st.error(str(e))
+    st.error(formatter.md_escape(str(e)))
     st.stop()
 
 

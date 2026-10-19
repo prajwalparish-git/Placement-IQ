@@ -81,6 +81,33 @@ def test_quiz_generate_answer_and_review(seeded):
     assert len(db.quiz_history(seeded)) == 25
 
 
+def test_quiz_text_and_options_are_shown_literally(seeded, monkeypatch):
+    from piq import services
+    from tests import factories as f
+
+    options = ("__init__", "![x](http://example.com/a.png)", "<script>alert(1)</script>", "d")
+    quiz = f.quiz(n=1).model_copy(
+        update={"questions": [f.question(text="What does *p hold?", options=options)]}
+    )
+    monkeypatch.setattr(services, "start_quiz", lambda *args, **kwargs: quiz)
+    at = _app(seeded, "views/quiz.py")
+    _button(at, "Generate quiz").click().run()
+    assert at.radio[0].label == r"**Q1.** What does \*p hold?"
+    assert at.radio[0].options[:3] == [
+        r"\_\_init\_\_",
+        r"\!\[x\]\(http://example\.com/a\.png\)",
+        r"\<script\>alert\(1\)\</script\>",
+    ]
+
+
+def test_interview_answer_is_shown_literally(seeded):
+    at = _app(seeded, "views/interview.py")
+    _button(at, "Start session").click().run()
+    at.chat_input[0].set_value("I called __init__ on *p.").run()
+    assert not at.exception
+    assert r"I called \_\_init\_\_ on \*p\." in _md(at)
+
+
 def test_interview_session_runs_to_completion(seeded):
     at = _app(seeded, "views/interview.py")
     _button(at, "Start session").click().run()

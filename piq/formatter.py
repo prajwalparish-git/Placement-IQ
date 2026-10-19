@@ -3,6 +3,7 @@
 Pure functions, no Streamlit import, so every rendering decision is unit-testable.
 """
 
+import re
 from collections.abc import Iterable, Mapping
 from html import escape
 
@@ -11,21 +12,38 @@ import pandas as pd
 from piq.config import TOPICS
 from piq.schemas import AnswerEvaluation, InterviewTurn, QuizSet, StudentProfile, WeeklyPlan
 
+_CODE = re.compile(r"(```.*?```|`[^`\n]+`)", re.S)
+_MD_SPECIAL = re.compile(r"([\\`*_{}\[\]()<>#+\-.!|~$&=])")
+
+
+def md_escape(text: str) -> str:
+    """Show resume, LLM or user text literally wherever Streamlit renders Markdown.
+
+    Inline `code` and fenced blocks are kept, so code in model answers stays readable
+    (code is never interpreted as Markdown or HTML anyway).
+    """
+    parts = _CODE.split(text)
+    return "".join(p if i % 2 else _MD_SPECIAL.sub(r"\\\1", p) for i, p in enumerate(parts))
+
 
 def _bullets(items: Iterable[str], empty: str = "_none_") -> str:
     items = list(items)
-    return "\n".join(f"- {i}" for i in items) if items else empty
+    return "\n".join(f"- {md_escape(i)}" for i in items) if items else empty
+
+
+def _joined(items: Iterable[str]) -> str:
+    return md_escape(", ".join(items)) or "_none_"
 
 
 def profile_md(p: StudentProfile) -> str:
     return (
-        f"### {p.name} — {p.target_role}\n"
+        f"### {md_escape(p.name)} — {md_escape(p.target_role)}\n"
         f"**Readiness:** {p.readiness_score}/100 "
         f"({len(p.matched_skills)} of {len(p.matched_skills) + len(p.missing_skills)} "
         "required skills evidenced)\n\n"
-        f"**Education:** {p.education}\n\n"
-        f"**Matched skills:** {', '.join(p.matched_skills) or '_none_'}\n\n"
-        f"**Missing skills:** {', '.join(p.missing_skills) or '_none_'}\n\n"
+        f"**Education:** {md_escape(p.education)}\n\n"
+        f"**Matched skills:** {_joined(p.matched_skills)}\n\n"
+        f"**Missing skills:** {_joined(p.missing_skills)}\n\n"
         f"**Projects**\n{_bullets(p.projects)}\n\n"
         f"**Internships**\n{_bullets(p.internships)}\n\n"
         f"**Resume fixes**\n{_bullets(p.resume_feedback)}"
@@ -58,11 +76,11 @@ def quiz_review_md(quiz: QuizSet, chosen: list[int | None]) -> str:
     for i, (q, a) in enumerate(zip(quiz.questions, chosen, strict=True), 1):
         ok = a == q.correct_index
         mark = "✅" if ok else "❌"
-        yours = q.options[a] if a is not None else "_no answer_"
-        line = f"{mark} **Q{i}. {q.text}**\n\nYour answer: {yours}"
+        yours = md_escape(q.options[a]) if a is not None else "_no answer_"
+        line = f"{mark} **Q{i}. {md_escape(q.text)}**\n\nYour answer: {yours}"
         if not ok:
-            line += f"  \nCorrect: {q.options[q.correct_index]}"
-        blocks.append(f"{line}  \n_{q.explanation}_")
+            line += f"  \nCorrect: {md_escape(q.options[q.correct_index])}"
+        blocks.append(f"{line}  \n_{md_escape(q.explanation)}_")
     return "\n\n".join(blocks)
 
 
@@ -76,11 +94,12 @@ def turn_label(turn: InterviewTurn) -> str:
 
 def evaluation_md(ev: AnswerEvaluation) -> str:
     scores = " · ".join(f"{k.title()} {v}/5" for k, v in ev.scores.items())
+    quote = "\n".join(f"> {line}" for line in md_escape(ev.model_answer).splitlines())
     return (
         f"**Overall {ev.overall}/5** — {scores}\n\n"
         f"**Strengths**\n{_bullets(ev.strengths)}\n\n"
         f"**Improve**\n{_bullets(ev.improvements)}\n\n"
-        f"**Model answer**\n> {ev.model_answer}"
+        f"**Model answer**\n{quote}"
     )
 
 
@@ -128,11 +147,12 @@ def results_table(summary: Mapping) -> pd.DataFrame:
 
 def results_caption(summary: Mapping) -> str:
     cases = (summary.get("placementiq") or {}).get("cases", 0)
-    parts = [f"{summary.get('mode', '?')} run", f"{cases} cases"]
+    parts = [f"{md_escape(str(summary.get('mode', '?')))} run", f"{cases} cases"]
     if summary.get("errors"):
         parts.append(f"{summary['errors']} failed")
     if summary.get("stopped_early"):
-        parts.append(f"stopped early ({summary['stopped_early']}); continue with --resume")
+        reason = md_escape(str(summary["stopped_early"]))
+        parts.append(f"stopped early ({reason}); continue with --resume")
     return " · ".join(parts)
 
 

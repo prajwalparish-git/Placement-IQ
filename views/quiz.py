@@ -41,9 +41,9 @@ qid = text_hash(quiz.questions[0].text)  # fresh widget keys per quiz: no stale 
 with st.form(f"quiz-{qid}"):
     chosen = [
         st.radio(
-            f"**Q{i}.** {q.text}",
+            f"**Q{i}.** {formatter.md_escape(q.text)}",
             range(4),
-            format_func=lambda j, q=q: q.options[j],
+            format_func=lambda j, q=q: formatter.md_escape(q.options[j]),
             index=None,
             key=f"{qid}-{i}",
         )

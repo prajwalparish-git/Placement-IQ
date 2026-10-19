@@ -34,7 +34,7 @@ if submitted:
         else:
             raise services.ServiceError("Upload a resume or pick a sample.")
     except (services.ServiceError, ResumeError) as e:
-        st.error(str(e))
+        st.error(formatter.md_escape(str(e)))
         st.stop()
 
     result = run_agent("Profile agent", lambda ev: services.onboard(usn, role, text, ev))

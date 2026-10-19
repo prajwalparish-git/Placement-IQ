@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 import streamlit as st
 
-from piq import services
+from piq import formatter, services
 from piq.graph import CriticRejected, OnEvent
 from piq.llm import LLMError
 from piq.resume import ResumeError
@@ -56,9 +56,10 @@ def _failed(events: list[str]) -> bool:
 
 
 def _line(msg: str) -> str:
+    text = formatter.md_escape(msg)  # critic reasons quote LLM output
     if msg.startswith(FAILED):
-        return "❌ " + msg
-    return ("🔁 " if msg.startswith("critic rejected") else "✔️ ") + msg
+        return "❌ " + text
+    return ("🔁 " if msg.startswith("critic rejected") else "✔️ ") + text
 
 
 def run_agent[T](label: str, fn: Callable[[OnEvent], T]) -> T | None:
@@ -80,7 +81,7 @@ def run_agent[T](label: str, fn: Callable[[OnEvent], T]) -> T | None:
         except USER_ERRORS as e:
             events.append(f"{FAILED}{e}")
             box.update(label=f"{label} — failed", state="error")
-            st.error(str(e))
+            st.error(formatter.md_escape(str(e)))
             return None
         finally:
             st.session_state[RUN_PREFIX + label] = events
