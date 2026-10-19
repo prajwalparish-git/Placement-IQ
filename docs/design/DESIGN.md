@@ -161,10 +161,14 @@ timeline. The box opens by itself after a retry or a failure.
 
 - Builders are pure functions returning `alt.Chart`; tests check marks, encodings, scales,
   formats and titles.
-- One shared look (`themed`): theme fonts, no frame, quiet axes, a left-aligned title that
-  states the takeaway ("OS is your weakest topic").
+- One shared look (`themed`): theme fonts, no frame, quiet axes.
+- The takeaway is a sentence ("OS is your weakest topic"), shown as a heading above the
+  chart rather than inside it: an in-canvas title is clipped on a phone, text wraps.
 - Topic series use a fixed `TOPICS` domain and no range: the theme's per-scheme topic
   palette colours them, so OS is the same colour in every chart and both schemes.
+- Vega text marks do not follow the light/dark switch (axis labels do), so values go into
+  axis labels ("OS  43%"), and neutral marks such as a threshold line use
+  `charts.NEUTRAL`, a grey that keeps 3:1 on both backgrounds.
 - Direct labels instead of legends where possible, tooltips on every mark, consistent
   formats (`%`, `min`, `/5`) and an `alt` description for screen readers.
 

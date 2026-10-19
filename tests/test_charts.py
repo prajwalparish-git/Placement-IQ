@@ -28,7 +28,8 @@ def test_weakness_bars_run_weakest_first_in_topic_colours():
     # The domain pins the order; the range is left to the theme's per-scheme topic palette.
     assert color["field"] == "topic" and color["scale"] == {"domain": list(TOPICS)}
     assert color["legend"] is None
-    assert bars["encoding"]["x"]["axis"]["format"] == "%"
+    x_axis = bars["encoding"]["x"]["axis"]
+    assert x_axis["format"] == "%" and x_axis["values"] == [0, WEAK_THRESHOLD, 1]
     assert _rows(spec, threshold) == [{"weakness": WEAK_THRESHOLD}]
     assert threshold["mark"]["color"] == charts.NEUTRAL and threshold["mark"]["strokeDash"]
     assert all("tooltip" in layer["encoding"] for layer in spec["layer"])

@@ -51,7 +51,8 @@ def weakness_bars(weakness: Mapping[str, float], title: str | None = None) -> al
     x = alt.X(
         "weakness:Q",
         scale=alt.Scale(domain=[0, 1]),
-        axis=alt.Axis(format="%", tickCount=5, title=None),
+        # Three ticks: they stay apart on a phone, and 50% is the weak threshold.
+        axis=alt.Axis(format="%", values=[0, WEAK_THRESHOLD, 1], title=None),
     )
     tooltip = [
         alt.Tooltip("topic:N", title="Topic"),
