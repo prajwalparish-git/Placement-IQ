@@ -145,3 +145,19 @@ def test_failed_quiz_generation_stays_visible(seeded, monkeypatch):
     at.run()  # any rerun keeps the failure visible
     assert any(s.label == "Quiz agent — last run failed" for s in at.status)
     assert "quiz" not in at.session_state
+
+
+def test_results_page_without_and_with_results(tmp_path, monkeypatch):
+    import json
+
+    from piq import services
+    from tests import factories as f
+
+    monkeypatch.setattr(services, "RESULTS_DIR", tmp_path)
+    at = _app(page="views/results.py")
+    assert any("No results yet" in i.value for i in at.info)
+
+    (tmp_path / "summary.json").write_text(json.dumps(f.eval_summary(mode="mock")))
+    at = _app(page="views/results.py")
+    assert any("MOCK_MODE" in w.value for w in at.warning)
+    assert len(at.dataframe) == 2  # metrics table + agent cost

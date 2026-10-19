@@ -185,3 +185,16 @@ def test_dashboard_aggregates_everything(student):
     assert len(d.plans) == 1 and len(d.quiz_history) == 1 and d.sessions == []
     assert {r["agent_name"] for r in d.agent_stats} >= {"profile", "planner", "quiz", "critic"}
     assert d.rejections and d.rejections[0]["agent_name"] == "quiz"  # mock's deliberate flaw
+
+
+def test_evaluation_summary(tmp_path, monkeypatch):
+    import json
+
+    from tests import factories as f
+
+    monkeypatch.setattr(services, "RESULTS_DIR", tmp_path)
+    assert services.evaluation_summary() is None
+    (tmp_path / "summary.json").write_text("{not json", encoding="utf-8")
+    assert services.evaluation_summary() is None
+    (tmp_path / "summary.json").write_text(json.dumps(f.eval_summary()), encoding="utf-8")
+    assert services.evaluation_summary()["placementiq"]["cases"] == 20

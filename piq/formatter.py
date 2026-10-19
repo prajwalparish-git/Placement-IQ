@@ -4,6 +4,7 @@ Pure functions, no Streamlit import, so every rendering decision is unit-testabl
 """
 
 from collections.abc import Iterable, Mapping
+from html import escape
 
 import pandas as pd
 
@@ -98,3 +99,102 @@ def score_trend(rows: Iterable[Mapping]) -> pd.DataFrame:
         return df
     df["attempt"] = df.groupby("topic").cumcount() + 1
     return df.pivot_table(index="attempt", columns="topic", values="score_pct")
+
+
+# --- evaluation results ------------------------------------------------------------
+
+ATTEMPTS = "Avg quiz attempts"
+
+
+def results_table(summary: Mapping) -> pd.DataFrame:
+    """summary.json -> rows = metrics, columns = Baseline / PlacementIQ (NaN = not measured)."""
+    b, p = summary.get("baseline") or {}, summary.get("placementiq") or {}
+    rows: dict[str, tuple] = {
+        "Plan valid rate": (b.get("plan_valid_rate"), p.get("plan_valid_rate")),
+        "Quiz valid rate": (b.get("quiz_valid_rate"), p.get("quiz_valid_rate")),
+        "Avg weak-topic share of minutes": (b.get("avg_weak_share"), p.get("avg_weak_share")),
+    }
+    if c := summary.get("consecutive"):
+        rows[f"Duplicate rate over {c['quizzes_per_topic']} quizzes (lower is better)"] = (
+            c["baseline_duplicate_rate"],
+            c["placementiq_duplicate_rate"],
+        )
+    if iv := summary.get("interviews"):
+        rows["Interview follow-up relevance"] = (None, iv["followup_relevance"])
+    rows[ATTEMPTS] = (b.get("avg_quiz_attempts"), p.get("avg_quiz_attempts"))
+    df = pd.DataFrame(rows, index=["Baseline", "PlacementIQ"], dtype=float).T
+    return df.rename_axis("Metric")
+
+
+def results_caption(summary: Mapping) -> str:
+    cases = (summary.get("placementiq") or {}).get("cases", 0)
+    parts = [f"{summary.get('mode', '?')} run", f"{cases} cases"]
+    if summary.get("errors"):
+        parts.append(f"{summary['errors']} failed")
+    if summary.get("stopped_early"):
+        parts.append(f"stopped early ({summary['stopped_early']}); continue with --resume")
+    return " · ".join(parts)
+
+
+def _md_table(df: pd.DataFrame) -> str:
+    head = f"| {df.index.name or ''} | " + " | ".join(df.columns) + " |"
+    rule = "|---" * (len(df.columns) + 1) + "|"
+    body = [
+        f"| {idx} | " + " | ".join("—" if pd.isna(v) else f"{v:.2f}" for v in row) + " |"
+        for idx, row in df.iterrows()
+    ]
+    return "\n".join([head, rule, *body])
+
+
+def results_md(summary: Mapping) -> str:
+    table = results_table(summary)
+    md = [
+        "# Evaluation results",
+        "",
+        results_caption(summary),
+        "",
+        _md_table(table),
+        "",
+        "Rates run from 0 to 1. Both systems are judged by the same deterministic checks and "
+        "LLM critic; quiz validity should also be confirmed by hand in `questions.csv`.",
+    ]
+    if summary.get("mode") == "mock":
+        md += ["", "**MOCK_MODE results: not meaningful, smoke test only.**"]
+    if stats := summary.get("agent_stats"):
+        cols = ["agent_name", "calls", "avg_latency_ms", "avg_tokens", "rejection_rate"]
+        df = pd.DataFrame(stats)[cols].set_index("agent_name").rename_axis("Agent")
+        md += ["", "## Agent cost during the evaluation", "", _md_table(df.astype(float))]
+    return "\n".join(md) + "\n"
+
+
+def results_svg(table: pd.DataFrame) -> str:
+    """Grouped horizontal bars for the 0-1 metrics; no plotting dependency needed."""
+    rates = table.drop(index=ATTEMPTS, errors="ignore")
+    colors = {"Baseline": "#80868b", "PlacementIQ": "#1a73e8"}
+    left, bar_w, row_h = 330, 300, 56
+    width, height = left + bar_w + 60, 44 + row_h * len(rates)
+    out = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+        'font-family="Arial, sans-serif" font-size="13">',
+        "<title>Baseline vs PlacementIQ</title>",
+        f'<rect width="{width}" height="{height}" fill="#ffffff"/>',
+    ]
+    for k, (name, color) in enumerate(colors.items()):
+        x = left + k * 140
+        out.append(f'<rect x="{x}" y="10" width="12" height="12" fill="{color}"/>')
+        out.append(f'<text x="{x + 18}" y="21">{name}</text>')
+    for i, (metric, row) in enumerate(rates.iterrows()):
+        y = 40 + i * row_h
+        out.append(f'<text x="{left - 10}" y="{y + 24}" text-anchor="end">{escape(metric)}</text>')
+        for j, system in enumerate(colors):
+            v, by = row[system], y + 4 + j * 22
+            if pd.isna(v):
+                out.append(f'<text x="{left + 4}" y="{by + 14}" fill="#5f6368">not measured</text>')
+                continue
+            w = round(bar_w * float(v), 1)
+            out.append(
+                f'<rect x="{left}" y="{by}" width="{w}" height="18" fill="{colors[system]}"/>'
+            )
+            out.append(f'<text x="{left + w + 6}" y="{by + 14}">{float(v):.2f}</text>')
+    out.append("</svg>")
+    return "\n".join(out) + "\n"

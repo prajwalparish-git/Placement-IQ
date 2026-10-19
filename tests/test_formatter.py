@@ -64,3 +64,38 @@ def test_score_trend_pivots_by_attempt_and_handles_empty():
     ]
     df = formatter.score_trend(rows)
     assert df.loc[2, "OS"] == 80.0 and df.loc[1, "DBMS"] == 60.0
+
+
+def test_results_table_includes_only_measured_metrics():
+    import pandas as pd
+
+    t = formatter.results_table(f.eval_summary())
+    assert list(t.columns) == ["Baseline", "PlacementIQ"]
+    assert t.loc["Plan valid rate", "PlacementIQ"] == 1.0
+    assert pd.isna(t.loc["Interview follow-up relevance", "Baseline"])
+    assert t.index[-1] == formatter.ATTEMPTS
+    minimal = formatter.results_table(f.eval_summary(consecutive=None, interviews=None))
+    assert len(minimal) == 4  # no consecutive or interview rows
+
+
+def test_results_markdown_and_caption():
+    md = formatter.results_md(f.eval_summary())
+    assert "| Plan valid rate | 0.40 | 1.00 |" in md
+    assert "| Interview follow-up relevance | — | 0.90 |" in md
+    assert "## Agent cost during the evaluation" in md and "not meaningful" not in md
+    assert formatter.results_caption(f.eval_summary()) == "live run · 20 cases · 1 failed"
+    stopped = f.eval_summary(stopped_early="c07: limit", errors=0)
+    assert formatter.results_caption(stopped).endswith(
+        "stopped early (c07: limit); continue with --resume"
+    )
+    assert "not meaningful" in formatter.results_md(f.eval_summary(mode="mock"))
+
+
+def test_results_svg_is_well_formed_with_one_bar_per_measured_value():
+    import xml.etree.ElementTree as ET
+
+    svg = formatter.results_svg(formatter.results_table(f.eval_summary()))
+    rects = ET.fromstring(svg).findall("{http://www.w3.org/2000/svg}rect")
+    # background + 2 legend swatches + 2 bars for 4 metrics + 1 bar (baseline not measured)
+    assert len(rects) == 1 + 2 + 2 * 4 + 1
+    assert "not measured" in svg and formatter.ATTEMPTS not in svg

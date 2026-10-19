@@ -5,6 +5,7 @@ its input, runs the agents, persists the result and returns typed state, so ever
 flow is testable without Streamlit. `ServiceError` messages are safe to show to users.
 """
 
+import json
 import re
 import sqlite3
 import uuid
@@ -13,7 +14,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel
 
 from piq import agents, checks, db
-from piq.config import DATA_DIR, DIFFICULTIES, INTERVIEW_TYPES, TOPICS
+from piq.config import DATA_DIR, DIFFICULTIES, INTERVIEW_TYPES, RESULTS_DIR, TOPICS
 from piq.graph import OnEvent
 from piq.resume import extract_text
 from piq.schemas import AnswerEvaluation, InterviewTurn, QuizSet, StudentProfile, WeeklyPlan
@@ -268,3 +269,14 @@ def dashboard(student_id: str) -> Dashboard:
         agent_stats=db.agent_stats(),
         rejections=db.recent_rejections(),
     )
+
+
+# --- evaluation ----------------------------------------------------------------
+
+
+def evaluation_summary() -> dict | None:
+    """The last run_eval summary, or None if there is none (or it is unreadable)."""
+    try:
+        return json.loads((RESULTS_DIR / "summary.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None

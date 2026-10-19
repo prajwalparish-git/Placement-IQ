@@ -44,5 +44,6 @@ st.navigation(
         st.Page("views/quiz.py", title="Quiz", icon="📝"),
         st.Page("views/interview.py", title="Mock interview", icon="🎤"),
         st.Page("views/dashboard.py", title="Dashboard", icon="📈"),
+        st.Page("views/results.py", title="Results", icon="🧪"),
     ]
 ).run()

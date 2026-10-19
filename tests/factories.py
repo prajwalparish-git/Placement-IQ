@@ -73,3 +73,46 @@ def evaluation(**scores: int) -> AnswerEvaluation:
     return AnswerEvaluation(
         **(base | scores), strengths=["s"], improvements=["i"], model_answer="m"
     )
+
+
+def eval_summary(**overrides) -> dict:
+    """A complete run_eval summary.json, as written after a live run with every metric."""
+    data = {
+        "mode": "live",
+        "stopped_early": None,
+        "errors": 1,
+        "baseline": {
+            "cases": 20,
+            "plan_valid_rate": 0.4,
+            "quiz_valid_rate": 0.7,
+            "avg_weak_share": 0.5,
+            "duplicate_questions": 3,
+            "avg_quiz_attempts": 1.0,
+        },
+        "placementiq": {
+            "cases": 20,
+            "plan_valid_rate": 1.0,
+            "quiz_valid_rate": 0.95,
+            "avg_weak_share": 0.7,
+            "duplicate_questions": 0,
+            "avg_quiz_attempts": 1.8,
+        },
+        "consecutive": {
+            "quizzes_per_topic": 5,
+            "baseline_duplicate_rate": 0.32,
+            "placementiq_duplicate_rate": 0.0,
+            "topics": ["OS"],
+        },
+        "interviews": {"cases": 20, "followup_relevance": 0.9, "flagged_followup_rate": 0.95},
+        "agent_stats": [
+            {
+                "agent_name": "quiz",
+                "calls": 30,
+                "avg_latency_ms": 2500.0,
+                "avg_tokens": 1700.0,
+                "rejections": 5,
+                "rejection_rate": 0.17,
+            }
+        ],
+    }
+    return data | overrides
