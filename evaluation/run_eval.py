@@ -157,9 +157,14 @@ def _duplicates(quizzes: list[QuizSet]) -> list[int]:
     return [dups, total]
 
 
-def _consecutive(topics: list[str], n: int) -> dict:
-    out: dict = {"quizzes_per_topic": n, "topics": {}}
+def _consecutive(topics: list[str], n: int, state: dict, checkpoint) -> None:
+    """Fill state["consecutive"] topic by topic (checkpointed, so a resume skips done ones)."""
+    out = state["consecutive"]
+    if not out or out["quizzes_per_topic"] != n:
+        out = state["consecutive"] = {"quizzes_per_topic": n, "topics": {}}
     for topic in topics:
+        if topic in out["topics"]:
+            continue
         print(f"consecutive quizzes: {topic} x{n} per system ...", flush=True)
         baseline = [
             llm.call(
@@ -184,11 +189,16 @@ def _consecutive(topics: list[str], n: int) -> dict:
             inp = agents.quiz_inputs(topic, CONSECUTIVE_DIFFICULTY, asked)
             ours.append(graph.run(agents.QUIZ_TASK, inp).output)  # judged as produced
         out["topics"][topic] = {"baseline": _duplicates(baseline), "placementiq": _duplicates(ours)}
+        _duplicate_rates(out)
+        checkpoint()
+    _duplicate_rates(out)
+
+
+def _duplicate_rates(out: dict) -> None:
     for system in ("baseline", "placementiq"):
         dups = sum(t[system][0] for t in out["topics"].values())
         total = sum(t[system][1] for t in out["topics"].values())
         out[f"{system}_duplicate_rate"] = round(dups / total, 3) if total else None
-    return out
 
 
 def _summary(state: dict, stopped: str | None) -> dict:
@@ -313,16 +323,11 @@ def main(argv: list[str] | None = None) -> dict:
                             "reasons": str(e),
                         }
                     )
-        prev = state["consecutive"]
-        topics = sorted({c["quiz_topic"] for c in cases})
-        wanted = args.consecutive and not stopped
-        if wanted and not (
-            prev
-            and prev["quizzes_per_topic"] == args.consecutive
-            and sorted(prev["topics"]) == topics
-        ):
+            _save(args.results, state)  # checkpoint: a killed run resumes from here
+        if args.consecutive and not stopped:
+            topics = sorted({c["quiz_topic"] for c in cases})
             try:
-                state["consecutive"] = _consecutive(topics, args.consecutive)
+                _consecutive(topics, args.consecutive, state, lambda: _save(args.results, state))
             except llm.RateLimited as e:
                 stopped = f"consecutive quizzes: {e}"
                 print(f"  stopped early: {e}")

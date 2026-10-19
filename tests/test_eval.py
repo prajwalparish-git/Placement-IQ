@@ -123,3 +123,45 @@ def test_progress_is_saved_even_when_a_case_crashes(tmp_path, monkeypatch):
         run_eval.main(["--limit", "3", "--allow-mock", "--results", str(tmp_path)])
     saved = json.loads((tmp_path / "state.json").read_text(encoding="utf-8"))
     assert {r["case"] for r in saved["rows"]} == {"c01"}
+
+
+def test_consecutive_quizzes_resume_per_topic(tmp_path, monkeypatch):
+    from piq import llm
+
+    real, topics_run = run_eval._duplicates, []
+
+    def limited_on_second_topic(quizzes):
+        topic = quizzes[0].topic
+        if topic not in topics_run:
+            topics_run.append(topic)
+        if (
+            len(topics_run) == 2
+            and topics_run.count(topic) == 1
+            and not limited_on_second_topic.hit
+        ):
+            limited_on_second_topic.hit = True
+            raise llm.RateLimited(5)
+        return real(quizzes)
+
+    limited_on_second_topic.hit = False
+    monkeypatch.setattr(run_eval, "_duplicates", limited_on_second_topic)
+    args = ["--limit", "3", "--consecutive", "2", "--allow-mock", "--results", str(tmp_path)]
+    first = run_eval.main(args)  # cases c01-c03 cover OS, DBMS and DSA
+    assert first["stopped_early"].startswith("consecutive quizzes")
+    saved = json.loads((tmp_path / "state.json").read_text(encoding="utf-8"))
+    assert list(saved["consecutive"]["topics"]) == ["DBMS"]  # first topic checkpointed
+    second = run_eval.main([*args, "--resume"])
+    assert second["consecutive"]["topics"] == ["DBMS", "DSA", "OS"]
+    assert second["stopped_early"] is None
+
+
+def test_every_case_is_checkpointed(tmp_path, monkeypatch):
+    saves: list[int] = []
+    real = run_eval._save
+    monkeypatch.setattr(
+        run_eval,
+        "_save",
+        lambda results, state: saves.append(len(state["rows"])) or real(results, state),
+    )
+    run_eval.main(["--limit", "3", "--allow-mock", "--results", str(tmp_path)])
+    assert saves[:3] == [2, 4, 6]  # after each case, before the final save
