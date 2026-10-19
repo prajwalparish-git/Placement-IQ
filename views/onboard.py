@@ -2,7 +2,7 @@ import streamlit as st
 
 from piq import formatter, services
 from piq.resume import ResumeError
-from piq.ui import run_agent, show_last_run
+from piq.ui import run_agent, set_student, show_last_run
 
 st.header("Onboard")
 
@@ -39,5 +39,5 @@ if submitted:
 
     result = run_agent("Profile agent", lambda ev: services.onboard(usn, role, text, ev))
     if result:
-        st.session_state["student_id"] = result[0]
+        set_student(result[0], keep_runs=("Profile agent",))
         st.rerun()

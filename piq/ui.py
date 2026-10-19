@@ -17,18 +17,25 @@ FAILED = "failed: "
 USER_ERRORS = (CriticRejected, LLMError, services.ServiceError, ResumeError)
 
 
+def set_student(student_id: str | None, keep_runs: tuple[str, ...] = ()) -> None:
+    """Make `student_id` current. On a change, drop the previous student's quiz, interview and
+    agent step logs, except the logs of `keep_runs` (labels) already made for the new student.
+    """
+    if student_id != st.session_state.get("student_id"):
+        kept = {RUN_PREFIX + label for label in keep_runs}
+        for k in list(st.session_state):
+            if k in PER_STUDENT_KEYS or (str(k).startswith(RUN_PREFIX) and k not in kept):
+                del st.session_state[k]
+    st.session_state["student_id"] = student_id
+
+
 def student_selector() -> None:
     labels = {f"{s['usn']} — {s['name']}": s["id"] for s in services.list_students()}
     ids = list(labels.values())
     current = st.session_state.get("student_id")
     index = ids.index(current) + 1 if current in ids else 0
     choice = st.sidebar.selectbox("Student", [NEW, *labels], index=index)
-    new_id = labels.get(choice)
-    if new_id != current:
-        st.session_state["student_id"] = new_id
-        for k in list(st.session_state):
-            if k in PER_STUDENT_KEYS or str(k).startswith(RUN_PREFIX):
-                del st.session_state[k]
+    set_student(labels.get(choice))
 
 
 def require_profile() -> tuple[str, StudentProfile]:

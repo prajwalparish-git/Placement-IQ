@@ -106,6 +106,29 @@ def test_onboard_requires_a_resume_or_sample():
     assert db.list_students() == []
 
 
+def test_onboarding_another_student_drops_the_previous_students_session(seeded):
+    at = _app(seeded, "views/interview.py")
+    _button(at, "Start session").click().run()
+    at.chat_input[0].set_value("I like coding.").run()
+    assert at.session_state["interview"].history
+
+    at.switch_page("views/onboard.py").run()
+    at.text_input[0].input("UI0003")
+    next(s for s in at.selectbox if s.label.startswith("…or use")).select(
+        "java_backend_fresher.txt"
+    )
+    _button(at, "Analyse resume").click().run()
+    assert not at.exception
+    assert at.session_state["student_id"] != seeded
+    assert "interview" not in at.session_state
+    assert any(s.label.startswith("Profile agent — last run") for s in at.status)
+
+    at.switch_page("views/interview.py").run()
+    assert not at.exception
+    assert "I like coding." not in _md(at)  # no other student's transcript
+    assert [b for b in at.button if b.label == "Start session"]
+
+
 def test_failed_follow_up_offers_retry_without_reanswering(seeded, monkeypatch):
     from piq import agents, llm
 
