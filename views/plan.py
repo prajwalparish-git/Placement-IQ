@@ -4,7 +4,39 @@ week before. The next week is generated from the latest weakness scores."""
 import streamlit as st
 
 from piq import charts, formatter, services
+from piq.config import STUDY_TIME, TIMEZONE
 from piq.ui import empty_state, page_header, require_profile, run_agent, show_last_run
+
+
+def _export(plan: services.WeeklyPlan) -> None:
+    """The shown week as a calendar file or a table, to keep outside the app."""
+    with st.expander("Export this week", icon=":material/download:"):
+        first = st.date_input(
+            "First day", value=formatter.next_monday(formatter.local_today()), format="DD/MM/YYYY"
+        )
+        at = st.time_input("Study time each day", value=STUDY_TIME, step=1800)
+        st.caption(
+            f"Times are {TIMEZONE} time. Each day becomes one event, as long as that day's minutes."
+        )
+        name = f"placementiq-week-{plan.week_no}"
+        with st.container(horizontal=True):
+            st.download_button(
+                "Calendar (.ics)",
+                formatter.plan_ics(plan, first, at),
+                file_name=f"{name}.ics",
+                mime="text/calendar",
+                icon=":material/event:",
+                on_click="ignore",
+            )
+            st.download_button(
+                "Table (.csv)",
+                formatter.plan_csv(plan),
+                file_name=f"{name}.csv",
+                mime="text/csv",
+                icon=":material/table_view:",
+                on_click="ignore",
+            )
+
 
 page_header(
     "Weekly plan",
@@ -54,6 +86,7 @@ with plan_col:
                 st.dataframe(formatter.plan_table(shown), width="stretch")
             else:
                 st.html(formatter.plan_days_html(shown))
+            _export(shown)
 
 with side_col:
     # What changed in the week shown, then the weakness the next week will be planned from.

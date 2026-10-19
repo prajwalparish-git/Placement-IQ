@@ -6,7 +6,7 @@ Pure functions, no Streamlit import, so every rendering decision is unit-testabl
 import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from html import escape
 from zoneinfo import ZoneInfo
 
@@ -158,6 +158,83 @@ def plan_summary(plan: WeeklyPlan) -> str:
     minutes = plan.minutes_by_topic()
     top = max(minutes, key=lambda t: minutes[t])
     return f"{sum(minutes.values())} minutes over {len(plan.days)} days, most of them on {top}."
+
+
+def plan_csv(plan: WeeklyPlan) -> bytes:
+    """The week as CSV (the table view's columns), with a BOM so Excel reads it as UTF-8."""
+    return plan_table(plan).to_csv().encode("utf-8-sig")
+
+
+def local_today(tz: str = TIMEZONE) -> date:
+    """Today on the student's calendar."""
+    return datetime.now(ZoneInfo(tz)).date()
+
+
+def next_monday(today: date) -> date:
+    """The default first day of an exported week: the coming Monday (today if it is one)."""
+    return today + timedelta(days=-today.weekday() % 7)
+
+
+def _ics_text(text: str) -> str:
+    """RFC 5545 TEXT: escape backslash, semicolon, comma and line breaks."""
+    for raw, escaped in (
+        ("\\", "\\\\"),
+        (";", "\\;"),
+        (",", "\\,"),
+        ("\r\n", "\\n"),
+        ("\n", "\\n"),
+    ):
+        text = text.replace(raw, escaped)
+    return text
+
+
+def _ics_fold(line: str) -> str:
+    """RFC 5545 3.1: a content line over 75 octets continues after CRLF and a space, never
+    splitting a UTF-8 character."""
+    chunks, current = [], b""
+    for ch in line:
+        encoded = ch.encode("utf-8")
+        limit = 75 if not chunks else 74  # a continuation starts with a one-octet space
+        if len(current) + len(encoded) > limit:
+            chunks.append(current)
+            current = encoded
+        else:
+            current += encoded
+    chunks.append(current)
+    return "\r\n ".join(c.decode("utf-8") for c in chunks)
+
+
+def plan_ics(
+    plan: WeeklyPlan, start: date, at: time, tz: str = TIMEZONE, now: datetime | None = None
+) -> bytes:
+    """The week as an iCalendar file: one event per day from `start`, at `at` on the
+    student's clock (`tz`), as long as that day's minutes. Times are written in UTC, so no
+    time-zone block is needed."""
+    zone, stamp = ZoneInfo(tz), (now or datetime.now(UTC)).astimezone(UTC)
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//PlacementIQ//Weekly plan//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+    ]
+    for d in sorted(plan.days, key=lambda d: d.day):
+        local = datetime.combine(start + timedelta(days=d.day - 1), at, tzinfo=zone)
+        begin = local.astimezone(UTC)
+        end = begin + timedelta(minutes=d.duration_min)
+        about = f"Week {plan.week_no}, day {d.day}. Goal: {d.practice_goal}"
+        lines += [
+            "BEGIN:VEVENT",
+            f"UID:week{plan.week_no}-day{d.day}-{start:%Y%m%d}@placementiq",
+            f"DTSTAMP:{stamp:%Y%m%dT%H%M%SZ}",
+            f"DTSTART:{begin:%Y%m%dT%H%M%SZ}",
+            f"DTEND:{end:%Y%m%dT%H%M%SZ}",
+            f"SUMMARY:{_ics_text(f'{d.topic}: ' + ', '.join(d.subtopics))}",
+            f"DESCRIPTION:{_ics_text(about)}",
+            "END:VEVENT",
+        ]
+    lines.append("END:VCALENDAR")
+    return ("\r\n".join(_ics_fold(line) for line in lines) + "\r\n").encode("utf-8")
 
 
 def plan_days_html(plan: WeeklyPlan) -> str:

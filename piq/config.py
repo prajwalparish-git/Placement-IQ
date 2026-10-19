@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass
+from datetime import time
 from functools import lru_cache
 from pathlib import Path
 
@@ -26,6 +27,7 @@ DIFFICULTY_DOWN_BELOW = 50  # a score below this suggests the next difficulty do
 RESUME_MAX_PDF_PAGES = 30  # pages read from a PDF resume; the rest is ignored
 RESUME_MAX_DOCX_UNZIPPED = 25 * 1024 * 1024  # bytes a DOCX may unpack to (zip-bomb guard)
 TIMEZONE = "Asia/Kolkata"  # students' local time, for dates shown in the app
+STUDY_TIME = time(19, 0)  # default daily start of an exported plan's calendar events
 RECENT_DAYS = 7  # a topic quizzed within this many days counts as practised; a plan
 # this old is due for next week's version
 

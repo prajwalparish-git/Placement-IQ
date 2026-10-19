@@ -311,6 +311,19 @@ def test_plan_week_one_has_no_shift_and_table_view_shows_the_table(seeded):
     assert not [h for h in at.get("html") if '<ol class="piq-days"' in h.proto.body]
 
 
+def test_plan_week_exports_as_calendar_and_table(seeded):
+    from piq import formatter
+
+    at = _app(seeded, "views/plan.py")
+    assert at.expander[0].label == "Export this week"
+    [first] = at.date_input
+    assert first.value == formatter.next_monday(formatter.local_today())
+    [at_time] = at.time_input
+    assert at_time.value.strftime("%H:%M") == "19:00"
+    downloads = at.get("download_button")
+    assert [d.proto.label for d in downloads] == ["Calendar (.ics)", "Table (.csv)"]
+
+
 def test_plan_without_a_plan_yet_invites_week_one():
     from piq import services
 

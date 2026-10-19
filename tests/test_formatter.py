@@ -50,6 +50,56 @@ def test_plan_summary_totals_the_week_and_names_its_main_topic():
     assert formatter.plan_summary(plan) == "630 minutes over 7 days, most of them on OS."
 
 
+def test_plan_csv_has_the_table_columns_and_one_row_per_day():
+    rows = formatter.plan_csv(f.plan()).decode("utf-8-sig").splitlines()
+    assert rows[0] == "Day,Topic,Subtopics,Minutes,Goal"
+    assert len(rows) == 8 and rows[1] == '1,OS,"a, b",60,g'
+
+
+@pytest.mark.parametrize(
+    ("today", "monday"),
+    [("2026-10-19", "2026-10-19"), ("2026-10-20", "2026-10-26"), ("2026-10-25", "2026-10-26")],
+)
+def test_next_monday_is_the_coming_monday(today, monday):
+    from datetime import date
+
+    assert formatter.next_monday(date.fromisoformat(today)) == date.fromisoformat(monday)
+
+
+def _ics(plan, **kw):
+    from datetime import UTC, date, datetime, time
+
+    now = datetime(2026, 10, 19, 6, 0, tzinfo=UTC)
+    return formatter.plan_ics(plan, date(2026, 10, 26), time(19, 0), now=now, **kw).decode()
+
+
+def test_plan_ics_is_a_calendar_with_one_event_per_day():
+    ics = _ics(f.plan(minutes=(90,) * 7))
+    assert ics.startswith("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:")
+    assert ics.endswith("END:VCALENDAR\r\n")
+    assert "\n" not in ics.replace("\r\n", "")  # CRLF line endings only
+    assert ics.count("BEGIN:VEVENT") == ics.count("END:VEVENT") == 7
+    # 19:00 in India is 13:30 UTC; the event lasts the day's 90 minutes.
+    assert "DTSTART:20261026T133000Z\r\nDTEND:20261026T150000Z" in ics
+    assert "DTSTART:20261101T133000Z" in ics  # day 7 is six days later
+    assert ics.count("DTSTAMP:20261019T060000Z") == 7
+    uids = [ln for ln in ics.split("\r\n") if ln.startswith("UID:")]
+    assert len(set(uids)) == 7 and uids[0] == "UID:week1-day1-20261026@placementiq"
+    assert "SUMMARY:OS: a\\, b" in ics
+
+
+def test_plan_ics_escapes_text_and_folds_long_lines():
+    plan = f.plan()
+    goal = "Revise; deadlocks, paging \\ swapping, then " + "practise " * 12 + "with notes"
+    day = plan.days[0].model_copy(update={"practice_goal": goal, "subtopics": ["é" * 40, "b"]})
+    ics = _ics(plan.model_copy(update={"days": [day, *plan.days[1:]]}))
+    lines = ics.split("\r\n")
+    assert all(len(ln.encode("utf-8")) <= 75 for ln in lines)  # folded at 75 octets
+    unfolded = ics.replace("\r\n ", "")
+    assert "Goal: Revise\\; deadlocks\\, paging \\\\ swapping\\, then practise" in unfolded
+    assert "SUMMARY:OS: " + "é" * 40 + "\\, b" in unfolded  # no character split by a fold
+
+
 def test_plan_days_html_lists_every_day_in_order_with_its_topic_chip():
     plan = f.plan(topics=("DBMS", "OS") * 3 + ("CN",), minutes=tuple(range(60, 130, 10)))
     plan.days.reverse()
