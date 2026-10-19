@@ -133,6 +133,34 @@ def test_the_threshold_rejects_the_old_amber_accent():
     assert distance("#E8AE45", TOPIC_COLORS["dark"]["Aptitude"]) < MIN_STATUS_DISTANCE
 
 
+def test_fonts_are_self_hosted_woff2_files_with_their_licences():
+    faces = THEME["fontFaces"]
+    families = {f["family"] for f in faces}
+    assert families == {"Atkinson Hyperlegible Next", "Bricolage Grotesque", "JetBrains Mono"}
+    total = 0
+    for face in faces:
+        assert face["url"].startswith("app/static/fonts/")  # served by the app, no CDN
+        path = ROOT / "static" / face["url"].removeprefix("app/static/")
+        data = path.read_bytes()
+        assert data[:4] == b"wOF2", path
+        assert "SIL OPEN FONT LICENSE" in (path.parent / "OFL.txt").read_text(encoding="utf-8")
+        total += len(data)
+    assert total < 300 * 1024
+    for key in ("font", "headingFont", "codeFont"):
+        assert "://" not in THEME[key]
+        assert THEME[key].split(",")[0].strip() in families
+
+
+def test_type_scale_keeps_text_legible_at_a_distance():
+    def px(size: str) -> float:
+        return float(size.removesuffix("rem")) * THEME["baseFontSize"]
+
+    assert THEME["baseFontSize"] >= 16  # body
+    sizes = [px(s) for s in THEME["headingFontSizes"]]
+    assert sizes[:3] == [36, 24, 18] and min(sizes) >= 14
+    assert px(THEME["codeFontSize"]) >= 14 and px(THEME["metricValueFontSize"]) == 36
+
+
 @pytest.mark.parametrize("scheme", SCHEMES)
 def test_sequential_ramp_runs_away_from_the_background(scheme):
     ramp = THEME[scheme]["chartSequentialColors"]

@@ -3,6 +3,9 @@
 [server]
 # Resumes over 5 MB are rejected by piq/resume.py anyway; refuse them before they reach memory.
 maxUploadSize = 5
+# Serves static/ (self-hosted fonts, brand mark) at app/static/: the app works offline in a
+# college lab and never calls a font CDN.
+enableStaticServing = true
 
 [browser]
 # The app handles student resumes: send no usage telemetry.
@@ -11,12 +14,48 @@ gatherUsageStats = false
 # Design tokens. piq/config.py holds the same colours (PALETTE, SEMANTIC_COLORS, TOPIC_COLORS);
 # tests/test_theme.py checks contrast and that both agree. Rationale: docs/design/DESIGN.md.
 [theme]
+# Atkinson Hyperlegible Next was designed to stay unambiguous for low-vision readers: it holds
+# up on a projector and for anxious students. Bricolage Grotesque gives headings a voice;
+# JetBrains Mono is only for USNs and commands.
+font = "Atkinson Hyperlegible Next, sans-serif"
+headingFont = "Bricolage Grotesque, sans-serif"
+codeFont = "JetBrains Mono, monospace"
+baseFontSize = 16
+# Type scale (px): 36 / 24 / 18 headings, 16 body, 14 small; key numbers 36.
+headingFontSizes = ["2.25rem", "1.5rem", "1.125rem", "1rem", "0.875rem", "0.875rem"]
+headingFontWeights = [700, 700, 600, 600, 600, 600]
+codeFontSize = "0.875rem"
+metricValueFontSize = "2.25rem"
+metricValueFontWeight = 700
 baseRadius = "0.5rem"
 buttonRadius = "0.5rem"
 # Inputs need a >= 3:1 edge to be found; their fill alone is too faint.
 showWidgetBorder = true
 # The sidebar's own background already separates it.
 showSidebarBorder = false
+
+# Self-hosted OFL fonts, Latin subset (licences next to each file). Variable files: one file
+# covers both weights of a family.
+[[theme.fontFaces]]
+family = "Atkinson Hyperlegible Next"
+url = "app/static/fonts/atkinson-hyperlegible-next/AtkinsonHyperlegibleNext-latin.woff2"
+weight = "400 700"
+style = "normal"
+unicodeRange = "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+
+[[theme.fontFaces]]
+family = "Bricolage Grotesque"
+url = "app/static/fonts/bricolage-grotesque/BricolageGrotesque-latin.woff2"
+weight = "600 700"
+style = "normal"
+unicodeRange = "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+
+[[theme.fontFaces]]
+family = "JetBrains Mono"
+url = "app/static/fonts/jetbrains-mono/JetBrainsMono-latin.woff2"
+weight = "400"
+style = "normal"
+unicodeRange = "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
 
 [theme.light]
 primaryColor = "#0D6670"
