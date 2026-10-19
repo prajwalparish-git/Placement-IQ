@@ -360,6 +360,19 @@ def weakness_headline(weakness: Mapping[str, float]) -> str:
     return f"No weak topics; {topic} has the most room to grow"
 
 
+def checklist_line(label: str, done: bool) -> str:
+    """A checklist item: an icon and a word for its state, then the item (escaped)."""
+    badge = status_md("done", "Done") if done else status_md("todo", "To do")
+    return f"{badge} {md_escape(label)}"
+
+
+def weakness_caption() -> str:
+    return (
+        f"0% is strong, 100% is weak; the dashed line marks a weak topic (above "
+        f"{WEAK_THRESHOLD:.0%})."
+    )
+
+
 def weakness_alt(weakness: Mapping[str, float]) -> str:
     """The same chart in words, for screen readers."""
     ranked = sorted(weakness.items(), key=lambda kv: -kv[1])

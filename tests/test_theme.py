@@ -138,6 +138,13 @@ def test_status_and_primary_colours_stay_away_from_topic_colours(scheme):
         assert distance(color, tc) >= MIN_STATUS_DISTANCE, (role, topic, distance(color, tc))
 
 
+def test_neutral_chart_marks_read_in_both_schemes():
+    from piq import charts
+
+    for scheme in SCHEMES:
+        assert contrast(charts.NEUTRAL, PALETTE[scheme]["background"]) >= 3, scheme
+
+
 def test_the_threshold_rejects_the_old_amber_accent():
     assert distance("#B7791F", TOPIC_COLORS["light"]["Aptitude"]) < MIN_STATUS_DISTANCE
     assert distance("#E8AE45", TOPIC_COLORS["dark"]["Aptitude"]) < MIN_STATUS_DISTANCE

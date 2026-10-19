@@ -12,12 +12,15 @@ from collections.abc import Mapping
 import altair as alt
 import pandas as pd
 
-from piq.config import TOPICS, WEAK_THRESHOLD
+from piq.config import PALETTE, TOPICS, WEAK_THRESHOLD
 
 FONT = "Atkinson Hyperlegible Next"
 HEADING_FONT = "Bricolage Grotesque"
 TOPIC_SCALE = alt.Scale(domain=list(TOPICS))
 ROW_PX = 34  # one horizontal bar plus breathing room
+# Marks that must read in either scheme (Vega cannot follow the theme switch for them):
+# this grey keeps >= 3:1 on both page backgrounds.
+NEUTRAL = PALETTE["light"]["border"]
 
 
 def themed[C: alt.TopLevelMixin](chart: C) -> C:
@@ -37,12 +40,14 @@ def themed[C: alt.TopLevelMixin](chart: C) -> C:
     )
 
 
-def weakness_bars(weakness: Mapping[str, float], title: str) -> alt.LayerChart:
-    """Weakness per topic as horizontal bars, weakest first, with the weak threshold dashed
-    and each value written at the end of its bar instead of a legend."""
+def weakness_bars(weakness: Mapping[str, float], title: str | None = None) -> alt.LayerChart:
+    """Weakness per topic as horizontal bars, weakest first, with the weak threshold dashed.
+    Each axis label carries the topic and its value ("OS  43%"): a direct label that the
+    theme colours correctly in both schemes, where text marks do not."""
     df = pd.DataFrame({"topic": list(weakness), "weakness": [float(v) for v in weakness.values()]})
-    order = df.sort_values("weakness", ascending=False, kind="stable")["topic"].tolist()
-    y = alt.Y("topic:N", sort=order, title=None, axis=alt.Axis(labelFontSize=14))
+    df["label"] = [f"{t}  {w:.0%}" for t, w in zip(df["topic"], df["weakness"], strict=True)]
+    order = df.sort_values("weakness", ascending=False, kind="stable")["label"].tolist()
+    y = alt.Y("label:N", sort=order, title=None, axis=alt.Axis(labelFontSize=14, labelPadding=8))
     x = alt.X(
         "weakness:Q",
         scale=alt.Scale(domain=[0, 1]),
@@ -59,15 +64,10 @@ def weakness_bars(weakness: Mapping[str, float], title: str) -> alt.LayerChart:
             y=y, x=x, color=alt.Color("topic:N", scale=TOPIC_SCALE, legend=None), tooltip=tooltip
         )
     )
-    values = (
-        alt.Chart(df)
-        .mark_text(align="left", dx=6, fontSize=13)
-        .encode(y=y, x=x, text=alt.Text("weakness:Q", format=".0%"), tooltip=tooltip)
-    )
     threshold = (
         alt.Chart(pd.DataFrame({"weakness": [WEAK_THRESHOLD]}))
-        .mark_rule(strokeDash=[4, 4], opacity=0.6)
+        .mark_rule(strokeDash=[4, 4], strokeWidth=1.5, color=NEUTRAL)
         .encode(x="weakness:Q", tooltip=alt.value(f"Weak above {WEAK_THRESHOLD:.0%}"))
     )
-    layered = alt.layer(bars, values, threshold).properties(title=title, height=ROW_PX * len(df))
-    return themed(layered)
+    layered = alt.layer(bars, threshold).properties(height=ROW_PX * len(df))
+    return themed(layered.properties(title=title) if title else layered)

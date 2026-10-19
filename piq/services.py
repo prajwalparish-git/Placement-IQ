@@ -431,9 +431,9 @@ def _checklist(
     profile: StudentProfile | None, latest_plan: Mapping | None, quizzes: int, sessions: int
 ) -> list[ChecklistItem]:
     return [
-        ChecklistItem("Onboard with your resume", profile is not None),
-        ChecklistItem("Generate your first weekly plan", latest_plan is not None),
-        ChecklistItem("Take your first quiz", quizzes > 0),
+        ChecklistItem("Onboard with a resume", profile is not None),
+        ChecklistItem("Generate a weekly plan", latest_plan is not None),
+        ChecklistItem("Take a quiz", quizzes > 0),
         ChecklistItem("Try a mock interview", sessions > 0),
     ]
 

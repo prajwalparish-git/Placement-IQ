@@ -178,14 +178,11 @@ def page_header(
     key: str | None = None,
 ) -> bool:
     """Every page opens with its title, one plain sentence of purpose (Markdown: escape any
-    dynamic part) and optionally its primary action. Returns True when that is clicked."""
-    with st.container(
-        horizontal=True, horizontal_alignment="distribute", vertical_alignment="bottom"
-    ):
-        with st.container(gap="small"):
-            st.title(title, anchor=False)
-            st.markdown(f":gray[{purpose}]")
-        return bool(action) and st.button(action, type="primary", icon=icon, key=key)
+    dynamic part) and optionally its primary action, under the sentence so nothing is
+    squeezed on a phone. Returns True when the action is clicked."""
+    st.title(title, anchor=False)
+    st.markdown(f":gray[{purpose}]")
+    return bool(action) and st.button(action, type="primary", icon=icon, key=key)
 
 
 def empty_state(

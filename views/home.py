@@ -21,17 +21,20 @@ def _go(page: str, **presets: str) -> None:
 
 student = ui.current_student()
 if student is None:
-    if ui.page_header(
+    ui.page_header(
         "Placement prep that adapts to you",
         "PlacementIQ reads your resume, plans a week of study, quizzes you and rewrites next "
         "week's plan from your scores. A critic checks every plan, quiz and interview question "
         "before you see it.",
-        "Start with your resume",
-        icon=":material/upload_file:",
-        key="home_start",
-    ):
+    )
+    with st.container(horizontal=True):
+        start = st.button(
+            "Start with your resume", type="primary", icon=":material/upload_file:", key="start"
+        )
+        sample = st.button("Try it with a sample resume", icon=":material/description:")
+    if start:
         _go("views/onboard.py")
-    if st.button("Try it with a sample resume", icon=":material/description:", key="home_sample"):
+    if sample:
         _go("views/onboard.py", onboard_sample=services.sample_resumes()[0])
     if ui.student_count():
         st.caption("Already onboarded? Choose your name under Student in the sidebar.")
@@ -39,7 +42,7 @@ if student is None:
     for column, (n, (icon, title, text)) in zip(
         st.columns(4, gap="medium"), enumerate(HOW_IT_WORKS, 1), strict=True
     ):
-        column.markdown(f":primary[:material/{icon}:]  \n**{n}. {title}**  \n{text}")
+        column.markdown(f":primary[:material/{icon}:] **{n}. {title}**  \n{text}")
     st.stop()
 
 sid = student["id"]
@@ -71,45 +74,42 @@ ui.page_header(
 )
 
 action = overview.next_action
-focus, side = st.columns([2, 1], gap="medium")
-with focus, st.container(border=True, height="stretch"):
-    st.markdown(f":primary[:material/{action.icon}:] **Today's focus**")
-    st.subheader(action.label, anchor=False)
-    st.markdown(formatter.md_escape(action.reason))
-    if action.topic:
-        ui.topic_chip(action.topic)
-    if st.button(action.cta, type="primary", icon=f":material/{action.icon}:", key="home_next"):
-        _go(action.page, **({"quiz_topic": action.topic} if action.topic else {}))
-with side:
-    total = len(profile.matched_skills) + len(profile.missing_skills)
-    ui.stat_row(
-        [
-            ui.Stat(
-                "Readiness",
-                f"{profile.readiness_score}/100",
-                help=f"{len(profile.matched_skills)} of the {total} skills your target role needs "
-                "are on your resume.",
-            )
-        ]
-    )
-    st.caption(f"{len(profile.matched_skills)} of {total} required skills are on your resume.")
-
-checklist, standing = st.columns([1, 2], gap="medium")
-with checklist, st.container(border=True, height="stretch"):
-    st.markdown("**Getting started**")
-    for item in overview.checklist:
-        state, word = ("done", "Done") if item.done else ("todo", "To do")
-        st.markdown(f"{formatter.status_md(state, word)} {formatter.md_escape(item.label)}")
-with standing:
+main, side = st.columns([2, 1], gap="medium")
+with main:
+    with st.container(border=True):
+        st.markdown(f":primary[:material/{action.icon}:] **Today's focus**")
+        st.subheader(action.label, anchor=False)
+        st.markdown(formatter.md_escape(action.reason))
+        if action.topic:
+            ui.topic_chip(action.topic)
+        if st.button(action.cta, type="primary", icon=f":material/{action.icon}:", key="next"):
+            _go(action.page, **({"quiz_topic": action.topic} if action.topic else {}))
+    st.subheader(formatter.weakness_headline(overview.weakness), anchor=False)
     st.altair_chart(
-        charts.weakness_bars(overview.weakness, formatter.weakness_headline(overview.weakness)),
+        charts.weakness_bars(overview.weakness),
         width="stretch",
         alt=formatter.weakness_alt(overview.weakness),
     )
+    st.caption(formatter.weakness_caption())
 
-st.subheader("Recent activity", anchor=False)
-if not overview.recent:
-    st.caption("Nothing yet. Your plans, quizzes and interviews will appear here.")
-for item in overview.recent:
-    when = formatter.relative_day(item.at)
-    st.markdown(f"{formatter.md_escape(item.text)}  \n:small[:gray[{when}]]")
+with side:
+    with st.container(border=True):
+        st.metric(
+            "Readiness",
+            f"{profile.readiness_score}/100",
+            help="How much of your target role's skill list your resume shows.",
+        )
+        total = len(profile.matched_skills) + len(profile.missing_skills)
+        st.caption(f"{len(profile.matched_skills)} of {total} required skills are on your resume.")
+    with st.container(border=True):
+        st.markdown("**Getting started**")
+        st.markdown(
+            "  \n".join(formatter.checklist_line(i.label, i.done) for i in overview.checklist)
+        )
+    with st.container(border=True):
+        st.markdown("**Recent activity**")
+        if not overview.recent:
+            st.caption("Nothing yet. Your plans, quizzes and interviews will appear here.")
+        for item in overview.recent:
+            when = formatter.relative_day(item.at)
+            st.markdown(f"{formatter.md_escape(item.text)}  \n:small[:gray[{when}]]")
