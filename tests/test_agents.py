@@ -204,6 +204,32 @@ def test_critic_with_one_based_indices_is_understood(monkeypatch):
     assert graph.run(agents.QUIZ_TASK, agents.quiz_inputs("OS", "easy", [])).approved
 
 
+@pytest.mark.parametrize(
+    ("indices", "cached"),
+    [
+        ([1, 2, 3, 4, 5], 5),  # 1-based and complete: understood
+        ([0, 1, 2, 3, 4], 5),  # 0-based and complete
+        ([1, 2, 4, 5], 0),  # 1-based with one missing
+        ([1, 2, 3, 4], 0),  # 0-based without 0 (or 1-based without 5): ambiguous
+        ([0, 1, 2, 3], 0),  # 0-based with one missing
+        ([0, 0, 1, 2, 3, 4], 0),  # a duplicate
+        ([0, 1, 2, 3, 9], 0),  # out of range
+    ],
+)
+def test_critic_verdicts_count_only_when_their_numbering_is_unambiguous(
+    monkeypatch, indices, cached
+):
+    r = graph.run(agents.QUIZ_TASK, agents.quiz_inputs("OS", "easy", []))
+    assert r.approved and len(r.output.questions) == 5
+    agents.clear_verdict_cache()
+    verdicts = [{"index": i, "valid": True, "reason": ""} for i in indices]
+    monkeypatch.setitem(mock._HANDLERS, "critic", lambda ctx: {"verdicts": verdicts})
+    reasons = agents.verify_quiz(agents.quiz_inputs("OS", "easy", []), r.output)
+    assert len(agents._VERDICTS) == cached  # a guessed mapping is never cached
+    assert len(reasons) == 5 - cached  # every unjudged question counts as rejected
+    assert all(reason.endswith("the critic gave no verdict") for reason in reasons)
+
+
 def test_missing_critic_verdict_counts_as_rejection(monkeypatch):
     monkeypatch.setitem(mock._HANDLERS, "critic", lambda ctx: {"verdicts": []})
     r = graph.run(agents.QUIZ_TASK, agents.quiz_inputs("OS", "easy", []))
