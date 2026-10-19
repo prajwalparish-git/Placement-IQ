@@ -28,6 +28,7 @@ views/              One file per page. Calls only piq.services, piq.formatter an
   quiz.py           Suggested difficulty, generate quiz (critic loop), take it, review
   interview.py      Chat mock interview, per-answer feedback, retry for a failed follow-up
   dashboard.py      Score trends, plan minutes, agent_logs stats and rejections
+  results.py        Baseline vs PlacementIQ evaluation results (reads results/summary.json)
 piq/                Application package. Only ui.py imports Streamlit
   services.py       Controllers: every user operation; validates, runs agents, persists, typed state
   config.py         Env settings (cached) and constants: topics, thresholds, sizes
@@ -49,12 +50,16 @@ data/
   placementiq.db    Runtime database (git-ignored; created on first run)
 evaluation/
   test_cases.json   20 frozen cases (5 roles x 4 score profiles)
-  run_eval.py       Baseline (one prompt) vs PlacementIQ; writes results/ (git-ignored)
+  run_eval.py       Baseline (one prompt) vs PlacementIQ; resumable, checkpointed; writes results/
+  report.py         results/summary.json -> report.md (tables) + chart.svg for the report
 scripts/
   seed.py           Demo student DEMO0001 with 4 weeks of history (no LLM calls)
   check_models.py   Are the configured Groq models served, JSON-capable, and within quota?
-  export_graph.py   Mermaid diagram of the compiled graph -> docs/
-docs/critic_graph.mmd  Generated graph diagram for the report
+  export_graph.py   Mermaid of the compiled graph -> docs/critic_graph.mmd + .md
+  test_report.py    Runs pytest and writes docs/test_report.md (test-case table)
+docs/               diagrams.md (use case, DFD, ER, sequence), critic graph, test report
+.github/workflows/  ci.yml: format check, lint and tests on every push
+.streamlit/         config.toml: 5 MB uploads, no usage telemetry
 tests/              pytest, fully offline: one file per layer, services integration, headless UI
 ```
 
@@ -67,10 +72,13 @@ copy .env.example .env                  # then add GROQ_API_KEY; without .env th
 python -m scripts.check_models          # before a demo: models served, JSON mode, quota left
 python -m scripts.seed                  # demo student with 4 weeks of history
 streamlit run app.py                    # dev server, http://localhost:8501
-pytest                                  # all tests, offline, about 40 s
+pytest                                  # all tests, offline, about 1 min
 ruff format . ; ruff check .            # format + lint (must be clean)
-python -m evaluation.run_eval           # live comparison; ~150 calls for all 20 cases
-python -m scripts.export_graph          # refresh docs/critic_graph.mmd
+python -m evaluation.run_eval --consecutive 5 --interviews   # live; ~290 calls, ~1 h
+python -m evaluation.run_eval --resume  # continue a run stopped by the daily quota
+python -m evaluation.report             # results/report.md + chart.svg
+python -m scripts.test_report           # docs/test_report.md from a real test run
+python -m scripts.export_graph          # refresh docs/critic_graph.mmd and .md
 ```
 There is no build step. `.env.example` already contains the verified model IDs. Live mode needs `GROQ_API_KEY` and `MOCK_MODE=false`.
 
@@ -91,7 +99,8 @@ There is no build step. `.env.example` already contains the verified model IDs. 
 - Each module starts with a docstring stating its job; add comments only for non-obvious reasons.
 - Every change ships with a test. Tests must pass offline in MOCK_MODE. Any new mock response must pass the same schema and checks as real output.
 - Tests never read the real `.env`: `tests/conftest.py` points `PIQ_DOTENV` at a missing file, clears caches and gives each test a fresh database. Live code paths are tested with fake Groq clients (`tests/test_llm.py`, `tests/test_check_models.py`).
-- Commits follow Conventional Commits (`feat(scope): …`, `fix(scope): …`), one logical unit per commit, and every commit passes the full suite.
+- Commits follow Conventional Commits (`feat(scope): …`, `fix(scope): …`), one logical unit per commit, and every commit passes the full suite. CI on GitHub must stay green.
+- Generated docs are regenerated, never hand-edited: `docs/critic_graph.*` (a test fails on drift) and `docs/test_report.md`.
 - A new dependency needs a one-line justification in `requirements.txt` and an exact version pin. The default answer is no.
 
 ## Constraints and do-not-touch

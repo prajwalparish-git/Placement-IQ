@@ -45,7 +45,8 @@ START ─▶ generate ─▶ verify ──approved, or out of retries──▶ E
 | `piq/formatter.py` | Output layer: models and rows to markdown and DataFrames. Pure functions. |
 | `piq/ui.py` | Student selector; `run_agent` shows the critic loop live and keeps the log, failures included, after reruns. |
 | `piq/resume.py` | Extracts text from PDF, DOCX and TXT, with size and empty-text guards. |
-| `scripts/*`, `evaluation/run_eval.py` | Demo seed, model and quota check, graph export; baseline-vs-system comparison. |
+| `scripts/*` | Demo seed, model and quota check, graph export, test-case report. |
+| `evaluation/run_eval.py`, `report.py`, `views/results.py` | Baseline-vs-system comparison (resumable, checkpointed after every case), its report files, and the Results page. |
 
 | Agent | Model | Output | Verified by |
 |---|---|---|---|
@@ -81,7 +82,20 @@ Free-tier limits, read from the response headers: **8,000 tokens/minute and 1,00
 | Interview answer (evaluate + next question) | 2 | 2–18 s |
 | One evaluation case | about 7 | 1–2 min, limited by tokens/minute |
 
-## 5. Data model
+## 5. Evaluation
+`python -m evaluation.run_eval` compares a single-prompt baseline with PlacementIQ on 20 frozen cases. Both are judged by the same deterministic checks and the same LLM critic.
+
+| Metric | Measured how |
+|---|---|
+| Plan valid rate, weak-topic share | `check_plan` on each system's plan |
+| Quiz valid rate, duplicates vs history | `check_quiz` + critic on each system's quiz |
+| Duplicate rate over N quizzes (`--consecutive N`) | N back-to-back quizzes per topic; baseline without memory |
+| Interview follow-up relevance (`--interviews`) | after a deliberately vague answer, a judge (small model) checks the next question |
+| Cost per agent | `agent_logs` in the evaluation's own `eval.db` |
+
+The run saves its state after every case, so a run cut short by the daily quota or killed continues with `--resume`. `evaluation/report.py` turns the summary into `report.md` and an SVG chart. The Results page shows the same data.
+
+## 6. Data model
 ```
 students 1─* profiles        (profile_json, readiness_score)
 students 1─* plans           (week_no, plan_json, rationale)   UNIQUE(student_id, week_no)
@@ -98,7 +112,7 @@ agent_logs                   (agent, model, tokens, latency, critic_approved, re
   - `past_turns`: interview memory, replacing a vector store.
   - `agent_stats`: calls, latency, tokens and rejection rate per agent.
 
-## 6. Key design decisions
+## 7. Key design decisions
 1. **Minimal LangGraph.** One generate → verify → retry graph shared by every agent. The Supervisor/router node from the original plan was dropped because each page already knows its mode.
 2. **Service layer instead of HTTP routes.** Controllers are plain functions with typed results. Every user flow is integration-tested without Streamlit. A REST wrapper would be one thin file if a second client ever appears.
 3. **Code computes, the LLM writes.** Readiness, missing skills, weakness, weak-topic share, minute ordering, difficulty and the overall score are all deterministic. This makes them explainable, testable and stable from run to run.
@@ -116,7 +130,7 @@ agent_logs                   (agent, model, tokens, latency, critic_approved, re
 - **Removed from the original plan:** ChromaDB and sentence-transformers, the Supervisor node, an LLM-computed readiness score, the live model-list fetch at startup, SQLAlchemy alongside raw SQL, `langchain-groq`, `tenacity`, Plotly, a seven-package layout, and a prompt-hash cache (session state already prevents repeat calls).
 - **Still optional:** LangGraph itself. The loop would be about 10 lines of plain Python. It stays because the scope was agreed and because it generates the report diagram (`scripts/export_graph.py`).
 
-## 7. Known limitations
+## 8. Known limitations
 - No authentication: anyone using the app can select any student. This is out of scope.
 - SQLite allows one writer at a time. That's fine for a lab demo, not for a whole batch using the app at once.
 - 8,000 tokens/minute per model allows roughly two quiz generations a minute. A class using the app together will hit 429s; the SDK backs off and then the UI says how long to wait.
@@ -127,14 +141,15 @@ agent_logs                   (agent, model, tokens, latency, critic_approved, re
 - Weakness priors (0.7 for a resume gap, 0.4 otherwise) and the 50% share are heuristics that haven't been validated.
 - The verdict cache lives in memory per process, so it is lost on restart.
 - No OCR, so scanned PDFs are rejected. No migrations. Timestamps are UTC.
+- On Streamlit Community Cloud the disk resets on restart; `SEED_DEMO=true` recreates the demo student, but other data is lost.
 - The evaluation has n = 20, which is small. Interview follow-up relevance is labelled by hand. Mock-mode results are invalid by design.
 
-## 8. What would change at production scale
+## 9. What would change at production scale
 - **Storage:** Postgres with migrations; an ORM is worth adding at that point.
 - **Access:** college SSO plus roles (student, coordinator) and per-student access control.
 - **Architecture:** an HTTP API over `services` with a rate-limit-aware job queue for LLM calls; the frontend separated from the backend.
 - **LLM:** a paid tier or provider fallback, a critic from a different model family, a shared verdict cache, and per-user quotas and cost tracking.
 - **Content:** a vetted question bank, extended by the LLM, with a human review queue for flagged items.
-- **Operations:** tracing and metrics instead of an `agent_logs` table; CI that runs lint, tests and the evaluation as a regression gate.
+- **Operations:** tracing and metrics instead of an `agent_logs` table; CI already runs format, lint and tests, and should also run the evaluation as a regression gate.
 - **Retrieval:** embeddings only once per-student history outgrows the prompt budget.
 - **Compliance:** data retention, encryption at rest, and a data processing agreement with the LLM provider.
