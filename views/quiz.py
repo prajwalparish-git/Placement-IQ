@@ -7,6 +7,7 @@ from piq import formatter, services
 from piq.config import DIFFICULTIES, QUIZ_SIZE
 from piq.ui import page_header, require_profile, run_agent, show_last_run
 
+BLANKS = "quiz_blanks"  # question numbers left blank at the last submit
 NEXT = (
     (
         "fact_check",
@@ -82,7 +83,16 @@ def _take(sid: str, quiz: services.QuizSet) -> None:
                     )
                 )
         submitted = st.form_submit_button("Submit", type="primary", icon=":material/done_all:")
-    if submitted:
+    anyway = False
+    if blanks := st.session_state.get(BLANKS):
+        st.warning(formatter.blanks_md(blanks), icon=":material/warning:")
+        anyway = st.button("Submit anyway", icon=":material/done_all:")
+    if submitted or anyway:
+        missing = [i for i, a in enumerate(chosen, 1) if a is None]
+        if missing and not anyway:  # keep the quiz and say which questions are blank
+            st.session_state[BLANKS] = missing
+            st.rerun()
+        st.session_state.pop(BLANKS, None)
         st.session_state["quiz_result"] = services.submit_quiz(sid, quiz, chosen)
         st.session_state.pop("quiz")
         st.rerun()

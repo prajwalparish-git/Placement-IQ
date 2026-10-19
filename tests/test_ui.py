@@ -410,6 +410,25 @@ def test_quiz_review_shows_a_score_card_marks_and_next_steps(seeded):
     assert _button(at, "Generate quiz")
 
 
+def test_quiz_with_blank_answers_asks_before_submitting(seeded):
+    at = _app(seeded, "views/quiz.py")
+    _button(at, "Generate quiz").click().run()
+    quiz = at.session_state["quiz"]
+    at.radio[0].set_value(quiz.questions[0].correct_index)  # only Q1 answered
+    _button(at, "Submit").click().run()
+    assert not at.exception
+    [warning] = at.warning
+    assert warning.value.startswith("Q2, Q3, Q4 and Q5 have no answer.")
+    assert at.session_state["quiz"] == quiz and "quiz_result" not in at.session_state
+    assert len(db.quiz_history(seeded)) == 24  # nothing saved yet
+    _button(at, "Submit anyway").click().run()
+    assert not at.exception
+    result = at.session_state["quiz_result"]
+    assert result.chosen[1:] == [None] * 4 and result.correct == 1
+    assert _md(at).count(":gray-badge[:material/radio_button_unchecked: Not answered]") == 4
+    assert len(db.quiz_history(seeded)) == 25
+
+
 def test_critic_log_numbers_questions_like_the_quiz(seeded):
     at = _app(seeded, "views/quiz.py")
     _button(at, "Generate quiz").click().run()

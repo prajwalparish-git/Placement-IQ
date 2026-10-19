@@ -322,6 +322,17 @@ def suggestion_md(topic: str, last: tuple[float, str] | None, suggested: str) ->
     )
 
 
+def blanks_md(numbers: Sequence[int]) -> str:
+    """Which questions are blank at submit, and the two ways on."""
+    names = [f"Q{n}" for n in numbers]
+    listed = names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+    verb = "has" if len(names) == 1 else "have"
+    return (
+        f"{listed} {verb} no answer. Answer and submit again, or submit anyway: a blank "
+        "counts as wrong."
+    )
+
+
 def result_md(correct: int, total: int, topic: str, difficulty: str, next_difficulty: str) -> str:
     """The quiz outcome in one sentence: what the score changes next (difficulty and plan)."""
     step = DIFFICULTIES.index(next_difficulty) - DIFFICULTIES.index(difficulty)

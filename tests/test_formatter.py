@@ -161,6 +161,12 @@ def test_quiz_review_marks_right_wrong_and_unanswered_with_icon_and_word():
     assert all(b.endswith(":gray[e]") for b in (right, blank, wrong))  # the explanation
 
 
+def test_blanks_md_names_the_unanswered_questions():
+    assert formatter.blanks_md([3]).startswith("Q3 has no answer.")
+    assert formatter.blanks_md([2, 4, 5]).startswith("Q2, Q4 and Q5 have no answer.")
+    assert formatter.blanks_md([1, 2]).endswith("a blank counts as wrong.")
+
+
 def test_quiz_setup_lines_explain_the_hint_and_the_suggestion():
     assert formatter.topic_option("OS", 0.43) == "OS · 43% weak"
     assert formatter.suggestion_md("CN", None, "medium") == (
