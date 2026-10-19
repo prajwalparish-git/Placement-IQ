@@ -166,3 +166,23 @@ def test_dashboard_specs_match_their_charts():
     assert charts.interview_trend_spec([3.0], ["x"]) == charts.to_spec(
         charts.interview_trend([3.0], ["x"])
     )
+
+
+def test_activity_heatmap_is_a_12_week_calendar_with_neutral_empty_days():
+    from datetime import date
+
+    today = date(2026, 10, 20)  # a Tuesday
+    spec = charts.activity_heatmap({date(2026, 10, 19): 2, date(2026, 8, 3): 1}, today).to_dict()
+    assert spec["mark"]["type"] == "rect"
+    rows = spec["datasets"][spec["data"]["name"]]
+    assert rows[0] == {"date": "2026-08-03", "week": 0, "weekday": "Mon", "count": 1}
+    assert rows[-1]["date"] == "2026-10-20" and rows[-1]["week"] == 11  # no future days
+    assert len(rows) == 7 * 11 + 2
+    enc = spec["encoding"]
+    assert enc["y"]["sort"] == ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    assert enc["color"]["condition"]["value"] == charts.NEUTRAL  # a day without study
+    assert enc["color"]["field"] == "count" and "range" not in enc["color"].get("scale", {})
+    assert [t["title"] for t in enc["tooltip"]] == ["Day", "Quizzes and interviews"]
+    assert charts.activity_heatmap_spec({date(2026, 10, 19): 2}, today) == charts.to_spec(
+        charts.activity_heatmap({date(2026, 10, 19): 2}, today)
+    )

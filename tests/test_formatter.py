@@ -459,6 +459,18 @@ def test_readiness_change_and_headline_never_invent_a_trend():
     assert formatter.local_day("2026-10-19 20:00:00") == "20 Oct"  # UTC evening, next day in India
 
 
+def test_streak_and_activity_words():
+    assert (formatter.days(1), formatter.days(3)) == ("1 day", "3 days")
+    assert formatter.streak_md(3, 5) == (
+        ":primary[:material/event_available:] Study streak: **3 days** (longest 5 days)."
+    )
+    assert "No study streak right now; your longest was 1 day." in formatter.streak_md(0, 1)
+    assert formatter.activity_headline(0, 0) == "No quizzes or interviews in the last 12 weeks"
+    assert formatter.activity_headline(9, 3) == (
+        "Active on 9 days in the last 12 weeks; longest streak 3 days"
+    )
+
+
 def test_critic_plain_renumbers_without_escaping():
     assert formatter.critic_plain("question 2: __init__ twice") == "Q3: __init__ twice"
 

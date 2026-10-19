@@ -495,6 +495,32 @@ def session_labels(sessions: Iterable[Mapping], tz: str = TIMEZONE) -> list[str]
     return [f"{local_day(s['started'], tz)}, {s['interview_type']}" for s in sessions]
 
 
+def days(n: int) -> str:
+    return f"{n} day" if n == 1 else f"{n} days"
+
+
+def streak_md(current: int, longest: int) -> str:
+    """The study streak in words, with the primary teal and an icon (never a flame)."""
+    if current == 0:
+        return (
+            f":primary[:material/event_available:] No study streak right now; your longest "
+            f"was {days(longest)}."
+        )
+    return (
+        f":primary[:material/event_available:] Study streak: **{days(current)}** "
+        f"(longest {days(longest)})."
+    )
+
+
+def activity_headline(active_days: int, longest: int, weeks: int = 12) -> str:
+    """The activity calendar's takeaway."""
+    if not active_days:
+        return f"No quizzes or interviews in the last {weeks} weeks"
+    return (
+        f"Active on {days(active_days)} in the last {weeks} weeks; longest streak {days(longest)}"
+    )
+
+
 def readiness_change(scores: Sequence[int]) -> tuple[str, str] | None:
     """The readiness KPI's delta and its colour: the latest profile minus the one before.
     None with a single profile: there is nothing to compare, so no delta is invented."""

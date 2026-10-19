@@ -13,6 +13,7 @@ Vega-Lite, built once per distinct data (see the note above them).
 import json
 import math
 from collections.abc import Mapping, Sequence
+from datetime import date, timedelta
 from functools import lru_cache
 
 import altair as alt
@@ -334,3 +335,58 @@ def readiness_trend_spec(scores: Sequence[int], labels: Sequence[str]) -> dict:
 @lru_cache(maxsize=128)
 def _readiness_trend_json(scores: tuple[int, ...], labels: tuple[str, ...]) -> str:
     return json.dumps(to_spec(readiness_trend(scores, labels)))
+
+
+def activity_heatmap(days: Mapping[date, int], today: date, weeks: int = 12) -> alt.Chart:
+    """The last `weeks` weeks as a calendar: a column per week (oldest on the left), a row per
+    weekday, each day shaded by how many quizzes and interviews it had (the theme's
+    sequential colours); a day without any is a faint neutral cell."""
+    first = today - timedelta(days=today.weekday() + 7 * (weeks - 1))  # a Monday
+    rows = [
+        {
+            "date": day.isoformat(),
+            "week": (day - first).days // 7,
+            "weekday": day.strftime("%a"),
+            "count": int(days.get(day, 0)),
+        }
+        for day in (first + timedelta(days=i) for i in range((today - first).days + 1))
+    ]
+    weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    chart = (
+        alt.Chart(pd.DataFrame(rows))
+        .mark_rect(cornerRadius=3, stroke=None)
+        .encode(
+            x=alt.X("week:O", axis=None),
+            y=alt.Y(
+                "weekday:O",
+                sort=weekdays,
+                title=None,
+                axis=alt.Axis(
+                    labelExpr="indexof(['Mon','Wed','Fri'], datum.value) >= 0 ? datum.value : ''"
+                ),
+            ),
+            color=alt.condition(
+                alt.datum.count == 0,
+                alt.value(NEUTRAL),
+                alt.Color("count:Q", legend=None, scale=alt.Scale(domainMin=1)),
+            ),
+            opacity=alt.condition(alt.datum.count == 0, alt.value(0.18), alt.value(1.0)),
+            tooltip=[
+                alt.Tooltip("date:T", title="Day", format="%a %d %b"),
+                alt.Tooltip("count:Q", title="Quizzes and interviews"),
+            ],
+        )
+        .properties(height=7 * 18)
+    )
+    return themed(chart)
+
+
+def activity_heatmap_spec(days: Mapping[date, int], today: date) -> dict:
+    key = tuple(sorted((d.isoformat(), int(n)) for d, n in days.items()))
+    return json.loads(_activity_heatmap_json(key, today.isoformat()))
+
+
+@lru_cache(maxsize=128)
+def _activity_heatmap_json(days: tuple[tuple[str, int], ...], today: str) -> str:
+    counts = {date.fromisoformat(d): n for d, n in days}
+    return json.dumps(to_spec(activity_heatmap(counts, date.fromisoformat(today))))

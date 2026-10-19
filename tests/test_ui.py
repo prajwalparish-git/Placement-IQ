@@ -517,7 +517,8 @@ def test_dashboard_renders(seeded):
     assert metrics["Quizzes taken"] == "24"  # seeded quizzes
     assert metrics["Readiness"] == "42/100" and metrics["Interview sessions"] == "2"
     charts = at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")
-    assert len(charts) == 6 + 2  # a sparkline per topic, plan minutes, interview averages
+    assert len(charts) == 6 + 3  # a sparkline per topic, interviews, plan minutes, activity
+    assert {m.label for m in at.metric} >= {"Study streak"}
     subheaders = [s.value for s in at.subheader]
     assert "OS is up from 30% to 70%" in subheaders
     assert "Week 4 puts 100% of its minutes on OS" in subheaders
@@ -543,7 +544,7 @@ def test_dashboard_readiness_shows_a_delta_and_trend_only_after_a_second_profile
         s.value.startswith("Readiness ") and "over 2 profiles" in s.value for s in at.subheader
     )
     charts = at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")
-    assert len(charts) == 6 + 3  # sparklines, readiness, interviews, plan minutes
+    assert len(charts) == 6 + 4  # sparklines, readiness, interviews, plan minutes, activity
 
 
 def test_dashboard_keeps_system_telemetry_in_its_own_section(seeded):
@@ -744,6 +745,7 @@ def test_home_shows_todays_focus_for_the_demo_student(seeded):
     assert at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")
     assert "Scored 90% on a medium OOP quiz" in _md(at)
     assert [m.value for m in at.metric] == ["42/100"]
+    assert any(":material/event_available:" in m.value for m in at.markdown)  # the streak
 
 
 def test_todays_focus_opens_the_page_it_names(seeded):

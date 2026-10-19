@@ -9,10 +9,12 @@ import json
 import re
 import sqlite3
 import uuid
-from collections.abc import Mapping, Sequence
+from collections import Counter
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from functools import lru_cache
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel
 
@@ -25,6 +27,7 @@ from piq.config import (
     INTERVIEW_TYPES,
     RECENT_DAYS,
     RESULTS_DIR,
+    TIMEZONE,
     TOPICS,
     WEAK_THRESHOLD,
 )
@@ -357,6 +360,10 @@ class Dashboard:
     rejections: list[sqlite3.Row]
     readiness: list[sqlite3.Row]  # (created_at, readiness_score) per profile, oldest first
 
+    @property
+    def streak(self) -> "Streak":
+        return study_streak(self.quiz_history, self.sessions)
+
 
 def dashboard(student_id: str, profile: StudentProfile | None = None) -> Dashboard:
     """`profile`: the student's current profile when the caller already loaded it."""
@@ -425,6 +432,50 @@ class HomeOverview:
     next_action: NextAction
     checklist: list[ChecklistItem]
     recent: list[Activity]
+    streak: "Streak"
+
+
+@dataclass(frozen=True)
+class Streak:
+    """Study activity by day on the student's calendar: quizzes and interview sessions."""
+
+    current: int  # consecutive active days ending today (or yesterday, before today's study)
+    longest: int
+    days: dict[date, int]  # day -> how many quizzes and sessions
+
+
+def activity_days(timestamps: Iterable[str], tz: str = TIMEZONE) -> Counter[date]:
+    """SQLite UTC timestamps -> activity count per day in the student's time zone (UTC
+    midnight is 05:30 in India, so the UTC date would be wrong for a third of the day)."""
+    zone = ZoneInfo(tz)
+    return Counter(utc(t).astimezone(zone).date() for t in timestamps)
+
+
+def streaks(days: Iterable[date], today: date) -> tuple[int, int]:
+    """(current, longest) runs of consecutive active days. The current run may end today or
+    yesterday: a streak is not broken until a whole day passes without study."""
+    active = set(days)
+    longest = run = 0
+    previous = None
+    for day in sorted(active):
+        run = run + 1 if previous and day - previous == timedelta(days=1) else 1
+        longest, previous = max(longest, run), day
+    end = today if today in active else today - timedelta(days=1)
+    current = 0
+    while end - timedelta(days=current) in active:
+        current += 1
+    return current, longest
+
+
+def study_streak(
+    attempts: Sequence[Mapping], sessions: Sequence[Mapping], today: date | None = None
+) -> Streak:
+    """Streaks from rows the caller already has (quiz_history, interview_history), so no
+    extra query: an interview session counts on the day it started."""
+    days = activity_days([a["attempted_at"] for a in attempts] + [s["started"] for s in sessions])
+    today = today or datetime.now(ZoneInfo(TIMEZONE)).date()
+    current, longest = streaks(days, today)
+    return Streak(current, longest, dict(days))
 
 
 def utc(timestamp: str) -> datetime:
@@ -584,6 +635,7 @@ def home(
         next_action=action,
         checklist=_checklist(profile, latest, len(attempts), len(sessions)),
         recent=_recent(latest, attempts, sessions),
+        streak=study_streak(attempts, sessions),
     )
 
 

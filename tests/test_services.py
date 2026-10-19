@@ -382,3 +382,38 @@ def test_interview_summary_averages_each_criterion_and_tips_the_weak_ones():
     assert set(INTERVIEW_TIPS) == set(f.evaluation().scores)  # a tip for every criterion
     with pytest.raises(ServiceError, match="no answers yet"):
         services.interview_summary(session.model_copy(update={"history": []}))
+
+
+def _d(day: int):
+    from datetime import date
+
+    return date(2026, 10, day)
+
+
+@pytest.mark.parametrize(
+    ("active", "today", "expected"),
+    [
+        ([], 20, (0, 0)),  # no activity
+        ([20], 20, (1, 1)),  # a single day, today
+        ([19], 20, (1, 1)),  # yesterday still counts: today is not over
+        ([18], 20, (0, 1)),  # a whole day without study breaks it
+        ([10, 11, 12, 15, 16, 19, 20], 20, (2, 3)),  # gaps: current 19-20, longest 10-12
+        ([17, 18, 19], 20, (3, 3)),
+    ],
+)
+def test_streaks_count_consecutive_days(active, today, expected):
+    assert services.streaks([_d(a) for a in active], _d(today)) == expected
+
+
+def test_activity_days_use_the_students_calendar_not_utc():
+    # 18:00 UTC is 23:30 in India (same day); 19:00 UTC is 00:30 the next day.
+    days = services.activity_days(["2026-10-19 18:00:00", "2026-10-19 19:00:00"])
+    assert days == {_d(19): 1, _d(20): 1}
+
+
+def test_study_streak_combines_quizzes_and_interview_sessions():
+    attempts = [{"attempted_at": "2026-10-18 06:00:00"}, {"attempted_at": "2026-10-19 06:00:00"}]
+    sessions = [{"started": "2026-10-19 08:00:00"}, {"started": "2026-10-20 08:00:00"}]
+    streak = services.study_streak(attempts, sessions, today=_d(20))
+    assert (streak.current, streak.longest) == (3, 3)
+    assert streak.days == {_d(18): 1, _d(19): 2, _d(20): 1}

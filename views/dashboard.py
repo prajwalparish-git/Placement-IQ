@@ -8,7 +8,7 @@ from piq.config import TOPICS
 from piq.ui import Stat, empty_state, page_header, require_profile, stat_row
 
 
-def _kpis(d: services.Dashboard) -> None:
+def _kpis(d: services.Dashboard, streak: services.Streak) -> None:
     change = formatter.readiness_change([r["readiness_score"] for r in d.readiness])
     delta, color = change or (None, "normal")
     stat_row(
@@ -16,8 +16,26 @@ def _kpis(d: services.Dashboard) -> None:
             Stat("Readiness", f"{d.profile.readiness_score}/100", delta, delta_color=color),
             Stat("Quizzes taken", str(len(d.quiz_history))),
             Stat("Interview sessions", str(len(d.sessions))),
+            Stat(
+                "Study streak",
+                formatter.days(streak.current),
+                help=f"Days in a row with a quiz or an interview. Longest: "
+                f"{formatter.days(streak.longest)}.",
+            ),
         ]
     )
+
+
+def _activity(streak: services.Streak) -> None:
+    today = formatter.local_today()
+    recent = sum(1 for day in streak.days if (today - day).days < 7 * 12)
+    st.subheader(formatter.activity_headline(recent, streak.longest), anchor=False)
+    st.vega_lite_chart(
+        spec=charts.activity_heatmap_spec(streak.days, today),
+        width="stretch",
+        alt=f"Calendar of the last 12 weeks: {formatter.days(recent)} with study.",
+    )
+    st.caption("One square per day, a column per week, oldest on the left; darker is busier.")
 
 
 def _topic_scores(d: services.Dashboard) -> None:
@@ -131,13 +149,17 @@ except services.ServiceError as e:
         st.rerun()
     st.stop()
 
-_kpis(d)
+streak = d.streak
+_kpis(d, streak)
 _topic_scores(d)
 readiness_col, interview_col = st.columns(2, gap="medium")
 with readiness_col, st.container(border=True, height="stretch"):
     _readiness(d)
 with interview_col, st.container(border=True, height="stretch"):
     _interviews(d)
-with st.container(border=True):
+plans_col, activity_col = st.columns(2, gap="medium")
+with plans_col, st.container(border=True, height="stretch"):
     _plans(d)
+with activity_col, st.container(border=True, height="stretch"):
+    _activity(streak)
 _under_the_hood(d)
