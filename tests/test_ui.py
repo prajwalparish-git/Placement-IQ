@@ -196,6 +196,43 @@ def test_onboard_reprofile_without_a_resume_shows_the_error(seeded):
     assert [s["usn"] for s in db.list_students()] == [seed.USN]  # nothing saved
 
 
+def _onboard(at: AppTest, usn: str) -> None:
+    at.text_input[0].input(usn)
+    next(s for s in at.selectbox if s.label.startswith("…or use")).select(
+        "java_backend_fresher.txt"
+    )
+    _button(at, "Analyse resume").click().run()
+    assert not at.exception
+
+
+def test_onboarding_a_usn_that_is_taken_asks_before_replacing_that_student(seeded):
+    before = db.latest_profile(seeded)
+    at = _app(page="views/onboard.py")  # no student selected: this is a new student
+    _onboard(at, seed.USN.lower())
+    [warning] = at.warning
+    assert f"{seed.USN} already belongs to Demo Student" in warning.value
+    assert db.latest_profile(seeded) == before  # nothing saved yet
+    _button(at, "Cancel").click().run()
+    assert not at.warning and db.latest_profile(seeded) == before
+
+    _onboard(at, seed.USN)
+    _button(at, "Replace their profile").click().run()
+    assert not at.exception and not at.warning
+    assert db.latest_profile(seeded).name != before.name  # the resume's student now
+    assert [s["usn"] for s in db.list_students()] == [seed.USN]
+    assert at.session_state["student_id"] == seeded
+
+
+def test_reprofiling_the_selected_student_needs_no_confirmation(seeded):
+    at = _app(seeded, "views/onboard.py")
+    next(s for s in at.selectbox if s.label.startswith("…or use")).select(
+        "java_backend_fresher.txt"
+    )
+    _button(at, "Analyse resume").click().run()
+    assert not at.exception and not at.warning
+    assert any(s.label.startswith("Profile agent — last run") for s in at.status)
+
+
 def test_onboard_rejects_missing_usn():
     at = _app(page="views/onboard.py")  # Home is the default page now
     _button(at, "Analyse resume").click().run()

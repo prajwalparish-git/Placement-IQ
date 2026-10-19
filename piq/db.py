@@ -60,6 +60,14 @@ def save_profile(usn: str, profile: StudentProfile, at: str | None = None) -> st
     return sid
 
 
+def student_by_usn(usn: str) -> sqlite3.Row | None:
+    """The student who owns `usn` (id, name, target_role), or None."""
+    with tx() as c:
+        return c.execute(
+            "SELECT id, name, target_role FROM students WHERE usn = ?", (usn.strip().upper(),)
+        ).fetchone()
+
+
 def delete_student(usn: str) -> None:
     """Remove a student and (via ON DELETE CASCADE) all of their history."""
     with tx() as c:

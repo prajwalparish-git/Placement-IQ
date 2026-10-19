@@ -6,6 +6,7 @@ import streamlit as st
 from piq import charts, formatter, services
 from piq.ui import current_student, page_header, run_agent, set_student, show_last_run
 
+CONFIRM = "onboard_confirm"  # a submission waiting for "Replace their profile"
 NEXT = (
     ("badge", "Enter your USN and the role you are aiming for."),
     ("upload_file", "Upload your resume, or pick a sample to try the app."),
@@ -34,6 +35,7 @@ def _form(roles: list[str], role_index: int) -> None:
         submitted = st.form_submit_button(
             "Analyse resume", type="primary", icon=":material/fact_check:"
         )
+    _confirm_replace()
     if not submitted:
         return
     try:
@@ -44,13 +46,48 @@ def _form(roles: list[str], role_index: int) -> None:
             text = services.load_sample(sample)
         else:
             raise services.ServiceError("Upload a resume or pick a sample.")
+        owner = services.usn_owner(usn)
     except (services.ServiceError, services.ResumeError) as e:
         st.error(formatter.md_escape(str(e)), icon=":material/error:")
         return
+    if owner and owner["id"] != st.session_state.get("student_id"):
+        st.session_state[CONFIRM] = {
+            "usn": usn,
+            "role": role,
+            "text": text,
+            "name": owner["name"],
+            "owner_role": owner["target_role"],
+        }
+        st.rerun()
+    _analyse(usn, role, text)
+
+
+def _analyse(usn: str, role: str, text: str) -> None:
     result = run_agent("Profile agent", lambda ev: services.onboard(usn, role, text, ev))
     if result:
         set_student(result[0], keep_runs=("Profile agent",))
         st.rerun()
+
+
+def _confirm_replace() -> None:
+    """A USN typed for a new student that belongs to someone else: say whose it is, and save
+    only on an explicit yes (saving would replace that student's profile and name)."""
+    pending = st.session_state.get(CONFIRM)
+    if not pending:
+        return
+    st.warning(
+        formatter.usn_taken_md(pending["usn"], pending["name"], pending["owner_role"]),
+        icon=":material/warning:",
+    )
+    with st.container(horizontal=True):
+        replace = st.button("Replace their profile", type="primary", icon=":material/sync:")
+        cancel = st.button("Cancel")
+    if cancel:
+        st.session_state.pop(CONFIRM)
+        st.rerun()
+    if replace:
+        st.session_state.pop(CONFIRM)
+        _analyse(pending["usn"], pending["role"], pending["text"])
 
 
 def _readiness_card(profile: services.StudentProfile) -> None:

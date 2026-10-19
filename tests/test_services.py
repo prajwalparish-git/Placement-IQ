@@ -341,3 +341,11 @@ def test_home_reports_an_unreadable_database_safely(student, monkeypatch):
     monkeypatch.setattr(db, "quiz_history", broken)
     with pytest.raises(ServiceError, match="could not be read"):
         services.home(student)
+
+
+def test_usn_owner_finds_the_student_behind_a_usn(student):
+    owner = services.usn_owner(" " + db.list_students()[0]["usn"].lower() + " ")
+    assert owner["id"] == student and owner["name"]
+    assert services.usn_owner("NOBODY01") is None
+    with pytest.raises(ServiceError, match="USN is required"):
+        services.usn_owner("bad usn")

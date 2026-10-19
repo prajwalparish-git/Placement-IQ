@@ -16,7 +16,7 @@ from piq.resume import ResumeError
 from piq.schemas import StudentProfile
 
 NEW = "— new student —"
-PER_STUDENT_KEYS = ("quiz", "quiz_result", "interview")
+PER_STUDENT_KEYS = ("quiz", "quiz_result", "interview", "onboard_confirm")
 RUN_PREFIX = "run:"  # session key prefix for persisted agent step logs
 FAILED = formatter.FAILED
 USER_ERRORS = (CriticRejected, LLMError, services.ServiceError, ResumeError)

@@ -57,6 +57,11 @@ def normalise_usn(usn: str | None) -> str:
     return usn
 
 
+def usn_owner(usn: str) -> sqlite3.Row | None:
+    """The student who already has this USN (id, name, target_role), or None."""
+    return db.student_by_usn(normalise_usn(usn))
+
+
 def list_students() -> list[sqlite3.Row]:
     return db.list_students()
 

@@ -97,6 +97,14 @@ def _bullets(items: Iterable[str], empty: str = "_none_") -> str:
 # --- profile (Onboard) ----------------------------------------------------------------
 
 
+def usn_taken_md(usn: str, name: str, role: str) -> str:
+    """Why onboarding stops for a confirmation: the USN is someone else's."""
+    return (
+        f"{md_escape(usn)} already belongs to {md_escape(name)} ({md_escape(role)}). "
+        "Analysing this resume replaces their profile, and their name, with this one."
+    )
+
+
 def readiness_summary(p: StudentProfile) -> str:
     total = len(p.matched_skills) + len(p.missing_skills)
     role = md_escape(p.target_role)
