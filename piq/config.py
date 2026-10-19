@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 RESULTS_DIR = ROOT / "evaluation" / "results"
-BRAND_DIR = ROOT / "static" / "brand"  # mark.svg (icon) and wordmark.svg
+STATIC_DIR = ROOT / "static"  # served at app/static/: fonts, brand, app.css
+BRAND_DIR = STATIC_DIR / "brand"  # mark.svg (icon) and wordmark.svg
 
 TOPICS = ("Aptitude", "DBMS", "OS", "CN", "DSA", "OOP")
 DIFFICULTIES = ("easy", "medium", "hard")

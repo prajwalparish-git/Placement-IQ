@@ -38,6 +38,7 @@ LAYERS = {
     "test_screenshots": ("Unit", "Screenshot tool helpers"),
     "test_perf": ("Unit", "Performance tool helpers"),
     "test_theme": ("Unit", "Design tokens: contrast and distinctness"),
+    "test_charts": ("Unit", "Chart builders: encodings and theme"),
     "test_ui": ("System (UI)", "Streamlit pages, headless"),
 }
 ORDER = list(LAYERS)

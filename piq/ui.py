@@ -1,10 +1,14 @@
-"""Streamlit helpers shared by the views: student selection and the visible agent loop."""
+"""Streamlit helpers shared by the views: student selection, the visible agent loop and
+the design system's components (page header, empty state, stat cards, chips, badges)."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+from functools import lru_cache
 
 import streamlit as st
 
 from piq import formatter, services
+from piq.config import STATIC_DIR
 from piq.graph import CriticRejected, OnEvent
 from piq.llm import LLMError
 from piq.resume import ResumeError
@@ -113,3 +117,68 @@ def show_last_run(label: str) -> None:
         ):
             for m in events:
                 st.write(_line(m))
+
+
+# --- design-system components -------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Stat:
+    label: str
+    value: str
+    delta: str | None = None
+    help: str | None = None
+
+
+@lru_cache(maxsize=1)
+def _stylesheet() -> str:
+    return (STATIC_DIR / "app.css").read_text(encoding="utf-8")
+
+
+def load_css() -> None:
+    """Add static/app.css (what the theme cannot express) once per run, before the page."""
+    st.html(f"<style>{_stylesheet()}</style>")
+
+
+def page_header(
+    title: str,
+    purpose: str,
+    action: str | None = None,
+    *,
+    icon: str | None = None,
+    key: str | None = None,
+) -> bool:
+    """Every page opens with its title, one plain sentence of purpose (Markdown: escape any
+    dynamic part) and optionally its primary action. Returns True when that is clicked."""
+    with st.container(
+        horizontal=True, horizontal_alignment="distribute", vertical_alignment="bottom"
+    ):
+        with st.container(gap="small"):
+            st.title(title, anchor=False)
+            st.markdown(f":gray[{purpose}]")
+        return bool(action) and st.button(action, type="primary", icon=icon, key=key)
+
+
+def empty_state(
+    icon: str, title: str, body: str, action: str | None = None, *, key: str | None = None
+) -> bool:
+    """An empty screen as an invitation: what is missing and the one next step."""
+    with st.container(border=True, gap="small"):
+        st.subheader(title, anchor=False, icon=f":material/{icon}:")
+        st.markdown(body)
+        return bool(action) and st.button(action, type="primary", key=key)
+
+
+def stat_row(stats: Sequence[Stat]) -> None:
+    """Equal-height stat cards in one row; they stack on phones."""
+    for column, s in zip(st.columns(len(stats)), stats, strict=True):
+        column.metric(s.label, s.value, s.delta, help=s.help, border=True, height="stretch")
+
+
+def topic_chip(topic: str) -> None:
+    st.html(formatter.topic_chip_html(topic))
+
+
+def status_badge(state: str, text: str) -> None:
+    icon, color = formatter.STATUS[state]
+    st.badge(text, icon=f":material/{icon}:", color=color)

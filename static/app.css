@@ -1,0 +1,53 @@
+/* PlacementIQ: only what .streamlit/config.toml cannot express. Loaded once per run by
+   piq.ui.load_css. Rules: select by data-testid only (never generated class names), and
+   write colours as light-dark(light, dark) from piq/config.py PALETTE: Streamlit sets
+   color-scheme on the app, so they follow its own light/dark switch. */
+
+/* Cards and stat cards only group content, so a hairline is enough. The theme's border
+   (>= 3:1) stays on inputs, where the edge is how you find the control. */
+[data-testid="stVerticalBlock"],
+[data-testid="stMetric"] {
+  border-color: light-dark(#DCE1DE, #2C383B);
+}
+
+/* Key numbers in the heading face, with equal-width digits so values line up. */
+[data-testid="stMetricValue"] {
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Prose stays near 70 characters a line, even on a wide projector. */
+[data-testid="stMarkdownContainer"] > :is(p, ul, ol, blockquote) {
+  max-width: 72ch;
+}
+
+/* Keyboard focus must be obvious: Streamlit's rings are faint, and a focused nav link
+   looked exactly like the current page. currentColor keeps the ring >= 3:1 in both
+   schemes. */
+[data-testid="stSidebarNavLink"]:focus-visible,
+[data-testid="stPageLink-NavLink"]:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+[data-testid="stButton"]:has(:focus-visible),
+[data-testid="stFormSubmitButton"]:has(:focus-visible),
+[data-testid="stDownloadButton"]:has(:focus-visible),
+[data-testid="stSelectbox"]:has(input:focus-visible),
+[data-testid="stTextInput"]:has(input:focus-visible),
+[data-testid="stChatInput"]:has(textarea:focus-visible) {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+  border-radius: 0.5rem;
+}
+
+/* Honour a request for less motion (spinners and expanders included). */
+@media (prefers-reduced-motion: reduce) {
+  [data-testid="stApp"] *,
+  [data-testid="stApp"] *::before,
+  [data-testid="stApp"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

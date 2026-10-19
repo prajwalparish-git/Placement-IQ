@@ -7,3 +7,4 @@ pypdf==6.21.1          # PDF resume text
 python-docx==1.2.0     # DOCX resume text
 python-dotenv==1.2.4   # .env loading
 pandas==3.0.6          # imported directly for chart frames; already a streamlit dependency
+altair==6.3.0          # imported directly by piq/charts.py; already a streamlit dependency

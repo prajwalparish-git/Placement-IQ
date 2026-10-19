@@ -9,7 +9,7 @@ from html import escape
 
 import pandas as pd
 
-from piq.config import TOPICS
+from piq.config import PALETTE, TOPIC_COLORS, TOPICS
 from piq.schemas import AnswerEvaluation, InterviewTurn, QuizSet, StudentProfile, WeeklyPlan
 
 _CODE = re.compile(r"(```.*?```|`[^`\n]+`)", re.S)
@@ -24,6 +24,40 @@ def md_escape(text: str) -> str:
     """
     parts = _CODE.split(text)
     return "".join(p if i % 2 else _MD_SPECIAL.sub(r"\\\1", p) for i, p in enumerate(parts))
+
+
+# Every status shows an icon and words, never colour alone: state -> (icon, colour).
+STATUS = {
+    "done": ("check_circle", "green"),
+    "todo": ("radio_button_unchecked", "gray"),
+    "warning": ("warning", "yellow"),
+    "error": ("error", "red"),
+    "info": ("info", "blue"),
+}
+
+
+def status_md(state: str, text: str) -> str:
+    """An inline status badge in Markdown; `text` is escaped."""
+    icon, color = STATUS[state]
+    return f":{color}-badge[:material/{icon}: {md_escape(text)}]"
+
+
+def _light_dark(light: str, dark: str) -> str:
+    """A CSS colour that follows Streamlit's theme switch (it sets color-scheme on the app)."""
+    return f"light-dark({light}, {dark})"
+
+
+def topic_chip_html(topic: str) -> str:
+    """A topic chip: the topic's colour as a dot next to its name (never colour alone)."""
+    light, dark = TOPIC_COLORS["light"].get(topic), TOPIC_COLORS["dark"].get(topic)
+    dot = _light_dark(light, dark) if light and dark else "currentColor"
+    edge = _light_dark(PALETTE["light"]["hairline"], PALETTE["dark"]["hairline"])
+    return (
+        '<span style="display:inline-flex;align-items:center;gap:0.45em;padding:0.15em 0.7em;'
+        f'border:1px solid {edge};border-radius:999px;font-size:0.875rem;line-height:1.5">'
+        '<span aria-hidden="true" style="width:0.65em;height:0.65em;border-radius:50%;'
+        f'background:{dot}"></span>{escape(topic)}</span>'
+    )
 
 
 _QUESTION_N = re.compile(r"\bquestion (\d+):")

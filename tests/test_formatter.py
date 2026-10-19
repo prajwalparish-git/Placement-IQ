@@ -62,6 +62,21 @@ def test_md_escape_keeps_code_readable():
     )
 
 
+def test_topic_chip_follows_the_scheme_and_escapes_its_name():
+    chip = formatter.topic_chip_html("OS")
+    assert "light-dark(#A55582, #DF8BB9)" in chip and chip.endswith(">OS</span>")
+    hostile = formatter.topic_chip_html("<script>alert(1)</script>")
+    assert "<script>" not in hostile and "&lt;script&gt;alert(1)&lt;/script&gt;" in hostile
+    assert "currentColor" in hostile  # unknown topics get a neutral dot
+
+
+def test_status_pairs_an_icon_with_escaped_words():
+    assert set(formatter.STATUS) == {"done", "todo", "warning", "error", "info"}
+    assert formatter.status_md("done", "First *quiz*") == (
+        ":green-badge[:material/check_circle: First \\*quiz\\*]"
+    )
+
+
 @pytest.mark.parametrize(
     ("reason", "shown"),
     [

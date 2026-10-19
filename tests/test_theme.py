@@ -3,6 +3,7 @@ its contrast and distinctness rule in both schemes."""
 
 import itertools
 import math
+import re
 import tomllib
 
 import pytest
@@ -175,6 +176,35 @@ def test_sequential_ramp_runs_away_from_the_background(scheme):
     ramp = THEME[scheme]["chartSequentialColors"]
     steps = [contrast(c, PALETTE[scheme]["background"]) for c in ramp]
     assert len(ramp) == 10 and steps == sorted(steps) and steps[-1] >= 4.5
+
+
+CSS = (ROOT / "static" / "app.css").read_text(encoding="utf-8")
+
+
+def _selectors(group: str) -> list[str]:
+    """Split a selector list on top-level commas (not those inside :is(...) or :has(...))."""
+    parts, depth, current = [], 0, ""
+    for ch in group:
+        depth += {"(": 1, ")": -1}.get(ch, 0)
+        if ch == "," and depth == 0:
+            parts.append(current.strip())
+            current = ""
+        else:
+            current += ch
+    return [*parts, current.strip()]
+
+
+def test_stylesheet_is_small_and_targets_only_data_testids():
+    assert len(CSS.splitlines()) < 150 and len(CSS.encode()) < 8 * 1024
+    assert "st-emotion-cache" not in CSS
+    rules = re.sub(r"/\*.*?\*/", "", CSS, flags=re.S)
+    for group in re.findall(r"([^{}]+)\{", rules):
+        if group.strip().startswith("@"):
+            continue
+        for selector in _selectors(group):
+            assert '[data-testid="' in selector, selector
+    tokens = {c.upper() for scheme in PALETTE.values() for c in scheme.values()}
+    assert {c.upper() for c in re.findall(r"#[0-9A-Fa-f]{6}", rules)} <= tokens
 
 
 @pytest.mark.parametrize("name", ["mark.svg", "wordmark.svg"])

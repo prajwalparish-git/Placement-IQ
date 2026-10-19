@@ -81,6 +81,35 @@ def test_onboard_prefills_the_selected_students_usn(seeded):
     assert at.text_input[0].value == seed.USN
 
 
+def _components_page() -> None:
+    import streamlit as st
+
+    from piq import ui
+
+    st.session_state["clicked"] = ui.page_header("Home", "One plain sentence.", "Do it", key="go")
+    ui.empty_state("inbox", "Nothing here yet", "Make the first one.")
+    ui.stat_row([ui.Stat("Readiness", "42/100", "+4"), ui.Stat("Quizzes taken", "24")])
+    ui.topic_chip("<b>OS</b>")
+    ui.status_badge("done", "Onboarded")
+
+
+def test_design_system_components_render():
+    at = AppTest.from_function(_components_page).run()
+    assert not at.exception
+    assert [t.value for t in at.title] == ["Home"]
+    assert [s.value for s in at.subheader] == ["Nothing here yet"]
+    assert [(m.label, m.value) for m in at.metric] == [
+        ("Readiness", "42/100"),
+        ("Quizzes taken", "24"),
+    ]
+    assert ":gray[One plain sentence.]" in _md(at)
+    assert ":green-badge[:material/check_circle: Onboarded]" in _md(at)
+    assert "&lt;b&gt;OS&lt;/b&gt;" in at.get("html")[0].proto.body  # chip text is escaped
+    assert at.session_state["clicked"] is False
+    _button(at, "Do it").click().run()
+    assert at.session_state["clicked"] is True
+
+
 def test_onboard_with_sample_resume():
     at = _app()
     at.text_input[0].input("ui0001")
