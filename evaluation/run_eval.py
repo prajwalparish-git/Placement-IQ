@@ -22,11 +22,12 @@ import argparse
 import csv
 import json
 import os
+from collections.abc import Callable
 from pathlib import Path
 
 from piq import agents, checks, db, graph, llm, prompts
 from piq.config import QUIZ_SIZE, RESULTS_DIR, settings
-from piq.schemas import BaselineOutput, FollowUpJudgement, QuizSet, StudentProfile
+from piq.schemas import BaselineOutput, FollowUpJudgement, QuizSet, StudentProfile, WeeklyPlan
 
 HERE = Path(__file__).resolve().parent
 VAGUE_ANSWER = "I mostly worked on the backend part of my main project using a framework."
@@ -63,7 +64,15 @@ def _baseline(case: dict) -> BaselineOutput:
     return out
 
 
-def _row(case: dict, system: str, plan, quiz, weakness, quiz_inp, attempts=(1, 1)) -> dict:
+def _row(
+    case: dict,
+    system: str,
+    plan: WeeklyPlan,
+    quiz: QuizSet,
+    weakness: dict[str, float],
+    quiz_inp: dict,
+    attempts: tuple[int, int] = (1, 1),
+) -> dict:
     weak = checks.weak_topics(weakness)
     minutes = plan.minutes_by_topic()
     plan_reasons = checks.check_plan(plan, case["week_no"], weakness)
@@ -157,7 +166,7 @@ def _duplicates(quizzes: list[QuizSet]) -> list[int]:
     return [dups, total]
 
 
-def _consecutive(topics: list[str], n: int, state: dict, checkpoint) -> None:
+def _consecutive(topics: list[str], n: int, state: dict, checkpoint: Callable[[], None]) -> None:
     """Fill state["consecutive"] topic by topic (checkpointed, so a resume skips done ones)."""
     out = state["consecutive"]
     if not out or out["quizzes_per_topic"] != n:

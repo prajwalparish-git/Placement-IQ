@@ -19,8 +19,10 @@ import subprocess
 import sys
 import tempfile
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
+from types import ModuleType
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -52,30 +54,30 @@ def dir_size(path: Path) -> int:
 class _CountingConnection:
     """Delegates to a sqlite3 connection and counts the statements sent through it."""
 
-    def __init__(self, conn, counts: dict[str, int]):
+    def __init__(self, conn: Any, counts: dict[str, int]) -> None:
         self._conn, self._counts = conn, counts
 
-    def _count(self, name: str):
-        def wrapper(*args, **kwargs):
+    def _count(self, name: str) -> Callable[..., Any]:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             self._counts["statements"] += 1
             return getattr(self._conn, name)(*args, **kwargs)
 
         return wrapper
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> Any:
         if name in ("execute", "executemany", "executescript"):
             return self._count(name)
         return getattr(self._conn, name)
 
 
 @contextlib.contextmanager
-def counting_queries(db_module) -> Iterator[dict[str, int]]:
+def counting_queries(db_module: ModuleType) -> Iterator[dict[str, int]]:
     """Temporarily wrap `db_module.tx`; counts["calls"] = connections, ["statements"] = SQL."""
     counts = {"calls": 0, "statements": 0}
     real = db_module.tx
 
     @contextlib.contextmanager
-    def tx():
+    def tx() -> Iterator[_CountingConnection]:
         counts["calls"] += 1
         with real() as conn:
             yield _CountingConnection(conn, counts)

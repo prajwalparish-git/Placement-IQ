@@ -14,6 +14,7 @@ from functools import cache
 from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 from pydantic import BaseModel
 
 from piq import db
@@ -50,12 +51,12 @@ class RunResult:
 
 
 class CriticRejected(RuntimeError):
-    def __init__(self, task: str, reasons: list[str]):
+    def __init__(self, task: str, reasons: list[str]) -> None:
         self.reasons = reasons
         super().__init__(f"{task}: rejected after retries: {'; '.join(reasons)}")
 
 
-def build(task: Task):
+def build(task: Task) -> CompiledStateGraph:
     def generate(s: CriticState) -> dict:
         out, log_id = task.generate(s["inputs"], s["reasons"], s["output"])
         return {"output": out, "log_id": log_id, "attempt": s["attempt"] + 1}

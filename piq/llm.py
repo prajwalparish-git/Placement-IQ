@@ -9,13 +9,17 @@ In MOCK_MODE the response comes from `piq.mock` and still goes through validatio
 import json
 import logging
 import time
+from collections.abc import Mapping
 from functools import lru_cache
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ValidationError
 
 from piq import db, mock
 from piq.config import settings
+
+if TYPE_CHECKING:
+    from groq import Groq
 
 Size = Literal["large", "small"]
 log = logging.getLogger("piq.llm")
@@ -28,13 +32,13 @@ class LLMError(RuntimeError):
 class RateLimited(LLMError):
     """Groq's free-tier quota is exhausted even after the SDK's own retries."""
 
-    def __init__(self, retry_after: float | None):
+    def __init__(self, retry_after: float | None) -> None:
         self.retry_after = retry_after
         hint = f"Try again in about {retry_after:.0f} s." if retry_after else "Try again shortly."
         super().__init__(f"Groq free-tier rate limit reached. {hint}")
 
 
-def _retry_after(headers) -> float | None:
+def _retry_after(headers: Mapping[str, str]) -> float | None:
     try:
         return float(headers.get("retry-after"))
     except (TypeError, ValueError):
@@ -42,7 +46,7 @@ def _retry_after(headers) -> float | None:
 
 
 @lru_cache
-def _client():
+def _client() -> "Groq":
     from groq import Groq  # imported lazily so MOCK_MODE never needs network config
 
     return Groq(api_key=settings().groq_api_key, max_retries=4, timeout=60)
