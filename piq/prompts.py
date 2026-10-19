@@ -43,6 +43,10 @@ structure (STAR for behavioural questions, logical flow for technical ones),
 clarity (concise, easy to follow). Give 1-3 strengths, 1-3 concrete improvements,
 and a strong model answer of at most 120 words tailored to the candidate's profile."""
 
+JUDGE = """You check interview transcripts. Decide whether the NEXT question directly follows
+up on the candidate's ANSWER: it must refer to something the candidate said, or press on
+what the answer left vague. A new, unrelated question does not count. Be strict."""
+
 BASELINE = """You are a placement preparation assistant. From the student's resume, target
 role and quiz scores, produce in one response (a) a 7-day study plan over the topics
 Aptitude, DBMS, OS, CN, DSA, OOP and (b) a multiple-choice quiz on the requested topic

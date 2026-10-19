@@ -111,6 +111,13 @@ class AnswerEvaluation(BaseModel):
         return round(sum(self.scores.values()) / 4, 2)
 
 
+class FollowUpJudgement(BaseModel):
+    """Evaluation only: does an interview question actually follow up on the last answer?"""
+
+    references_answer: bool
+    reason: str
+
+
 class BaselineOutput(BaseModel):
     """Single-prompt baseline used only by the evaluation harness."""
 

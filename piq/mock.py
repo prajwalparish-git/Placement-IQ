@@ -142,6 +142,12 @@ def _evaluator(ctx: dict) -> dict:
     }
 
 
+def _judge(ctx: dict) -> dict:
+    words = {w for w in re.findall(r"[a-z]{5,}", ctx["answer"].lower())}
+    hits = sorted(words & set(re.findall(r"[a-z]{5,}", ctx["question"].lower())))
+    return {"references_answer": bool(hits), "reason": f"[mock] shared words: {hits}"}
+
+
 def _baseline(ctx: dict) -> dict:
     days = [
         {
@@ -165,6 +171,8 @@ _HANDLERS = {
     "interviewer": _interviewer,
     "evaluator": _evaluator,
     "baseline": _baseline,
+    "baseline_quiz": _quiz,
+    "judge": _judge,
 }
 
 
