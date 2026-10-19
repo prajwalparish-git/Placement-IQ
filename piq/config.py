@@ -21,6 +21,8 @@ QUIZ_SIZE = 5
 INTERVIEW_MAX_TURNS = 5
 WEAK_THRESHOLD = 0.5  # weakness above this marks a topic as weak
 WEAK_MIN_SHARE = 0.5  # weak topics must get at least this share of weekly minutes
+DIFFICULTY_UP_AT = 80  # a quiz score (%) at or above this suggests the next difficulty up
+DIFFICULTY_DOWN_BELOW = 50  # a score below this suggests the next difficulty down
 TIMEZONE = "Asia/Kolkata"  # students' local time, for dates shown in the app
 RECENT_DAYS = 7  # a topic quizzed within this many days counts as practised; a plan
 # this old is due for next week's version

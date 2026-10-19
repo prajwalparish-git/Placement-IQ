@@ -10,7 +10,13 @@ import threading
 from functools import lru_cache
 
 from piq import checks, llm, prompts
-from piq.config import DATA_DIR, INTERVIEW_MAX_TURNS, QUIZ_SIZE
+from piq.config import (
+    DATA_DIR,
+    DIFFICULTY_DOWN_BELOW,
+    DIFFICULTY_UP_AT,
+    INTERVIEW_MAX_TURNS,
+    QUIZ_SIZE,
+)
 from piq.graph import OnEvent, Task, run_or_raise
 from piq.schemas import (
     AnswerEvaluation,
@@ -166,9 +172,9 @@ def suggest_difficulty(last_score: float | None, current: str = "medium") -> str
     if last_score is None:
         return current
     i = order.index(current)
-    if last_score >= 80:
+    if last_score >= DIFFICULTY_UP_AT:
         i = min(i + 1, 2)
-    elif last_score < 50:
+    elif last_score < DIFFICULTY_DOWN_BELOW:
         i = max(i - 1, 0)
     return order[i]
 

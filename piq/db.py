@@ -150,18 +150,33 @@ def save_quiz_attempt(
     return pct
 
 
-def topic_performance(student_id: str) -> dict[str, float]:
-    """Average score_pct over each topic's three most recent attempts."""
+def topic_stats(student_id: str) -> dict[str, dict]:
+    """Per quizzed topic, in one query: avg_pct, the average score_pct over its three most
+    recent attempts, and the latest attempt's last_pct and last_difficulty."""
     with tx() as c:
         rows = c.execute(
-            """SELECT topic, AVG(score_pct) AS avg_pct FROM (
-                 SELECT topic, score_pct, ROW_NUMBER() OVER (
-                   PARTITION BY topic ORDER BY attempted_at DESC, id DESC) AS rn
-                 FROM quiz_attempts WHERE student_id = ?)
+            """SELECT topic, AVG(score_pct) AS avg_pct,
+                      MAX(CASE WHEN rn = 1 THEN score_pct END) AS last_pct,
+                      MAX(CASE WHEN rn = 1 THEN difficulty END) AS last_difficulty
+               FROM (SELECT topic, score_pct, difficulty, ROW_NUMBER() OVER (
+                       PARTITION BY topic ORDER BY attempted_at DESC, id DESC) AS rn
+                     FROM quiz_attempts WHERE student_id = ?)
                WHERE rn <= 3 GROUP BY topic""",
             (student_id,),
         ).fetchall()
-    return {r["topic"]: round(r["avg_pct"], 1) for r in rows}
+    return {
+        r["topic"]: {
+            "avg_pct": round(r["avg_pct"], 1),
+            "last_pct": r["last_pct"],
+            "last_difficulty": r["last_difficulty"],
+        }
+        for r in rows
+    }
+
+
+def topic_performance(student_id: str) -> dict[str, float]:
+    """Average score_pct over each topic's three most recent attempts."""
+    return {t: s["avg_pct"] for t, s in topic_stats(student_id).items()}
 
 
 def last_attempt(student_id: str, topic: str) -> sqlite3.Row | None:

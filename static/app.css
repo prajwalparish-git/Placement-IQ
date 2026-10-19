@@ -48,6 +48,17 @@
   color: light-dark(#0D6670, #6CCBC4);
 }
 
+/* Radio questions and answers (quiz, interview type) are content, not form chrome: body
+   size, and options far enough apart to read on a projector and to tap on a phone. */
+[data-testid="stRadio"] [data-testid="stWidgetLabel"] p,
+[data-testid="stRadioOption"] p {
+  font-size: 1rem;
+}
+
+[data-testid="stRadioGroup"] {
+  gap: 0.5rem;
+}
+
 /* The weekly plan, day by day (formatter.plan_days_html): the day in a fixed column and a
    hairline between days, so seven days scan like a timeline at any width, with no table. */
 [data-testid="stHtml"] .piq-days {

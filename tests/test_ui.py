@@ -289,6 +289,41 @@ def test_quiz_generate_answer_and_review(seeded):
     assert len(db.quiz_history(seeded)) == 25
 
 
+def test_quiz_setup_hints_weakness_and_explains_the_suggestion(seeded):
+    at = _app(seeded, "views/quiz.py")
+    topic, difficulty = at.get("button_group")
+    assert topic.key == "quiz_topic" and topic.value == "OS"  # the weakest topic leads
+    assert topic.options[0] == "OS · 43% weak" and len(topic.options) == 6
+    assert difficulty.value == "medium"
+    assert ":primary-badge[:material/recommend: Suggested: medium] Your last OS quiz: 70%" in _md(
+        at
+    )
+    assert not at.radio  # the setup has no radios: every radio on the next screen is an answer
+    topic.set_value("OOP").run()  # 90% on medium last time: the suggestion moves up
+    assert at.get("button_group")[1].value == "hard"
+    assert "Suggested: hard] Your last OOP quiz: 90% on medium" in _md(at)
+
+
+def test_quiz_review_shows_a_score_card_marks_and_next_steps(seeded):
+    at = _app(seeded, "views/quiz.py")
+    _button(at, "Generate quiz").click().run()
+    quiz = at.session_state["quiz"]
+    for r, q in zip(at.radio, quiz.questions, strict=True):
+        r.set_value(q.correct_index)
+    at.radio[0].set_value((quiz.questions[0].correct_index + 1) % 4)  # one wrong answer
+    _button(at, "Submit").click().run()
+    assert not at.exception
+    assert {m.label: m.value for m in at.metric} == {"Score": "80%", "Correct": "4/5"}
+    md = _md(at)
+    assert md.count(":green-badge[:material/check_circle: Correct]") == 4
+    assert md.count(":red-badge[:material/error: Wrong]") == 1
+    assert "4 of 5 correct, so the next suggested difficulty is **hard**" in md
+    links = [(p.proto.page, p.proto.label) for p in at.get("page_link")]
+    assert links == [("plan", "Open Weekly plan")]
+    _button(at, "New quiz").click().run()
+    assert _button(at, "Generate quiz")
+
+
 def test_critic_log_numbers_questions_like_the_quiz(seeded):
     at = _app(seeded, "views/quiz.py")
     _button(at, "Generate quiz").click().run()
@@ -515,7 +550,10 @@ def test_todays_focus_preselects_the_quiz_topic():
     at = _app(sid)
     _button(at, "Set up this quiz").click().run()
     assert not at.exception
-    assert at.selectbox(key="quiz_topic").value == focus.topic
+    # The topic picker is now pills (was a selectbox) under the same session key.
+    [topic] = [b for b in at.get("button_group") if b.key == "quiz_topic"]
+    assert topic.value == focus.topic
+    assert f"Suggested: {focus.difficulty}" in _md(at)
 
 
 def test_home_error_state_offers_a_retry(seeded, monkeypatch):

@@ -141,6 +141,47 @@ class QuizResult:
     score_pct: float
     next_difficulty: str
 
+    @property
+    def correct(self) -> int:
+        return sum(
+            a == q.correct_index for q, a in zip(self.quiz.questions, self.chosen, strict=True)
+        )
+
+
+@dataclass(frozen=True)
+class QuizSetup:
+    """What the quiz setup shows: each topic's weakness and its latest attempt."""
+
+    weakness: dict[str, float]
+    last: dict[str, tuple[float, str]]  # topic -> (score %, difficulty) of the latest quiz
+
+    @property
+    def topics(self) -> list[str]:
+        """Weakest first; ties keep the syllabus order."""
+        return sorted(TOPICS, key=lambda t: -self.weakness[t])
+
+    def suggested(self, topic: str) -> str:
+        """The difficulty after the latest quiz on `topic` (medium before the first)."""
+        last = self.last.get(topic)
+        return agents.suggest_difficulty(*last) if last else "medium"
+
+
+def quiz_setup(student_id: str, profile: StudentProfile | None = None) -> QuizSetup:
+    """`profile`: the student's current profile when the caller already loaded it. One query
+    gives every topic's weakness and suggested difficulty."""
+    profile = profile or _require_profile(student_id)
+    stats = db.topic_stats(student_id)
+    scores = {t: s["avg_pct"] for t, s in stats.items()}
+    return QuizSetup(
+        weakness=checks.topic_weakness(scores, agents.missing_topics(profile)),
+        last={t: (s["last_pct"], s["last_difficulty"]) for t, s in stats.items()},
+    )
+
+
+def quiz_key(quiz: QuizSet) -> str:
+    """A stable id for one quiz's answer widgets, so a new quiz never shows old answers."""
+    return checks.text_hash(quiz.questions[0].text)
+
 
 def _check_quiz_params(topic: str, difficulty: str | None = None) -> None:
     if topic not in TOPICS:

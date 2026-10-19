@@ -12,8 +12,24 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from piq.config import PALETTE, TIMEZONE, TOPIC_COLORS, TOPICS, WEAK_THRESHOLD
-from piq.schemas import AnswerEvaluation, InterviewTurn, QuizSet, StudentProfile, WeeklyPlan
+from piq.config import (
+    DIFFICULTIES,
+    DIFFICULTY_DOWN_BELOW,
+    DIFFICULTY_UP_AT,
+    PALETTE,
+    TIMEZONE,
+    TOPIC_COLORS,
+    TOPICS,
+    WEAK_THRESHOLD,
+)
+from piq.schemas import (
+    AnswerEvaluation,
+    InterviewTurn,
+    Question,
+    QuizSet,
+    StudentProfile,
+    WeeklyPlan,
+)
 
 _CODE = re.compile(r"(```.*?```|`[^`\n]+`)", re.S)
 _MD_SPECIAL = re.compile(r"([\\`*_{}\[\]()<>#+\-.!|~$&=])")
@@ -192,21 +208,59 @@ def weakness_source() -> str:
     )
 
 
-def quiz_review_md(quiz: QuizSet, chosen: list[int | None]) -> str:
-    blocks = []
-    for i, (q, a) in enumerate(zip(quiz.questions, chosen, strict=True), 1):
-        ok = a == q.correct_index
-        mark = "✅" if ok else "❌"
-        yours = md_escape(q.options[a]) if a is not None else "_no answer_"
-        line = f"{mark} **Q{i}. {md_escape(q.text)}**\n\nYour answer: {yours}"
-        if not ok:
-            line += f"  \nCorrect: {md_escape(q.options[q.correct_index])}"
-        blocks.append(f"{line}  \n_{md_escape(q.explanation)}_")
-    return "\n\n".join(blocks)
+# --- quiz ------------------------------------------------------------------------------
 
 
-def score_line(pct: float, topic: str, next_difficulty: str) -> str:
-    return f"**{topic}: {pct:.0f}%** — next suggested difficulty: **{next_difficulty}**"
+def topic_option(topic: str, weakness: float) -> str:
+    """A topic in the quiz picker, with its weakness as the hint."""
+    return f"{topic} · {weakness:.0%} weak"
+
+
+def suggestion_md(topic: str, last: tuple[float, str] | None, suggested: str) -> str:
+    """Why a difficulty is suggested: the latest score on the topic and the rule."""
+    badge = f":primary-badge[:material/recommend: Suggested: {suggested}]"
+    if last is None:
+        return f"{badge} No {topic} quiz yet, so start at {suggested}."
+    pct, difficulty = last
+    return (
+        f"{badge} Your last {topic} quiz: {pct:.0f}% on {difficulty}. "
+        f"{DIFFICULTY_UP_AT}% or more moves you up a level; under {DIFFICULTY_DOWN_BELOW}%, down."
+    )
+
+
+def result_md(correct: int, total: int, topic: str, difficulty: str, next_difficulty: str) -> str:
+    """The quiz outcome in one sentence: what the score changes next (difficulty and plan)."""
+    step = DIFFICULTIES.index(next_difficulty) - DIFFICULTIES.index(difficulty)
+    icon = {1: "trending_up", 0: "trending_flat", -1: "trending_down"}[step]
+    return (
+        f":primary[:material/{icon}:] {correct} of {total} correct, so the next suggested "
+        f"difficulty is **{next_difficulty}**. The score also counts toward your {topic} "
+        "weakness, which shapes next week's plan."
+    )
+
+
+def review_md(n: int, question: Question, chosen: int | None) -> str:
+    """One reviewed question: right, wrong or unanswered as an icon and a word (never colour
+    alone), the answers and the explanation."""
+    if chosen is None:
+        badge = status_md("todo", "Not answered")
+    elif chosen == question.correct_index:
+        badge = status_md("done", "Correct")
+    else:
+        badge = status_md("error", "Wrong")
+    lines = [f"{badge} **Q{n}. {md_escape(question.text)}**"]
+    if chosen is not None:
+        lines.append(f"Your answer: {md_escape(question.options[chosen])}")
+    if chosen != question.correct_index:
+        lines.append(f"Correct answer: {md_escape(question.options[question.correct_index])}")
+    lines.append(f":gray[{md_escape(question.explanation)}]")
+    return "  \n".join(lines)
+
+
+def quiz_review(quiz: QuizSet, chosen: Sequence[int | None]) -> list[str]:
+    """Every question of a submitted quiz, reviewed; one answer per question is required."""
+    pairs = zip(quiz.questions, chosen, strict=True)
+    return [review_md(i, q, a) for i, (q, a) in enumerate(pairs, 1)]
 
 
 def turn_label(turn: InterviewTurn) -> str:

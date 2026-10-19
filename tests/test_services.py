@@ -3,9 +3,10 @@
 import pytest
 
 from piq import agents, db, llm, services
-from piq.config import INTERVIEW_MAX_TURNS
+from piq.config import INTERVIEW_MAX_TURNS, TOPICS
 from piq.resume import ResumeError
 from piq.services import ServiceError
+from tests import factories as f
 
 ROLE = "Java Backend Developer"
 
@@ -111,6 +112,30 @@ def test_quiz_round_trip_and_adaptive_difficulty(student):
     assert services.suggested_difficulty(student, "DBMS") == "hard"
     again = services.start_quiz(student, "DBMS", "hard")
     assert not {q.text for q in again.questions} & {q.text for q in quiz.questions}
+
+
+def test_quiz_setup_ranks_topics_and_suggests_from_the_latest_attempt(student):
+    profile = services.current_profile(student)
+    before = services.quiz_setup(student, profile)
+    assert before.last == {} and before.suggested("DBMS") == "medium"
+    assert sorted(before.weakness) == sorted(TOPICS)
+    assert before.weakness[before.topics[0]] == max(before.weakness.values())  # weakest first
+    quiz = services.start_quiz(student, "DBMS", "medium")
+    result = services.submit_quiz(student, quiz, [q.correct_index for q in quiz.questions])
+    assert result.correct == len(quiz.questions)
+    after = services.quiz_setup(student)
+    assert after.last == {"DBMS": (100.0, "medium")}
+    assert after.suggested("DBMS") == services.suggested_difficulty(student, "DBMS") == "hard"
+    assert after.weakness["DBMS"] == 0.0
+    assert after.topics[-1] == "DBMS"  # now the strongest, so last
+
+
+def test_quiz_result_counts_correct_answers_and_quiz_key_is_stable():
+    quiz = f.quiz(n=3)
+    result = services.QuizResult(quiz, [quiz.questions[0].correct_index, None, 3], 33.3, "easy")
+    assert result.correct == 1
+    assert services.quiz_key(quiz) == services.quiz_key(quiz.model_copy())
+    assert services.quiz_key(quiz) != services.quiz_key(f.quiz(n=3, prefix="other"))
 
 
 @pytest.mark.parametrize(("topic", "difficulty"), [("Maths", "easy"), ("OS", "extreme")])

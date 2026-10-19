@@ -98,11 +98,41 @@ def test_weakness_source_explains_both_inputs():
     assert "last three quizzes" in text and "70%" in text and "40%" in text
 
 
-def test_quiz_review_marks_right_wrong_and_unanswered():
+def test_quiz_review_marks_right_wrong_and_unanswered_with_icon_and_word():
+    # Was ✅/❌ only; now an icon, a word and a colour, never colour alone.
     q = f.quiz(n=3)
-    md = formatter.quiz_review_md(q, [q.questions[0].correct_index, None, 3])
-    assert md.count("✅") == 1 and md.count("❌") == 2
-    assert "_no answer_" in md and md.count("Correct:") == 2
+    right, blank, wrong = formatter.quiz_review(q, [q.questions[0].correct_index, None, 3])
+    assert right.startswith(":green-badge[:material/check_circle: Correct] **Q1. ")
+    assert blank.startswith(":gray-badge[:material/radio_button_unchecked: Not answered] **Q2. ")
+    assert wrong.startswith(":red-badge[:material/error: Wrong] **Q3. ")
+    assert "Your answer" not in blank and "Your answer: z" in wrong  # option 3 of w, x, y, z
+    assert [b.count("Correct answer:") for b in (right, blank, wrong)] == [0, 1, 1]
+    assert all(b.endswith(":gray[e]") for b in (right, blank, wrong))  # the explanation
+
+
+def test_quiz_setup_lines_explain_the_hint_and_the_suggestion():
+    assert formatter.topic_option("OS", 0.43) == "OS · 43% weak"
+    assert formatter.suggestion_md("CN", None, "medium") == (
+        ":primary-badge[:material/recommend: Suggested: medium] No CN quiz yet, so start at medium."
+    )
+    assert formatter.suggestion_md("OS", (80.0, "medium"), "hard") == (
+        ":primary-badge[:material/recommend: Suggested: hard] Your last OS quiz: 80% on medium. "
+        "80% or more moves you up a level; under 50%, down."
+    )
+
+
+@pytest.mark.parametrize(
+    ("difficulty", "after", "icon"),
+    [
+        ("easy", "medium", "trending_up"),
+        ("hard", "hard", "trending_flat"),
+        ("hard", "medium", "trending_down"),
+    ],
+)
+def test_result_md_says_what_the_score_changes(difficulty, after, icon):
+    md = formatter.result_md(3, 5, "OS", difficulty, after)
+    assert md.startswith(f":primary[:material/{icon}:] 3 of 5 correct")
+    assert f"next suggested difficulty is **{after}**" in md and "next week's plan" in md
 
 
 HOSTILE = ["*p", "__init__", "![x](http://example.com/a.png)", "<script>alert(1)</script>"]
@@ -181,7 +211,7 @@ def test_markdown_builders_escape_every_dynamic_value(hostile):
         formatter.skill_chips([hostile], present=False),
         formatter.list_md(profile.projects, "none"),
         formatter.fixes_md(profile.resume_feedback),
-        formatter.quiz_review_md(quiz, [1]),
+        "\n".join(formatter.quiz_review(quiz, [1])),
         formatter.evaluation_md(ev),
         formatter.results_caption(f.eval_summary(stopped_early=hostile)),
     ):
@@ -191,15 +221,12 @@ def test_markdown_builders_escape_every_dynamic_value(hostile):
 
 def test_quiz_review_requires_one_answer_per_question():
     with pytest.raises(ValueError):
-        formatter.quiz_review_md(f.quiz(n=2), [0])
+        formatter.quiz_review(f.quiz(n=2), [0])
 
 
 def test_evaluation_md_and_small_labels():
     md = formatter.evaluation_md(f.evaluation(relevance=5, depth=4, structure=3, clarity=2))
     assert md.startswith("**Overall 3.5/5** — Relevance 5/5 · Depth 4/5")
-    assert formatter.score_line(66.7, "OS", "hard") == (
-        "**OS: 67%** — next suggested difficulty: **hard**"
-    )
 
 
 def test_score_trend_pivots_by_attempt_and_handles_empty():

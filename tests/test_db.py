@@ -70,6 +70,10 @@ def test_topic_performance_uses_the_three_most_recent_attempts():
     db.save_quiz_attempt(sid, f.quiz(n=2), [None, None], at="2026-01-05 10:00:00")
     assert db.topic_performance(sid) == {"DBMS": 100.0, "OS": 0.0}
     assert len(db.quiz_history(sid)) == 5
+    # The same query also returns each topic's latest attempt (for the quiz setup).
+    stats = db.topic_stats(sid)
+    assert stats["DBMS"] == {"avg_pct": 100.0, "last_pct": 100.0, "last_difficulty": "easy"}
+    assert stats["OS"]["last_pct"] == 0.0
 
 
 def test_past_turns_exclude_current_session_newest_first():
