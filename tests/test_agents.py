@@ -120,6 +120,28 @@ def test_interview_follows_up_on_vague_answers(profile):
     assert second.is_followup and "I like coding" in second.question
 
 
+def test_mock_interview_never_repeats_a_follow_up(profile):
+    """Two vague answers with the same opening used to deadlock the critic (B5)."""
+    first = agents.next_question(profile, "HR", [], [])
+    history = [{"question": first.question, "answer": "I like coding."}]
+    second = agents.next_question(profile, "HR", history, [])
+    history.append({"question": second.question, "answer": "I like coding."})
+    third = agents.next_question(profile, "HR", history, [])
+    assert third.question not in (first.question, second.question)
+
+
+def test_mock_follow_up_quotes_answers_cleanly(profile):
+    first = agents.next_question(profile, "HR", [], [])
+    short = [{"question": first.question, "answer": "I like coding."}]
+    assert agents.next_question(profile, "HR", short, []).question.startswith(
+        "You said 'I like coding'. Can you"
+    )
+    long = [{"question": first.question, "answer": "I mostly worked on the backend of our app."}]
+    assert agents.next_question(profile, "HR", long, []).question.startswith(
+        "You said 'I mostly worked on the backend...'. Can you"
+    )
+
+
 def test_interview_memory_avoids_past_questions(profile):
     past = [{"question": "Tell me about yourself.", "answer": "A detailed answer " * 10}]
     q = agents.next_question(profile, "HR", [], past)
