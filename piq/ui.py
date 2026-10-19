@@ -65,7 +65,7 @@ def _failed(events: list[str]) -> bool:
 
 
 def _line(msg: str) -> str:
-    text = formatter.md_escape(msg)  # critic reasons quote LLM output
+    text = formatter.critic_text(msg)  # critic reasons quote LLM output
     if msg.startswith(FAILED):
         return "❌ " + text
     return ("🔁 " if msg.startswith("critic rejected") else "✔️ ") + text
@@ -90,7 +90,7 @@ def run_agent[T](label: str, fn: Callable[[OnEvent], T]) -> T | None:
         except USER_ERRORS as e:
             events.append(f"{FAILED}{e}")
             box.update(label=f"{label} — failed", state="error")
-            st.error(formatter.md_escape(str(e)))
+            st.error(formatter.critic_text(str(e)))
             return None
         finally:
             st.session_state[RUN_PREFIX + label] = events

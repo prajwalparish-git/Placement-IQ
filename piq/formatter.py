@@ -26,6 +26,15 @@ def md_escape(text: str) -> str:
     return "".join(p if i % 2 else _MD_SPECIAL.sub(r"\\\1", p) for i, p in enumerate(parts))
 
 
+_QUESTION_N = re.compile(r"\bquestion (\d+):")
+
+
+def critic_text(msg: str) -> str:
+    """A step or critic message for display: escaped, and the critic's 0-based
+    "question N:" (a protocol checks.question_issues parses) shown as the quiz's "Q{N+1}:"."""
+    return _QUESTION_N.sub(lambda m: f"Q{int(m[1]) + 1}:", md_escape(msg))
+
+
 def _bullets(items: Iterable[str], empty: str = "_none_") -> str:
     items = list(items)
     return "\n".join(f"- {md_escape(i)}" for i in items) if items else empty

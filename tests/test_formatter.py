@@ -62,6 +62,26 @@ def test_md_escape_keeps_code_readable():
     )
 
 
+@pytest.mark.parametrize(
+    ("reason", "shown"),
+    [
+        ("critic rejected quiz: question 0: options are not distinct", "critic rejected quiz: Q1:"),
+        ("quiz: rejected after retries: question 3: a; question 11: b", "Q4: a; Q12: b"),
+        ('critic rejected interviewer: question already asked: "x"', "question already asked"),
+    ],
+)
+def test_critic_text_numbers_questions_like_the_quiz(reason, shown):
+    assert shown in formatter.critic_text(reason)
+    assert "question 0" not in formatter.critic_text(reason)
+
+
+def test_critic_text_is_escaped():
+    assert (
+        formatter.critic_text("question 0: duplicate of '__init__'")
+        == r"Q1: duplicate of '\_\_init\_\_'"
+    )
+
+
 @pytest.mark.parametrize("hostile", HOSTILE)
 def test_markdown_builders_escape_every_dynamic_value(hostile):
     safe = formatter.md_escape(hostile)

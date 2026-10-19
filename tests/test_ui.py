@@ -128,6 +128,13 @@ def test_quiz_generate_answer_and_review(seeded):
     assert len(db.quiz_history(seeded)) == 25
 
 
+def test_critic_log_numbers_questions_like_the_quiz(seeded):
+    at = _app(seeded, "views/quiz.py")
+    _button(at, "Generate quiz").click().run()
+    assert "critic rejected quiz: Q1: options are not distinct" in _md(at)
+    assert "question 0" not in _md(at)
+
+
 def test_quiz_text_and_options_are_shown_literally(seeded, monkeypatch):
     from piq import services
     from tests import factories as f
