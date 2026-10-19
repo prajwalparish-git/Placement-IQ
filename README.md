@@ -44,7 +44,7 @@ Without a `.env` file the app runs in **MOCK_MODE**: canned responses and no net
 pip install -r requirements-dev.txt
 pytest                                   # offline, includes headless UI tests (CI runs it on every push)
 python -m evaluation.run_eval --consecutive 5 --interviews   # live, 20 frozen cases; needs 2 days of free quota
-python -m evaluation.run_eval --resume   # continue after the daily quota runs out
+python -m evaluation.run_eval --consecutive 5 --interviews --resume   # continue the next day
 python -m evaluation.report              # results/report.md + chart.svg for the report
 ```
 

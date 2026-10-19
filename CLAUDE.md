@@ -75,7 +75,7 @@ streamlit run app.py                    # dev server, http://localhost:8501
 pytest                                  # all tests, offline, about 1 min
 ruff format . ; ruff check .            # format + lint (must be clean)
 python -m evaluation.run_eval --consecutive 5 --interviews   # live; ~360k tokens = 2 days of quota
-python -m evaluation.run_eval --resume  # continue a run stopped by the daily quota
+python -m evaluation.run_eval --consecutive 5 --interviews --resume   # continue (same flags)
 python -m evaluation.report             # results/report.md + chart.svg
 python -m scripts.test_report           # docs/test_report.md from a real test run
 python -m scripts.export_graph          # refresh docs/critic_graph.mmd and .md
