@@ -24,6 +24,20 @@ def test_page_list_matches_the_app_navigation():
     assert {(p.path, p.title) for p in ss.PAGES} == _app_navigation()
 
 
+def test_every_capture_is_checked_by_a_marker():
+    planned = {(p.slug, s) for p in ss.PAGES for s in ss.STATES} | set(ss.FLOWS)
+    assert set(ss.MARKERS) == planned
+    assert all(text.strip() for text in ss.MARKERS.values())
+
+
+def test_interview_answers_are_detailed_and_distinct():
+    from piq.config import INTERVIEW_MAX_TURNS
+
+    answers = ss.INTERVIEW_ANSWERS
+    assert len(set(answers)) == len(answers) >= INTERVIEW_MAX_TURNS - 1
+    assert all(len(a.split()) >= 25 for a in answers)  # the mock probes shorter answers
+
+
 def test_shot_names_follow_the_convention():
     assert ss.shot_name("quiz", "review", 390, "dark") == "quiz-review-390-dark.png"
 

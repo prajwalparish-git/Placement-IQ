@@ -27,6 +27,10 @@ import urllib.request
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Page
 
 ROOT = Path(__file__).resolve().parent.parent
 PORT = 8599
@@ -60,6 +64,39 @@ FLOWS = (
     ("quiz", "review"),
     ("interview", "mid"),
     ("interview", "complete"),
+)
+# Text that must be on screen before a state is captured, so a wrong state fails the run
+# instead of being saved. Mostly strings the UI tests also rely on (stable by contract).
+MARKERS = {
+    ("onboard", "nostudent"): "Analyse resume",
+    ("plan", "nostudent"): "Select a student",
+    ("quiz", "nostudent"): "Select a student",
+    ("interview", "nostudent"): "Select a student",
+    ("dashboard", "nostudent"): "Select a student",
+    ("results", "nostudent"): "Baseline",
+    ("onboard", "demo"): "Readiness:",
+    ("plan", "demo"): "Generate week 5 plan",
+    ("quiz", "demo"): "Generate quiz",
+    ("interview", "demo"): "Start session",
+    ("dashboard", "demo"): "Quizzes taken",
+    ("results", "demo"): "Baseline",
+    ("plan", "newweek"): "Generate week 6 plan",
+    ("quiz", "critic"): "critic rejected quiz",
+    ("quiz", "taking"): "Submit",
+    ("quiz", "review"): "next suggested difficulty",
+    ("interview", "mid"): "You said 'I like coding",
+    ("interview", "complete"): "Session complete",
+}
+# Detailed (>= 25 words) and distinct, so the mock moves on instead of probing them.
+INTERVIEW_ANSWERS = (
+    "In my final year project I led a team of four to build an attendance tracker in Flask; "
+    "I designed the schema and API, and manual entry time dropped by about seventy percent.",
+    "During my internship a nightly report job kept timing out, so I profiled the queries, "
+    "added two indexes and batched the inserts, which cut the run from forty to six minutes.",
+    "When two teammates disagreed about the database design, I set up a short call, listed "
+    "the trade-offs in a table, and we agreed on a hybrid that we delivered a week early.",
+    "I prepare for exams by solving previous papers under time limits, reviewing every "
+    "mistake the same evening, and keeping a notebook of patterns that I revise each Sunday.",
 )
 
 
@@ -188,7 +225,7 @@ _CONTENT_HEIGHT = (
 )
 
 
-def _wait_idle(page, expect_run: bool = True) -> None:
+def _wait_idle(page: "Page", expect_run: bool = True) -> None:
     """Wait until the script has rerun (if expected) and finished, then let charts settle."""
     from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
@@ -200,39 +237,53 @@ def _wait_idle(page, expect_run: bool = True) -> None:
     page.wait_for_timeout(800)
 
 
-def _open_sidebar(page) -> None:
+def _expect(page: "Page", slug: str, state: str) -> None:
+    """Fail the run, loudly, unless the state's marker text is on screen."""
+    from playwright.sync_api import TimeoutError as PlaywrightTimeout
+
+    text = MARKERS[(slug, state)]
+    try:
+        page.get_by_text(text).first.wait_for(state="visible", timeout=15_000)
+    except PlaywrightTimeout:
+        raise SystemExit(
+            f"{slug}-{state}: {text!r} is not on screen, so the app is not in the intended "
+            "state; no screenshot saved"
+        ) from None
+
+
+def _open_sidebar(page: "Page") -> None:
     expand = page.get_by_test_id("stExpandSidebarButton")
     if expand.is_visible():
         expand.click()
         page.wait_for_timeout(400)
 
 
-def _select_student(page, option: str) -> None:
+def _select_student(page: "Page", option: str) -> None:
     _open_sidebar(page)
     page.get_by_test_id("stSidebar").get_by_role("combobox", name="Student").click()
     page.get_by_role("option", name=option).click()
     _wait_idle(page)
 
 
-def _goto(page, title: str) -> None:
+def _goto(page: "Page", title: str) -> None:
     _open_sidebar(page)
     page.get_by_test_id("stSidebarNavLink").filter(has_text=title).first.click()
     _wait_idle(page)
 
 
-def _click(page, label: str, exact: bool = True) -> None:
+def _click(page: "Page", label: str, exact: bool = True) -> None:
     page.get_by_role("button", name=label, exact=exact).first.click()
     _wait_idle(page)
 
 
-def _answer_chat(page, text: str) -> None:
+def _answer_chat(page: "Page", text: str) -> None:
     box = page.get_by_test_id("stChatInputTextArea")
     box.fill(text)
     box.press("Enter")
     _wait_idle(page)
 
 
-def _capture(page, out: Path, name: str, width: int) -> Path:
+def _capture(page: "Page", out: Path, name: str, width: int) -> Path:
     page.set_viewport_size({"width": width, "height": VIEWPORTS[width]})
     page.wait_for_timeout(600)  # relayout; the sidebar collapses by itself at mobile width
     full = page.evaluate(_CONTENT_HEIGHT)
@@ -246,14 +297,25 @@ def _capture(page, out: Path, name: str, width: int) -> Path:
     return path
 
 
-def _capture_widths(page, out, page_slug, state, widths, scheme, written) -> None:
+def _capture_widths(
+    page: "Page",
+    out: Path,
+    slug: str,
+    state: str,
+    widths: list[int],
+    scheme: str,
+    written: list[Path],
+) -> None:
+    _expect(page, slug, state)
     for w in widths:
-        written.append(_capture(page, out, shot_name(page_slug, state, w, scheme), w))
+        written.append(_capture(page, out, shot_name(slug, state, w, scheme), w))
     page.set_viewport_size({"width": 1440, "height": VIEWPORTS[1440]})
     page.wait_for_timeout(300)
 
 
-def capture_scheme(url: str, out: Path, scheme: str, widths: list[int], errors: list[str]) -> list:
+def capture_scheme(
+    url: str, out: Path, scheme: str, widths: list[int], errors: list[str]
+) -> list[Path]:
     from playwright.sync_api import sync_playwright
 
     written: list[Path] = []
@@ -295,9 +357,13 @@ def capture_scheme(url: str, out: Path, scheme: str, widths: list[int], errors: 
         _click(page, "Generate quiz")
         _capture_widths(page, out, "quiz", "critic", widths, scheme, written)
         where["step"] = "quiz: answer"
-        for radio in page.get_by_test_id("stRadio").all():
+        radios = page.get_by_test_id("stRadio").all()
+        for radio in radios:
             radio.get_by_role("radio").first.check(force=True)  # inputs are visually hidden
         page.wait_for_timeout(300)
+        checked = page.locator("[data-testid=stRadio] input[type=radio]:checked").count()
+        if not radios or checked != len(radios):
+            raise SystemExit(f"quiz-taking: {checked} of {len(radios)} questions answered")
         _capture_widths(page, out, "quiz", "taking", widths, scheme, written)
         where["step"] = "quiz: review"
         _click(page, "Submit")
@@ -309,10 +375,10 @@ def capture_scheme(url: str, out: Path, scheme: str, widths: list[int], errors: 
         _answer_chat(page, "I like coding.")
         _capture_widths(page, out, "interview", "mid", widths, scheme, written)
         where["step"] = "interview: finish"
-        for _ in range(10):  # bounded: the chat input disappears once the session completes
+        for answer in INTERVIEW_ANSWERS * 2:  # bounded; the chat input goes when it completes
             if not page.get_by_test_id("stChatInputTextArea").count():
                 break
-            _answer_chat(page, "Situation: a team project. Task, action and result: " * 3)
+            _answer_chat(page, answer)
         _capture_widths(page, out, "interview", "complete", widths, scheme, written)
         browser.close()
     return written
