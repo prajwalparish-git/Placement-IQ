@@ -202,10 +202,24 @@ def test_onboard_rejects_missing_usn():
     assert any("USN is required" in e.value for e in at.error)
 
 
-def test_pages_require_a_student():
-    for page in ("views/plan.py", "views/quiz.py", "views/interview.py", "views/dashboard.py"):
-        at = _app(page=page)
-        assert any("Select a student" in i.value for i in at.info)
+NEEDS_A_STUDENT = ("views/plan.py", "views/quiz.py", "views/interview.py", "views/dashboard.py")
+
+
+@pytest.mark.parametrize("page", NEEDS_A_STUDENT)
+def test_pages_require_a_student(page):
+    # Was an st.info("Select a student ..."); now a designed empty state with a way forward.
+    at = _app(page=page)
+    assert "No student selected" in [s.value for s in at.subheader]
+    assert "Nobody has onboarded yet." in _md(at)  # the empty database has no one to pick
+    _button(at, "Open Onboard").click().run()
+    assert not at.exception
+    assert [b for b in at.button if b.label == "Analyse resume"]  # Onboard opened
+
+
+def test_the_empty_state_points_to_the_sidebar_when_students_exist(seeded):
+    at = _app(page="views/plan.py")  # students exist, none selected
+    assert "No student selected" in [s.value for s in at.subheader]
+    assert "Choose your name under **Student** in the sidebar" in _md(at)
 
 
 def test_plan_generates_next_week_and_compares(seeded):

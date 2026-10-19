@@ -75,10 +75,23 @@ def sidebar_context(mock_mode: bool) -> None:
 
 
 def require_profile() -> tuple[str, StudentProfile]:
+    """The selected student and their profile. Without one, an empty state says how to get
+    one (the sidebar is hidden on a phone, so it names the button that opens it) and the
+    page stops."""
     sid = st.session_state.get("student_id")
     profile = services.current_profile(sid)
     if not profile:
-        st.info("Select a student in the sidebar, or onboard one on the Onboard page.")
+        body = (
+            "Choose your name under **Student** in the sidebar (on a phone, open it with "
+            ":material/keyboard_double_arrow_right: at the top left), or onboard a new "
+            "student with a resume."
+            if student_count()
+            else "Nobody has onboarded yet. Analyse a resume to create the first profile."
+        )
+        if empty_state(
+            "person_search", "No student selected", body, "Open Onboard", key="need_student"
+        ):
+            st.switch_page("views/onboard.py")
         st.stop()
     return sid, profile
 
