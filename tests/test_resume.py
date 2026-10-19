@@ -71,3 +71,18 @@ def test_pdf_without_text_layer_is_rejected():
 def test_bad_input_is_rejected(name, size, message):
     with pytest.raises(ResumeError, match=message):
         extract_text(name, b"x" * size)
+
+
+@pytest.mark.parametrize(
+    "data",
+    [b"%PDF-1.4\n" + b"\x00garbage" * 40, _pdf("Skills Java SQL Data Structures")[:200]],
+    ids=["garbage", "truncated"],
+)
+def test_damaged_pdf_is_rejected_with_a_message(data):
+    with pytest.raises(ResumeError, match="Could not open this PDF"):
+        extract_text("cv.pdf", data)
+
+
+def test_damaged_docx_is_rejected_with_a_message():
+    with pytest.raises(ResumeError, match="Could not open this DOCX"):
+        extract_text("cv.docx", b"PK\x03\x04 not really a zip archive" * 10)
