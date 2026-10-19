@@ -391,17 +391,40 @@ def feedback_title(ev: AnswerEvaluation) -> str:
     return f"**Feedback** · {ev.overall:.1f}/5 overall"
 
 
-def criteria_html(scores: Mapping[str, int]) -> str:
-    """The four rubric scores as small bars (styled by static/app.css); the words and the
-    number carry the score, the bar only shows it at a glance."""
+def _out_of_5(v: float) -> str:
+    """A 0-5 score as shown: whole numbers plain ("4/5"), averages to one place ("3.4/5")."""
+    return f"{v:.0f}/5" if float(v).is_integer() else f"{v:.1f}/5"
+
+
+def criteria_html(scores: Mapping[str, float]) -> str:
+    """The four rubric scores (one answer's, or a session's averages) as small bars, styled
+    by static/app.css; the words and the number carry the score, the bar shows it at a
+    glance."""
     rows = [
         '<div class="piq-criterion">'
         f"<span>{escape(name.title())}</span>"
-        f'<span class="piq-bar" aria-hidden="true"><span style="width:{20 * int(v)}%">'
-        f"</span></span><span>{int(v)}/5</span></div>"
+        f'<span class="piq-bar" aria-hidden="true"><span style="width:{round(20 * v)}%">'
+        f"</span></span><span>{_out_of_5(v)}</span></div>"
         for name, v in scores.items()
     ]
     return f'<div class="piq-criteria">{"".join(rows)}</div>'
+
+
+def summary_md(averages: Mapping[str, float], strongest: str, weakest: str) -> str:
+    """A finished interview's strongest and weakest criterion, in words."""
+    if averages[strongest] == averages[weakest]:
+        return f"Even across all four criteria: {_out_of_5(averages[strongest])} each."
+    return (
+        f"Strongest: **{strongest.title()}** ({_out_of_5(averages[strongest])}). "
+        f"Weakest: **{weakest.title()}** ({_out_of_5(averages[weakest])})."
+    )
+
+
+def tips_md(tips: Mapping[str, str]) -> str:
+    """One fixed tip per weak criterion; or that none is weak."""
+    if not tips:
+        return ":gray[No criterion averaged below 3/5. Keep answering the same way.]"
+    return "\n".join(f"- **{name.title()}:** {tip}" for name, tip in tips.items())
 
 
 def evaluation_md(ev: AnswerEvaluation) -> str:

@@ -90,6 +90,14 @@ if session.done:
         "questions.",
         icon=":material/task_alt:",
     )
+    summary = services.interview_summary(session)
+    with st.container(border=True):
+        st.subheader("Session summary", anchor=False)
+        st.caption("Each criterion's average over your answers in this session.")
+        st.html(formatter.criteria_html(summary.averages))
+        st.markdown(formatter.summary_md(summary.averages, summary.strongest, summary.weakest))
+        st.markdown("**What to work on**")
+        st.markdown(formatter.tips_md(summary.tips))
     if st.button("New session", type="primary", icon=":material/restart_alt:"):
         st.session_state.pop("interview")
         st.rerun()

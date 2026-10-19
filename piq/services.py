@@ -18,8 +18,10 @@ from pydantic import BaseModel
 
 from piq import agents, checks, db
 from piq.config import (
+    CRITERION_WEAK_BELOW,
     DATA_DIR,
     DIFFICULTIES,
+    INTERVIEW_TIPS,
     INTERVIEW_TYPES,
     RECENT_DAYS,
     RESULTS_DIR,
@@ -264,6 +266,33 @@ class InterviewSession(BaseModel):
 
     def qa(self) -> list[dict]:
         return [{"question": t.question, "answer": t.answer} for t in self.history]
+
+
+@dataclass(frozen=True)
+class InterviewSummary:
+    """A finished session in numbers, computed from its evaluations (no LLM call)."""
+
+    averages: dict[str, float]  # rubric criterion -> mean score (0-5) over the answers
+    strongest: str
+    weakest: str
+    tips: dict[str, str]  # each criterion below CRITERION_WEAK_BELOW -> its fixed tip
+
+
+def interview_summary(session: InterviewSession) -> InterviewSummary:
+    """Average each criterion over the session's answers; ties keep the rubric order."""
+    if not session.history:
+        raise ServiceError("This session has no answers yet.")
+    criteria = list(session.history[0].evaluation.scores)
+    averages = {
+        c: round(sum(t.evaluation.scores[c] for t in session.history) / len(session.history), 2)
+        for c in criteria
+    }
+    return InterviewSummary(
+        averages=averages,
+        strongest=max(criteria, key=lambda c: averages[c]),
+        weakest=min(criteria, key=lambda c: averages[c]),
+        tips={c: INTERVIEW_TIPS[c] for c in criteria if averages[c] < CRITERION_WEAK_BELOW},
+    )
 
 
 def start_interview(

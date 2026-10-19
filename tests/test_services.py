@@ -360,3 +360,25 @@ def test_delete_student_needs_the_matching_usn(student):
     assert db.list_students() == [] and services.current_profile(student) is None
     with pytest.raises(ServiceError, match="no longer exists"):
         services.delete_student(student, usn)
+
+
+def test_interview_summary_averages_each_criterion_and_tips_the_weak_ones():
+    from piq.config import INTERVIEW_TIPS
+
+    def turn(**scores):
+        return services.AnsweredTurn(question="q", answer="a", evaluation=f.evaluation(**scores))
+
+    session = services.InterviewSession(
+        session_id="s",
+        interview_type="HR",
+        past=[],
+        history=[turn(relevance=5, depth=1, clarity=4), turn(relevance=4, depth=2, clarity=1)],
+        done=True,
+    )
+    summary = services.interview_summary(session)
+    assert summary.averages == {"relevance": 4.5, "depth": 1.5, "structure": 3.0, "clarity": 2.5}
+    assert (summary.strongest, summary.weakest) == ("relevance", "depth")
+    assert summary.tips == {"depth": INTERVIEW_TIPS["depth"], "clarity": INTERVIEW_TIPS["clarity"]}
+    assert set(INTERVIEW_TIPS) == set(f.evaluation().scores)  # a tip for every criterion
+    with pytest.raises(ServiceError, match="no answers yet"):
+        services.interview_summary(session.model_copy(update={"history": []}))

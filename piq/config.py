@@ -20,6 +20,17 @@ INTERVIEW_TYPES = ("HR", "Technical", "Project")
 
 QUIZ_SIZE = 5
 INTERVIEW_MAX_TURNS = 5
+CRITERION_WEAK_BELOW = 3.0  # an interview criterion averaging below this gets a tip
+# One fixed tip per rubric criterion (the evaluator's four), shown when it averages low.
+INTERVIEW_TIPS = {
+    "relevance": "Answer the question that was asked in your first sentence, then add detail.",
+    "depth": "Add specifics: a number, a tool, a trade-off you weighed or the result you got.",
+    "structure": (
+        "Use STAR for behavioural answers (situation, task, action, result); for technical "
+        "ones, define the idea, explain how it works, then give an example."
+    ),
+    "clarity": "Use short sentences with one idea each, and end by restating your main point.",
+}
 WEAK_THRESHOLD = 0.5  # weakness above this marks a topic as weak
 WEAK_MIN_SHARE = 0.5  # weak topics must get at least this share of weekly minutes
 DIFFICULTY_UP_AT = 80  # a quiz score (%) at or above this suggests the next difficulty up

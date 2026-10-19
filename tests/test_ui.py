@@ -476,6 +476,10 @@ def test_interview_session_runs_to_completion(seeded):
     assert any("Session complete" in s.value for s in at.success)
     [progress] = at.main.get("progress")
     assert progress.proto.text == f"All {INTERVIEW_MAX_TURNS} questions answered"
+    assert "Session summary" in [s.value for s in at.subheader]
+    bars = [h for h in at.get("html") if '<div class="piq-criteria">' in h.proto.body]
+    assert len(bars) == INTERVIEW_MAX_TURNS + 1  # one per answer, plus the averages
+    assert any(m.value.startswith(("Strongest: **", "Even across")) for m in at.markdown)
     assert _button(at, "New session")
 
 

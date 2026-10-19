@@ -318,6 +318,22 @@ def test_a_multi_line_model_answer_keeps_its_lines_in_the_quote():
     )
 
 
+def test_session_summary_pieces_show_averages_and_tips():
+    html = formatter.criteria_html({"relevance": 3.25, "depth": 2.0})
+    assert "<span>3.2/5</span>" in html and 'style="width:65%"' in html  # an average
+    assert "<span>2/5</span>" in html and 'style="width:40%"' in html
+    averages = {"relevance": 4.2, "depth": 2.1, "structure": 3.0, "clarity": 3.5}
+    assert formatter.summary_md(averages, "relevance", "depth") == (
+        "Strongest: **Relevance** (4.2/5). Weakest: **Depth** (2.1/5)."
+    )
+    even = dict.fromkeys(averages, 3.0)
+    assert formatter.summary_md(even, "relevance", "relevance") == (
+        "Even across all four criteria: 3/5 each."
+    )
+    assert formatter.tips_md({"depth": "Add a number."}) == "- **Depth:** Add a number."
+    assert formatter.tips_md({}).startswith(":gray[No criterion averaged below 3/5.")
+
+
 def test_interview_questions_say_whether_they_follow_up():
     from piq.schemas import InterviewTurn
 
