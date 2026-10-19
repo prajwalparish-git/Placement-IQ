@@ -29,3 +29,7 @@ Thumbs.db
 
 # Local Claude Code settings
 .claude/settings.json
+
+# Screenshot captures: only curated sets are committed, with git add -f
+docs/design/before/
+docs/design/after/
