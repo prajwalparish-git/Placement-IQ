@@ -20,6 +20,61 @@ INTERVIEW_MAX_TURNS = 5
 WEAK_THRESHOLD = 0.5  # weakness above this marks a topic as weak
 WEAK_MIN_SHARE = 0.5  # weak topics must get at least this share of weekly minutes
 
+# --- design tokens: the UI's colours ------------------------------------------------
+# .streamlit/config.toml mirrors these (Streamlit reads only TOML); tests/test_theme.py
+# checks contrast and that both files agree. See docs/design/DESIGN.md.
+SCHEMES = ("light", "dark")
+
+PALETTE = {
+    "light": {
+        "background": "#FBFBFA",  # page
+        "surface": "#F0F2F0",  # sidebar, inputs, table headers
+        "text": "#1A2326",
+        "muted": "#566461",  # captions and secondary text
+        "border": "#7A8582",  # input and card edges, >= 3:1
+        "hairline": "#DCE1DE",  # table rules only (decorative)
+        "primary": "#0D6670",  # actions; also today's focus and streaks, always with an icon
+        "primary_text": "#0D6670",  # links and teal text, >= 4.5:1
+    },
+    "dark": {
+        "background": "#111A1C",
+        "surface": "#1A2528",
+        "text": "#E3EAE8",
+        "muted": "#A0AEAB",
+        "border": "#64716E",
+        "hairline": "#2C383B",
+        "primary": "#1F7F86",
+        "primary_text": "#6CCBC4",
+    },
+}
+
+# Status colours: always shown with an icon and words, never used for a topic.
+SEMANTIC_COLORS = {
+    "light": {"success": "#1B6F36", "warning": "#784E00", "error": "#951B2C", "info": "#0045D2"},
+    "dark": {"success": "#5BBF7A", "warning": "#F0D45C", "error": "#FF8675", "info": "#A9BCF5"},
+}
+
+# Okabe-Ito hues without yellow, lightness-tuned per scheme to >= 3:1 on the background.
+# They mark chart series and topic chips (which also show the topic name), never a status.
+TOPIC_COLORS = {
+    "light": {
+        "Aptitude": "#C78100",
+        "DBMS": "#005D9C",
+        "OS": "#A55582",
+        "CN": "#009B71",
+        "DSA": "#B23D00",
+        "OOP": "#3799CC",
+    },
+    "dark": {
+        "Aptitude": "#EFA71C",
+        "DBMS": "#0975B6",
+        "OS": "#DF8BB9",
+        "CN": "#009B71",
+        "DSA": "#D05900",
+        "OOP": "#55B4E8",
+    },
+}
+
 
 class ConfigError(RuntimeError):
     pass

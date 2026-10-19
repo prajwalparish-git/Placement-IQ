@@ -1,0 +1,140 @@
+"""Design tokens: .streamlit/config.toml agrees with piq.config, and every colour pair meets
+its contrast and distinctness rule in both schemes."""
+
+import itertools
+import math
+import tomllib
+
+import pytest
+
+from piq.config import PALETTE, ROOT, SCHEMES, SEMANTIC_COLORS, TOPIC_COLORS, TOPICS
+
+THEME = tomllib.loads((ROOT / ".streamlit" / "config.toml").read_text(encoding="utf-8"))["theme"]
+ALERT_ALPHA = {"light": 0.10, "dark": 0.20}  # Streamlit's alert tint over the background
+# Old accent vs Aptitude (rejected at Checkpoint A) measured 0.038 / 0.023: they must fail this.
+MIN_STATUS_DISTANCE = 0.08
+MIN_TOPIC_DISTANCE = 0.10
+
+
+def _rgb(hex_color: str) -> tuple[float, float, float]:
+    h = hex_color.lstrip("#")
+    return tuple(int(h[i : i + 2], 16) / 255 for i in (0, 2, 4))
+
+
+def _linear(c: float) -> float:
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+def contrast(a: str, b: str) -> float:
+    """WCAG 2 contrast ratio."""
+    la, lb = (
+        sum(w * _linear(c) for w, c in zip((0.2126, 0.7152, 0.0722), _rgb(x), strict=True))
+        for x in (a, b)
+    )
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def oklab(hex_color: str) -> tuple[float, float, float]:
+    r, g, b = (_linear(c) for c in _rgb(hex_color))
+    lms = (
+        0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b,
+        0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b,
+        0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b,
+    )
+    l_, m_, s_ = (math.copysign(abs(v) ** (1 / 3), v) for v in lms)
+    return (
+        0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+        1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+        0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_,
+    )
+
+
+def distance(a: str, b: str) -> float:
+    """Perceptual distance: Euclidean in OKLab (about 0.02 is just noticeable)."""
+    return math.dist(oklab(a), oklab(b))
+
+
+def tint(color: str, under: str, alpha: float) -> str:
+    mixed = (x * alpha + y * (1 - alpha) for x, y in zip(_rgb(color), _rgb(under), strict=True))
+    return "#" + "".join(f"{round(c * 255):02X}" for c in mixed)
+
+
+ROLE_KEYS = {"success": "green", "warning": "yellow", "error": "red", "info": "blue"}
+
+
+@pytest.mark.parametrize("scheme", SCHEMES)
+def test_config_toml_mirrors_the_tokens(scheme):
+    t, p, s = THEME[scheme], PALETTE[scheme], SEMANTIC_COLORS[scheme]
+    assert (t["backgroundColor"], t["secondaryBackgroundColor"]) == (p["background"], p["surface"])
+    assert (t["textColor"], t["linkColor"], t["borderColor"]) == (
+        p["text"],
+        p["primary_text"],
+        p["border"],
+    )
+    assert (t["primaryColor"], t["dataframeBorderColor"]) == (p["primary"], p["hairline"])
+    for role, key in ROLE_KEYS.items():
+        assert t[f"{key}Color"] == t[f"{key}TextColor"] == s[role]
+    assert t["chartCategoricalColors"] == [TOPIC_COLORS[scheme][topic] for topic in TOPICS]
+    side = THEME[scheme]["sidebar"]
+    assert (side["backgroundColor"], side["secondaryBackgroundColor"]) == (
+        p["surface"],
+        p["background"],
+    )
+    assert (side["textColor"], side["primaryColor"]) == (p["text"], p["primary"])
+
+
+@pytest.mark.parametrize("scheme", SCHEMES)
+def test_text_reaches_4_5_to_1_on_every_layer(scheme):
+    p = PALETTE[scheme]
+    texts = [p["text"], p["muted"], p["primary_text"], *SEMANTIC_COLORS[scheme].values()]
+    for text, layer in itertools.product(texts, (p["background"], p["surface"])):
+        assert contrast(text, layer) >= 4.5, (text, layer)
+
+
+@pytest.mark.parametrize("scheme", SCHEMES)
+def test_alert_text_reaches_4_5_to_1_on_its_tint(scheme):
+    p = PALETTE[scheme]
+    for color, layer in itertools.product(
+        SEMANTIC_COLORS[scheme].values(), (p["background"], p["surface"])
+    ):
+        assert contrast(color, tint(color, layer, ALERT_ALPHA[scheme])) >= 4.5, (color, layer)
+
+
+@pytest.mark.parametrize("scheme", SCHEMES)
+def test_buttons_edges_and_chart_marks_reach_3_to_1(scheme):
+    p = PALETTE[scheme]
+    assert contrast("#FFFFFF", p["primary"]) >= 4.5  # white primary-button label
+    for mark in (p["primary"], p["border"]):
+        assert contrast(mark, p["background"]) >= 3 and contrast(mark, p["surface"]) >= 3
+    for topic, color in TOPIC_COLORS[scheme].items():
+        assert contrast(color, p["background"]) >= 3, topic
+
+
+@pytest.mark.parametrize("scheme", SCHEMES)
+def test_every_topic_has_its_own_colour(scheme):
+    colors = TOPIC_COLORS[scheme]
+    assert list(colors) == list(TOPICS)
+    for (a, ca), (b, cb) in itertools.combinations(colors.items(), 2):
+        assert distance(ca, cb) >= MIN_TOPIC_DISTANCE, (a, b)
+
+
+@pytest.mark.parametrize("scheme", SCHEMES)
+def test_status_and_primary_colours_stay_away_from_topic_colours(scheme):
+    p = PALETTE[scheme]
+    others = {**SEMANTIC_COLORS[scheme], "primary": p["primary"], "primary_text": p["primary_text"]}
+    for (role, color), (topic, tc) in itertools.product(
+        others.items(), TOPIC_COLORS[scheme].items()
+    ):
+        assert distance(color, tc) >= MIN_STATUS_DISTANCE, (role, topic, distance(color, tc))
+
+
+def test_the_threshold_rejects_the_old_amber_accent():
+    assert distance("#B7791F", TOPIC_COLORS["light"]["Aptitude"]) < MIN_STATUS_DISTANCE
+    assert distance("#E8AE45", TOPIC_COLORS["dark"]["Aptitude"]) < MIN_STATUS_DISTANCE
+
+
+@pytest.mark.parametrize("scheme", SCHEMES)
+def test_sequential_ramp_runs_away_from_the_background(scheme):
+    ramp = THEME[scheme]["chartSequentialColors"]
+    steps = [contrast(c, PALETTE[scheme]["background"]) for c in ramp]
+    assert len(ramp) == 10 and steps == sorted(steps) and steps[-1] >= 4.5
