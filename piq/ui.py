@@ -51,6 +51,22 @@ def current_student() -> dict | None:
     return st.session_state.get("student")
 
 
+def sidebar_context(mock_mode: bool) -> None:
+    """Under the student picker: their readiness at a glance and, in mock mode, a quiet
+    badge (the old warning box was the loudest thing on every page)."""
+    with st.sidebar:
+        if student := current_student():
+            score = student["readiness_score"] or 0
+            st.progress(score / 100, text=f"Readiness {score}/100")
+        if mock_mode:
+            st.badge(
+                "Mock mode",
+                icon=":material/science:",
+                color="gray",
+                help="Answers come from built-in samples; no AI service is called.",
+            )
+
+
 def require_profile() -> tuple[str, StudentProfile]:
     sid = st.session_state.get("student_id")
     profile = services.current_profile(sid)

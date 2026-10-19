@@ -11,6 +11,11 @@ enableStaticServing = true
 # The app handles student resumes: send no usage telemetry.
 gatherUsageStats = false
 
+[client]
+# Students and evaluators never need Deploy, Rerun or Clear cache; the menu keeps Settings
+# (light/dark).
+toolbarMode = "viewer"
+
 # Design tokens. piq/config.py holds the same colours (PALETTE, SEMANTIC_COLORS, TOPIC_COLORS);
 # tests/test_theme.py checks contrast and that both agree. Rationale: docs/design/DESIGN.md.
 [theme]

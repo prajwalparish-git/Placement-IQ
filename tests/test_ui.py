@@ -110,6 +110,42 @@ def test_design_system_components_render():
     assert at.session_state["clicked"] is True
 
 
+def test_navigation_groups_pages_with_material_icons():
+    import ast
+    from pathlib import Path
+
+    from streamlit.string_util import validate_material_icon
+
+    tree = ast.parse(Path("app.py").read_text(encoding="utf-8"))
+    nav = next(
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "navigation"
+    )
+    sections = {
+        k.value: [ast.literal_eval(p.args[0]) for p in v.elts]
+        for k, v in zip(nav.args[0].keys, nav.args[0].values, strict=True)
+    }
+    assert list(sections) == ["Prepare", "Insights"]
+    assert sections["Insights"] == ["views/dashboard.py", "views/results.py"]
+    icons = [
+        k.value.value
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "Page"
+        for k in n.keywords
+        if k.arg == "icon"
+    ]
+    assert icons and all(validate_material_icon(i) for i in icons)  # unknown names raise
+
+
+def test_sidebar_shows_readiness_and_a_quiet_mock_badge(seeded):
+    at = _app(seeded, "views/plan.py")
+    [progress] = at.sidebar.get("progress")
+    assert progress.proto.text == "Readiness 42/100"
+    assert any("gray-badge[:material/science: Mock mode]" in m.value for m in at.sidebar.markdown)
+    assert not at.sidebar.warning  # the loud MOCK_MODE box is gone
+
+
 def test_onboard_with_sample_resume():
     at = _app()
     at.text_input[0].input("ui0001")
