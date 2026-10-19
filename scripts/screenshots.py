@@ -49,6 +49,7 @@ class AppPage:
 
 
 PAGES = (
+    AppPage("home", "Home", "views/home.py"),
     AppPage("onboard", "Onboard", "views/onboard.py"),
     AppPage("plan", "Weekly plan", "views/plan.py"),
     AppPage("quiz", "Quiz", "views/quiz.py"),
@@ -68,6 +69,8 @@ FLOWS = (
 # Text that must be on screen before a state is captured, so a wrong state fails the run
 # instead of being saved. Mostly strings the UI tests also rely on (stable by contract).
 MARKERS = {
+    ("home", "nostudent"): "Start with your resume",
+    ("home", "demo"): "Today's focus",
     ("onboard", "nostudent"): "Analyse resume",
     ("plan", "nostudent"): "Select a student",
     ("quiz", "nostudent"): "Select a student",
@@ -286,6 +289,7 @@ def _answer_chat(page: "Page", text: str) -> None:
 def _capture(page: "Page", out: Path, name: str, width: int) -> Path:
     page.set_viewport_size({"width": width, "height": VIEWPORTS[width]})
     page.wait_for_timeout(600)  # relayout; the sidebar collapses by itself at mobile width
+    page.mouse.move(width - 2, 2)  # park the pointer: no hover state in the shot
     full = page.evaluate(_CONTENT_HEIGHT)
     height = min(max(VIEWPORTS[width], int(full)), MAX_SHOT_HEIGHT)
     page.set_viewport_size({"width": width, "height": height})

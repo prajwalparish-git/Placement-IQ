@@ -45,9 +45,8 @@ sidebar_context(mock_mode=cfg.mock_mode)
 st.navigation(
     {
         "Prepare": [
-            st.Page(
-                "views/onboard.py", title="Onboard", icon=":material/upload_file:", default=True
-            ),
+            st.Page("views/home.py", title="Home", icon=":material/home:", default=True),
+            st.Page("views/onboard.py", title="Onboard", icon=":material/upload_file:"),
             st.Page("views/plan.py", title="Weekly plan", icon=":material/calendar_month:"),
             st.Page("views/quiz.py", title="Quiz", icon=":material/quiz:"),
             st.Page(

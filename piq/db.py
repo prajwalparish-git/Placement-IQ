@@ -104,6 +104,16 @@ def save_plan(student_id: str, plan: WeeklyPlan, at: str | None = None) -> None:
         )
 
 
+def latest_plan(student_id: str) -> sqlite3.Row | None:
+    """The newest plan's week_no and created_at (UTC), or None before week 1."""
+    with tx() as c:
+        return c.execute(
+            "SELECT week_no, created_at FROM plans WHERE student_id = ? "
+            "ORDER BY week_no DESC LIMIT 1",
+            (student_id,),
+        ).fetchone()
+
+
 def list_plans(student_id: str) -> list[WeeklyPlan]:
     with tx() as c:
         rows = c.execute(

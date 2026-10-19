@@ -6,11 +6,13 @@ Pure functions, no Streamlit import, so every rendering decision is unit-testabl
 import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from html import escape
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from piq.config import PALETTE, TOPIC_COLORS, TOPICS
+from piq.config import PALETTE, TIMEZONE, TOPIC_COLORS, TOPICS, WEAK_THRESHOLD
 from piq.schemas import AnswerEvaluation, InterviewTurn, QuizSet, StudentProfile, WeeklyPlan
 
 _CODE = re.compile(r"(```.*?```|`[^`\n]+`)", re.S)
@@ -333,3 +335,32 @@ def trail_steps(events: Sequence[str]) -> list[TrailStep]:
 
 def _artefact(task: str) -> str:
     return ARTEFACTS.get(task, md_escape(task))
+
+
+# --- home ---------------------------------------------------------------------------
+
+
+def relative_day(at: datetime, now: datetime | None = None) -> str:
+    """When something happened, by the student's calendar (TIMEZONE), not UTC's."""
+    tz = ZoneInfo(TIMEZONE)
+    local = at.astimezone(tz)
+    days = ((now or datetime.now(UTC)).astimezone(tz).date() - local.date()).days
+    if days <= 0:
+        return "Today"
+    if days == 1:
+        return "Yesterday"
+    return f"{days} days ago" if days < 7 else f"{local.day} {local:%b}"
+
+
+def weakness_headline(weakness: Mapping[str, float]) -> str:
+    """The weakness chart's takeaway, stated as a sentence."""
+    topic = max(weakness, key=lambda t: weakness[t])
+    if weakness[topic] > WEAK_THRESHOLD:
+        return f"{topic} is your weakest topic"
+    return f"No weak topics; {topic} has the most room to grow"
+
+
+def weakness_alt(weakness: Mapping[str, float]) -> str:
+    """The same chart in words, for screen readers."""
+    ranked = sorted(weakness.items(), key=lambda kv: -kv[1])
+    return "Weakness by topic, weakest first: " + ", ".join(f"{t} {w:.0%}" for t, w in ranked)

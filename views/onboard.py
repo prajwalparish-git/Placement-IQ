@@ -21,7 +21,9 @@ with st.form("onboard"):
     usn = st.text_input("USN (required)", value=(current_student() or {}).get("usn", ""))
     role = st.selectbox("Target role", roles, index=role_index)
     upload = st.file_uploader("Resume (PDF, DOCX or TXT)", type=["pdf", "docx", "txt"])
-    sample = st.selectbox("…or use a sample resume", ["—", *services.sample_resumes()])
+    sample = st.selectbox(
+        "…or use a sample resume", ["—", *services.sample_resumes()], key="onboard_sample"
+    )
     submitted = st.form_submit_button("Analyse resume", type="primary")
 
 if submitted:

@@ -21,6 +21,9 @@ QUIZ_SIZE = 5
 INTERVIEW_MAX_TURNS = 5
 WEAK_THRESHOLD = 0.5  # weakness above this marks a topic as weak
 WEAK_MIN_SHARE = 0.5  # weak topics must get at least this share of weekly minutes
+TIMEZONE = "Asia/Kolkata"  # students' local time, for dates shown in the app
+RECENT_DAYS = 7  # a topic quizzed within this many days counts as practised; a plan
+# this old is due for next week's version
 
 # --- design tokens: the UI's colours ------------------------------------------------
 # .streamlit/config.toml mirrors these (Streamlit reads only TOML); tests/test_theme.py

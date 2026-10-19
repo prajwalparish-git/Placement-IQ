@@ -9,13 +9,23 @@ import json
 import re
 import sqlite3
 import uuid
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 
 from pydantic import BaseModel
 
 from piq import agents, checks, db
-from piq.config import DATA_DIR, DIFFICULTIES, INTERVIEW_TYPES, RESULTS_DIR, TOPICS
+from piq.config import (
+    DATA_DIR,
+    DIFFICULTIES,
+    INTERVIEW_TYPES,
+    RECENT_DAYS,
+    RESULTS_DIR,
+    TOPICS,
+    WEAK_THRESHOLD,
+)
 from piq.graph import OnEvent
 from piq.resume import extract_text
 from piq.schemas import AnswerEvaluation, InterviewTurn, QuizSet, StudentProfile, WeeklyPlan
@@ -281,3 +291,209 @@ def evaluation_summary() -> dict | None:
         return json.loads((RESULTS_DIR / "summary.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
+
+
+# --- home: today's focus ----------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class NextAction:
+    """Today's focus: one next step chosen by rules (no LLM), why, and where to do it."""
+
+    label: str  # the step, e.g. "Take a medium OS quiz"
+    reason: str  # one plain sentence
+    cta: str  # what the button does, e.g. "Open Weekly plan"
+    page: str  # the view that does it
+    icon: str  # Material Symbols name
+    topic: str | None = None  # preselected on the Quiz page
+    difficulty: str | None = None
+
+
+@dataclass(frozen=True)
+class ChecklistItem:
+    label: str
+    done: bool
+
+
+@dataclass(frozen=True)
+class Activity:
+    at: datetime  # UTC
+    text: str  # plain words built from topics, numbers and fixed vocabulary
+    topic: str | None = None
+
+
+@dataclass(frozen=True)
+class HomeOverview:
+    profile: StudentProfile
+    weakness: dict[str, float]
+    next_action: NextAction
+    checklist: list[ChecklistItem]
+    recent: list[Activity]
+
+
+def utc(timestamp: str) -> datetime:
+    """A SQLite CURRENT_TIMESTAMP string (UTC, no zone) as an aware datetime."""
+    return datetime.fromisoformat(timestamp).replace(tzinfo=UTC)
+
+
+def _article(word: str) -> str:
+    return "an" if word[:1] in "aeiou" else "a"
+
+
+def _difficulty_after(last: Mapping | None) -> str:
+    return agents.suggest_difficulty(last["score_pct"], last["difficulty"]) if last else "medium"
+
+
+def decide_next_action(
+    profile: StudentProfile | None,
+    latest_plan: Mapping | None,
+    weakness: Mapping[str, float],
+    attempts: Sequence[Mapping],
+    sessions: int,
+    now: datetime,
+) -> NextAction:
+    """The next step of the loop profile -> plan -> quiz -> adapt, first match wins:
+    no profile; no plan; a weak topic not quizzed lately (weakest first); no interview yet;
+    a plan at least RECENT_DAYS old with new scores since; else practise the weakest topic.
+    `attempts` are quiz_history rows, oldest first."""
+    if profile is None:
+        return NextAction(
+            "Onboard with your resume",
+            "PlacementIQ starts from your resume: it finds the skills your target role needs.",
+            "Open Onboard",
+            "views/onboard.py",
+            "upload_file",
+        )
+    if latest_plan is None:
+        return NextAction(
+            "Generate your week 1 plan",
+            "A plan turns your weakest topics into seven days of practice.",
+            "Open Weekly plan",
+            "views/plan.py",
+            "calendar_month",
+        )
+    last = {a["topic"]: a for a in attempts}  # oldest first, so the latest one wins
+    cutoff = now - timedelta(days=RECENT_DAYS)
+    for topic in sorted(weakness, key=lambda t: -weakness[t]):
+        if weakness[topic] <= WEAK_THRESHOLD:
+            break
+        if topic not in last or utc(last[topic]["attempted_at"]) < cutoff:
+            difficulty = _difficulty_after(last.get(topic))
+            why = (
+                "you have not taken a quiz on it yet"
+                if topic not in last
+                else f"it has had no quiz in the last {RECENT_DAYS} days"
+            )
+            return NextAction(
+                f"Take {_article(difficulty)} {difficulty} {topic} quiz",
+                f"{topic} is one of your weak topics and {why}.",
+                "Set up this quiz",
+                "views/quiz.py",
+                "quiz",
+                topic,
+                difficulty,
+            )
+    if sessions == 0:
+        return NextAction(
+            "Try a mock interview",
+            "Interviews test explaining what you know; you get feedback on every answer.",
+            "Open Mock interview",
+            "views/interview.py",
+            "record_voice_over",
+        )
+    planned = utc(latest_plan["created_at"])
+    since = sum(1 for a in attempts if utc(a["attempted_at"]) > planned)
+    if planned <= cutoff and since:
+        week = latest_plan["week_no"]
+        scores = f"{since} quiz score{'s' if since != 1 else ''}"
+        return NextAction(
+            f"Generate your week {week + 1} plan",
+            f"Your week {week} plan is {(now - planned).days} days old and {scores} came in "
+            "since; the planner moves minutes to the topics that need them.",
+            "Open Weekly plan",
+            "views/plan.py",
+            "calendar_month",
+        )
+    topic = max(weakness, key=lambda t: weakness[t])
+    difficulty = _difficulty_after(last.get(topic))
+    return NextAction(
+        f"Practise {topic} with {_article(difficulty)} {difficulty} quiz",
+        f"{topic} is your weakest topic; another quiz shows whether it is improving.",
+        "Set up this quiz",
+        "views/quiz.py",
+        "quiz",
+        topic,
+        difficulty,
+    )
+
+
+def _checklist(
+    profile: StudentProfile | None, latest_plan: Mapping | None, quizzes: int, sessions: int
+) -> list[ChecklistItem]:
+    return [
+        ChecklistItem("Onboard with your resume", profile is not None),
+        ChecklistItem("Generate your first weekly plan", latest_plan is not None),
+        ChecklistItem("Take your first quiz", quizzes > 0),
+        ChecklistItem("Try a mock interview", sessions > 0),
+    ]
+
+
+def _recent(
+    latest_plan: Mapping | None, attempts: Sequence[Mapping], sessions: Sequence[Mapping]
+) -> list[Activity]:
+    items = [
+        Activity(
+            utc(a["attempted_at"]),
+            f"Scored {a['score_pct']:.0f}% on a {a['difficulty']} {a['topic']} quiz",
+            a["topic"],
+        )
+        for a in attempts[-3:]
+    ]
+    items += [
+        Activity(
+            utc(s["started"]),
+            f"Averaged {s['avg_overall']:.1f}/5 in a {s['interview_type']} interview",
+        )
+        for s in sessions[-2:]
+    ]
+    if latest_plan:
+        items.append(
+            Activity(utc(latest_plan["created_at"]), f"Planned week {latest_plan['week_no']}")
+        )
+    return sorted(items, key=lambda i: i.at, reverse=True)[:4]
+
+
+def home(
+    student_id: str, profile: StudentProfile | None = None, now: datetime | None = None
+) -> HomeOverview:
+    """Everything the Home page shows, read in five queries."""
+    profile = profile or _require_profile(student_id)
+    try:
+        latest = db.latest_plan(student_id)
+        attempts = db.quiz_history(student_id)
+        sessions = db.interview_history(student_id)
+        scores = db.topic_performance(student_id)
+    except sqlite3.Error as e:
+        raise ServiceError(
+            "Your progress could not be read. Reload the page, and restart the app if it "
+            "keeps failing."
+        ) from e
+    weakness = checks.topic_weakness(scores, agents.missing_topics(profile))
+    action = decide_next_action(
+        profile, latest, weakness, attempts, len(sessions), now or datetime.now(UTC)
+    )
+    return HomeOverview(
+        profile=profile,
+        weakness=weakness,
+        next_action=action,
+        checklist=_checklist(profile, latest, len(attempts), len(sessions)),
+        recent=_recent(latest, attempts, sessions),
+    )
+
+
+def next_action(student_id: str | None) -> NextAction:
+    """Today's focus for this student; see decide_next_action."""
+    profile = current_profile(student_id)
+    if profile is None:
+        return decide_next_action(None, None, {}, [], 0, datetime.now(UTC))
+    return home(student_id, profile).next_action

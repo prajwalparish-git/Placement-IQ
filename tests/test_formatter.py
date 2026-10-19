@@ -230,3 +230,23 @@ def test_trail_collapses_repeats_and_explains_a_stop():
     )
     [stop] = formatter.trail_steps(["failed: Groq API error: __init__ <b>"])
     assert stop.reasons == (r"Groq API error: \_\_init\_\_ \<b\>",)
+
+
+def test_relative_day_uses_the_students_calendar():
+    from datetime import UTC, datetime
+
+    now = datetime(2026, 10, 19, 6, 0, tzinfo=UTC)  # 11:30 in India
+    assert formatter.relative_day(datetime(2026, 10, 18, 18, 45, tzinfo=UTC), now) == "Today"
+    assert formatter.relative_day(datetime(2026, 10, 18, 18, 0, tzinfo=UTC), now) == "Yesterday"
+    assert formatter.relative_day(datetime(2026, 10, 15, 9, 0, tzinfo=UTC), now) == "4 days ago"
+    assert formatter.relative_day(datetime(2026, 10, 2, 9, 0, tzinfo=UTC), now) == "2 Oct"
+
+
+def test_weakness_headline_and_alt_text_state_the_takeaway():
+    calm = {"OS": 0.43, "DBMS": 0.4, "OOP": 0.13}
+    assert formatter.weakness_headline(calm) == "No weak topics; OS has the most room to grow"
+    assert formatter.weakness_headline({**calm, "DBMS": 0.7}) == "DBMS is your weakest topic"
+    assert (
+        formatter.weakness_alt(calm)
+        == "Weakness by topic, weakest first: OS 43%, DBMS 40%, OOP 13%"
+    )

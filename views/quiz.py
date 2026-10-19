@@ -18,7 +18,7 @@ if result := st.session_state.get("quiz_result"):
 
 quiz = st.session_state.get("quiz")
 if quiz is None:
-    topic = st.selectbox("Topic", TOPICS)
+    topic = st.selectbox("Topic", TOPICS, key="quiz_topic")  # Home can preselect it
     suggested = services.suggested_difficulty(sid, topic)
     difficulty = st.radio(
         "Difficulty",

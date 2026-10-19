@@ -147,7 +147,7 @@ def test_sidebar_shows_readiness_and_a_quiet_mock_badge(seeded):
 
 
 def test_onboard_with_sample_resume():
-    at = _app()
+    at = _app(page="views/onboard.py")  # Home is the default page now
     at.text_input[0].input("ui0001")
     next(s for s in at.selectbox if s.label.startswith("…or use")).select(
         "java_backend_fresher.txt"
@@ -160,7 +160,7 @@ def test_onboard_with_sample_resume():
 
 
 def test_onboard_rejects_missing_usn():
-    at = _app()
+    at = _app(page="views/onboard.py")  # Home is the default page now
     _button(at, "Analyse resume").click().run()
     assert any("USN is required" in e.value for e in at.error)
 
@@ -253,7 +253,7 @@ def test_dashboard_renders(seeded):
 
 
 def test_onboard_requires_a_resume_or_sample():
-    at = _app()
+    at = _app(page="views/onboard.py")  # Home is the default page now
     at.text_input[0].input("UI0002")
     _button(at, "Analyse resume").click().run()
     assert any("Upload a resume or pick a sample" in e.value for e in at.error)
@@ -371,3 +371,71 @@ def test_seed_demo_fills_an_empty_database_on_start(monkeypatch):
         assert [s["usn"] for s in db.list_students()] == [seed.USN]
     finally:
         st.cache_resource.clear()
+
+
+# --- Home (the default page) ---------------------------------------------------------
+
+
+def test_home_without_a_student_explains_the_loop():
+    at = _app()  # Home is the default page
+    assert [t.value for t in at.title] == ["Placement prep that adapts to you"]
+    labels = {b.label for b in at.button}
+    assert {"Start with your resume", "Try it with a sample resume"} <= labels
+    for n, step in enumerate(("Profile", "Plan", "Quiz", "Adapt"), 1):
+        assert f"**{n}. {step}**" in _md(at)
+
+
+def test_home_quick_start_opens_onboard_with_a_sample():
+    from piq import services
+
+    at = _app()
+    _button(at, "Try it with a sample resume").click().run()
+    assert not at.exception
+    sample = next(s for s in at.selectbox if s.label.startswith("…or use"))
+    assert sample.value == services.sample_resumes()[0]
+
+
+def test_home_shows_todays_focus_for_the_demo_student(seeded):
+    at = _app(seeded)
+    assert not at.exception
+    assert [t.value for t in at.title] == ["Hello, Demo Student"]
+    assert "Generate your week 5 plan" in [s.value for s in at.subheader]
+    assert "**Today's focus**" in _md(at)
+    assert _md(at).count(":green-badge[:material/check_circle: Done]") == 4  # icon and words
+    assert at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")
+    assert "Scored 90% on a medium OOP quiz" in _md(at)
+    assert [m.value for m in at.metric] == ["42/100"]
+
+
+def test_todays_focus_opens_the_page_it_names(seeded):
+    at = _app(seeded)
+    _button(at, "Open Weekly plan").click().run()
+    assert not at.exception
+    assert [b for b in at.button if b.label == "Generate week 5 plan"]
+
+
+def test_todays_focus_preselects_the_quiz_topic():
+    from piq import services
+
+    sid, _ = services.onboard(
+        "UI0004", "Java Backend Developer", services.load_sample("java_backend_fresher.txt")
+    )
+    services.generate_next_plan(sid)
+    focus = services.next_action(sid)
+    assert focus.page == "views/quiz.py" and focus.topic  # a weak topic with no quiz yet
+    at = _app(sid)
+    _button(at, "Set up this quiz").click().run()
+    assert not at.exception
+    assert at.selectbox(key="quiz_topic").value == focus.topic
+
+
+def test_home_error_state_offers_a_retry(seeded, monkeypatch):
+    from piq import services
+
+    def unreadable(*args, **kwargs):
+        raise services.ServiceError("Your progress could not be read.")
+
+    monkeypatch.setattr(services, "home", unreadable)
+    at = _app(seeded)
+    assert [s.value for s in at.subheader] == ["Your overview did not load"]
+    assert _button(at, "Try again")

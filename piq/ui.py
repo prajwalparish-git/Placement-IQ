@@ -45,11 +45,17 @@ def student_selector() -> None:
     # Refreshed on every run before the page renders, so pages reuse it instead of a query.
     selected = next((s for s in students if s["id"] == labels.get(choice)), None)
     st.session_state["student"] = dict(selected) if selected else None
+    st.session_state["student_count"] = len(students)
 
 
 def current_student() -> dict | None:
     """The selected student's row (id, name, usn, target_role, readiness_score), or None."""
     return st.session_state.get("student")
+
+
+def student_count() -> int:
+    """How many students the sidebar picker offers (counted by it on this run)."""
+    return st.session_state.get("student_count", 0)
 
 
 def sidebar_context(mock_mode: bool) -> None:

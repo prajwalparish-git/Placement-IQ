@@ -212,3 +212,107 @@ def test_evaluation_summary(tmp_path, monkeypatch):
     assert services.evaluation_summary() is None
     (tmp_path / "summary.json").write_text(json.dumps(f.eval_summary()), encoding="utf-8")
     assert services.evaluation_summary()["placementiq"]["cases"] == 20
+
+
+# --- home: today's focus ---------------------------------------------------------
+
+NOW = __import__("datetime").datetime(2026, 10, 19, 12, 0, tzinfo=__import__("datetime").UTC)
+PLAN_OLD = {"week_no": 4, "created_at": "2026-10-10 09:00:00"}  # 9 days before NOW
+PLAN_NEW = {"week_no": 5, "created_at": "2026-10-18 09:00:00"}
+WEAK = {"Aptitude": 0.2, "DBMS": 0.7, "OS": 0.8, "CN": 0.3, "DSA": 0.2, "OOP": 0.1}
+CALM = {"Aptitude": 0.2, "DBMS": 0.4, "OS": 0.45, "CN": 0.3, "DSA": 0.2, "OOP": 0.1}
+
+
+def _attempt(topic: str, at: str, pct: float = 40.0, difficulty: str = "medium") -> dict:
+    return {"topic": topic, "attempted_at": at, "score_pct": pct, "difficulty": difficulty}
+
+
+def _decide(profile=..., plan=PLAN_OLD, weakness=CALM, attempts=(), sessions=1):
+    from tests import factories as f
+
+    profile = f.profile() if profile is ... else profile
+    return services.decide_next_action(profile, plan, weakness, list(attempts), sessions, NOW)
+
+
+def test_next_action_without_a_profile_is_onboarding():
+    a = _decide(profile=None)
+    assert (a.page, a.label, a.cta) == (
+        "views/onboard.py",
+        "Onboard with your resume",
+        "Open Onboard",
+    )
+
+
+def test_next_action_without_a_plan_is_week_1():
+    a = _decide(plan=None, weakness=WEAK)
+    assert (a.page, a.label) == ("views/plan.py", "Generate your week 1 plan")
+
+
+def test_next_action_quizzes_the_weakest_unpractised_topic_first():
+    a = _decide(weakness=WEAK)  # OS 0.8 and DBMS 0.7 are weak; neither has a quiz
+    assert (a.page, a.topic, a.difficulty) == ("views/quiz.py", "OS", "medium")
+    assert a.label == "Take a medium OS quiz" and "not taken a quiz on it yet" in a.reason
+    recent_os = [_attempt("OS", "2026-10-17 10:00:00")]
+    assert _decide(weakness=WEAK, attempts=recent_os).topic == "DBMS"  # OS was practised
+
+
+def test_next_action_returns_to_a_weak_topic_after_a_week_at_the_suggested_level():
+    stale = [_attempt("OS", "2026-10-01 10:00:00", pct=90.0, difficulty="medium")]
+    a = _decide(weakness={**CALM, "OS": 0.8}, attempts=stale)
+    assert (a.topic, a.difficulty) == ("OS", agents.suggest_difficulty(90.0, "medium"))
+    assert "no quiz in the last 7 days" in a.reason
+
+
+def test_next_action_suggests_an_interview_once_weak_topics_are_practised():
+    recent = [_attempt("OS", "2026-10-17 10:00:00")]
+    a = _decide(weakness={**CALM, "OS": 0.8}, attempts=recent, sessions=0)
+    assert (a.page, a.label) == ("views/interview.py", "Try a mock interview")
+
+
+def test_next_action_adapts_the_plan_when_it_is_a_week_old_with_new_scores():
+    since = [_attempt("OS", "2026-10-12 10:00:00"), _attempt("CN", "2026-10-13 10:00:00")]
+    a = _decide(plan=PLAN_OLD, attempts=since)
+    assert (a.page, a.label) == ("views/plan.py", "Generate your week 5 plan")
+    assert "9 days old and 2 quiz scores came in since" in a.reason
+
+
+def test_next_action_otherwise_practises_the_weakest_topic():
+    since = [_attempt("OS", "2026-10-18 10:00:00", pct=40.0)]  # low score: the level drops
+    a = _decide(plan=PLAN_NEW, attempts=since)  # fresh plan: nothing to adapt yet
+    assert (a.page, a.topic, a.difficulty) == ("views/quiz.py", "OS", "easy")
+    assert a.label == "Practise OS with an easy quiz"  # "an" before a vowel
+    old_plan_no_scores = _decide(plan=PLAN_OLD, attempts=[_attempt("OS", "2026-10-09 10:00:00")])
+    assert old_plan_no_scores.page == "views/quiz.py"
+
+
+def test_home_gathers_focus_checklist_and_recent_activity():
+    from scripts import seed
+
+    seed.main()
+    sid = next(s["id"] for s in db.list_students() if s["usn"] == seed.USN)
+    h = services.home(sid)
+    assert (
+        h.next_action.label == "Generate your week 5 plan"
+    )  # the seeded week 4 plan is 7 days old
+    assert [c.done for c in h.checklist] == [True, True, True, True]
+    assert len(h.recent) == 4 and h.recent == sorted(h.recent, key=lambda a: a.at, reverse=True)
+    assert services.next_action(sid) == h.next_action
+
+
+def test_home_for_a_new_student_starts_with_a_plan(student):
+    h = services.home(student)
+    assert h.next_action.label == "Generate your week 1 plan"
+    assert [c.done for c in h.checklist] == [True, False, False, False] and h.recent == []
+    assert services.next_action(None).page == "views/onboard.py"
+    assert services.next_action("nobody").page == "views/onboard.py"
+
+
+def test_home_reports_an_unreadable_database_safely(student, monkeypatch):
+    import sqlite3
+
+    def broken(*_):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(db, "quiz_history", broken)
+    with pytest.raises(ServiceError, match="could not be read"):
+        services.home(student)
