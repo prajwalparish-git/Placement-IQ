@@ -365,14 +365,37 @@ def plan_mix_alt(weeks: Mapping[int, Mapping[str, int]]) -> str:
     return "Minutes per topic by week. " + "; ".join(parts)
 
 
+def local_day(timestamp: str, tz: str = TIMEZONE) -> str:
+    """A SQLite UTC timestamp as a day on the student's calendar, e.g. "20 Oct"."""
+    at = datetime.fromisoformat(timestamp).replace(tzinfo=UTC).astimezone(ZoneInfo(tz))
+    return f"{at:%d %b}"
+
+
 def session_labels(sessions: Iterable[Mapping], tz: str = TIMEZONE) -> list[str]:
     """Interview sessions for a tooltip: the day on the student's calendar and the type."""
-    zone = ZoneInfo(tz)
-    return [
-        f"{datetime.fromisoformat(s['started']).replace(tzinfo=UTC).astimezone(zone):%d %b}, "
-        f"{s['interview_type']}"
-        for s in sessions
-    ]
+    return [f"{local_day(s['started'], tz)}, {s['interview_type']}" for s in sessions]
+
+
+def readiness_change(scores: Sequence[int]) -> tuple[str, str] | None:
+    """The readiness KPI's delta and its colour: the latest profile minus the one before.
+    None with a single profile: there is nothing to compare, so no delta is invented."""
+    if len(scores) < 2:
+        return None
+    change = scores[-1] - scores[-2]
+    if change == 0:
+        return "±0 since the last profile", "off"
+    return f"{change:+d} since the last profile", "normal"
+
+
+def readiness_headline(scores: Sequence[int]) -> str:
+    """The readiness chart's takeaway, first profile to latest."""
+    first, latest, n = scores[0], scores[-1], len(scores)
+    if n == 1:
+        return f"Readiness is {latest}/100 from your first profile"
+    verb = "rose" if latest > first else "fell" if latest < first else "held"
+    if verb == "held":
+        return f"Readiness held at {latest}/100 over {n} profiles"
+    return f"Readiness {verb} from {first} to {latest} over {n} profiles"
 
 
 def interview_headline(averages: Sequence[float]) -> str:

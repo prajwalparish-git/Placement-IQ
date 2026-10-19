@@ -315,6 +315,7 @@ class Dashboard:
     sessions: list[sqlite3.Row]
     agent_stats: list[sqlite3.Row]
     rejections: list[sqlite3.Row]
+    readiness: list[sqlite3.Row]  # (created_at, readiness_score) per profile, oldest first
 
 
 def dashboard(student_id: str, profile: StudentProfile | None = None) -> Dashboard:
@@ -328,6 +329,7 @@ def dashboard(student_id: str, profile: StudentProfile | None = None) -> Dashboa
             sessions=db.interview_history(student_id),
             agent_stats=db.agent_stats(),
             rejections=db.recent_rejections(),
+            readiness=db.readiness_history(student_id),
         )
     except sqlite3.Error as e:
         raise ServiceError(

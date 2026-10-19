@@ -173,6 +173,7 @@ class Stat:
     value: str
     delta: str | None = None
     help: str | None = None
+    delta_color: str = "normal"  # "off" for a change that is neither good nor bad
 
 
 @lru_cache(maxsize=1)
@@ -214,7 +215,15 @@ def empty_state(
 def stat_row(stats: Sequence[Stat]) -> None:
     """Equal-height stat cards in one row; they stack on phones."""
     for column, s in zip(st.columns(len(stats)), stats, strict=True):
-        column.metric(s.label, s.value, s.delta, help=s.help, border=True, height="stretch")
+        column.metric(
+            s.label,
+            s.value,
+            s.delta,
+            delta_color=s.delta_color,
+            help=s.help,
+            border=True,
+            height="stretch",
+        )
 
 
 def topic_chip(topic: str) -> None:

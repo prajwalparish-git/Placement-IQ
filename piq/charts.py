@@ -255,36 +255,48 @@ def week_mix(weeks: Mapping[int, Mapping[str, int]]) -> alt.Chart:
     return themed(chart)
 
 
-def interview_trend(averages: Sequence[float], labels: Sequence[str]) -> alt.LayerChart:
-    """Each interview session's average score (0-5) in order, as a line in the brand teal
-    (not a topic, so not a topic colour); `labels` describe each session in the tooltip."""
+def _trend(
+    values: Sequence[float],
+    labels: Sequence[str],
+    *,
+    top: float,
+    noun: str,
+    title: str,
+    fmt: str,
+) -> alt.LayerChart:
+    """One score over time, one point per event (`noun` n on the x axis), as a line in the
+    brand teal: not a topic, so not a topic colour. `labels` describe each event."""
     df = pd.DataFrame(
-        {
-            "session": range(1, len(averages) + 1),
-            "average": [float(a) for a in averages],
-            "label": list(labels),
-        }
+        {"n": range(1, len(values) + 1), "value": [float(v) for v in values], "label": list(labels)}
     )
     base = alt.Chart(df).encode(
         x=alt.X(
-            "session:O",
-            title=None,
-            axis=alt.Axis(labelAngle=0, labelExpr="'Session ' + datum.value"),
+            "n:O", title=None, axis=alt.Axis(labelAngle=0, labelExpr=f"'{noun} ' + datum.value")
         ),
         y=alt.Y(
-            "average:Q",
+            "value:Q",
             title=None,
-            scale=alt.Scale(domain=[0, 5]),
-            axis=alt.Axis(values=[0, 2.5, 5], format=".1f"),
+            scale=alt.Scale(domain=[0, top]),
+            axis=alt.Axis(values=[0, top / 2, top], format=fmt),
         ),
         tooltip=[
-            alt.Tooltip("label:N", title="Session"),
-            alt.Tooltip("average:Q", title="Average (/5)", format=".1f"),
+            alt.Tooltip("label:N", title=noun),
+            alt.Tooltip("value:Q", title=title, format=fmt),
         ],
     )
     line = base.mark_line(strokeWidth=2, color=BRAND_COLOR)
     points = base.mark_circle(size=60, opacity=1, color=BRAND_COLOR)
     return themed(alt.layer(line, points).properties(height=180))
+
+
+def interview_trend(averages: Sequence[float], labels: Sequence[str]) -> alt.LayerChart:
+    """Each interview session's average score (0-5) in order."""
+    return _trend(averages, labels, top=5, noun="Session", title="Average (/5)", fmt=".1f")
+
+
+def readiness_trend(scores: Sequence[int], labels: Sequence[str]) -> alt.LayerChart:
+    """Readiness (0-100) at each profile, oldest first."""
+    return _trend(scores, labels, top=100, noun="Profile", title="Readiness (/100)", fmt="d")
 
 
 def score_spark_spec(topic: str, scores: Sequence[float]) -> dict:
@@ -313,3 +325,12 @@ def interview_trend_spec(averages: Sequence[float], labels: Sequence[str]) -> di
 @lru_cache(maxsize=128)
 def _interview_trend_json(averages: tuple[float, ...], labels: tuple[str, ...]) -> str:
     return json.dumps(to_spec(interview_trend(averages, labels)))
+
+
+def readiness_trend_spec(scores: Sequence[int], labels: Sequence[str]) -> dict:
+    return json.loads(_readiness_trend_json(tuple(scores), tuple(labels)))
+
+
+@lru_cache(maxsize=128)
+def _readiness_trend_json(scores: tuple[int, ...], labels: tuple[str, ...]) -> str:
+    return json.dumps(to_spec(readiness_trend(scores, labels)))

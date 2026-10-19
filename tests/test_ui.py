@@ -470,6 +470,28 @@ def test_dashboard_renders(seeded):
     assert any(s.startswith("Your latest interview averaged") for s in subheaders)
 
 
+def test_dashboard_readiness_shows_a_delta_and_trend_only_after_a_second_profile(seeded):
+    from piq import services
+
+    at = _app(seeded, "views/dashboard.py")
+    [readiness] = [m for m in at.metric if m.label == "Readiness"]
+    assert readiness.proto.delta == ""  # one profile: no invented delta
+    assert "Readiness is 42/100 from your first profile" in [s.value for s in at.subheader]
+    assert "re-profile with an updated resume" in _captions(at)
+
+    resume = services.load_sample("python_developer.txt")
+    services.onboard(seed.USN, "Python Developer", resume)  # a second profile, 73/100
+    at = _app(seeded, "views/dashboard.py")
+    [readiness] = [m for m in at.metric if m.label == "Readiness"]
+    assert readiness.value == "73/100"
+    assert readiness.proto.delta == "+31 since the last profile"
+    assert any(
+        s.value.startswith("Readiness ") and "over 2 profiles" in s.value for s in at.subheader
+    )
+    charts = at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")
+    assert len(charts) == 6 + 3  # sparklines, readiness, interviews, plan minutes
+
+
 def test_dashboard_keeps_system_telemetry_in_its_own_section(seeded):
     from piq import agents
 

@@ -143,6 +143,20 @@ def test_interview_trend_is_a_0_to_5_line_in_the_brand_teal():
     assert [t["title"] for t in line["encoding"]["tooltip"]] == ["Session", "Average (/5)"]
 
 
+def test_readiness_trend_is_a_0_to_100_line_per_profile():
+    spec = charts.readiness_trend([42, 58], ["19 Oct", "26 Oct"]).to_dict()
+    line, points = spec["layer"]
+    assert line["mark"]["color"] == points["mark"]["color"] == charts.BRAND_COLOR
+    y = line["encoding"]["y"]
+    assert y["scale"]["domain"] == [0, 100] and y["axis"]["values"] == [0, 50, 100]
+    assert line["encoding"]["x"]["axis"]["labelExpr"] == "'Profile ' + datum.value"
+    rows = spec["datasets"][spec["data"]["name"]]
+    assert [(r["n"], r["value"]) for r in rows] == [(1, 42.0), (2, 58.0)]
+    assert charts.readiness_trend_spec([42, 58], ["a", "b"]) == charts.to_spec(
+        charts.readiness_trend([42, 58], ["a", "b"])
+    )
+
+
 def test_dashboard_specs_match_their_charts():
     assert charts.score_spark_spec("OS", [30, 70]) == charts.to_spec(
         charts.score_spark("OS", [30, 70])

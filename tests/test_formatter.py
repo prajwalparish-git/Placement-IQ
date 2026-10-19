@@ -372,6 +372,20 @@ def test_telemetry_tables_are_ready_to_read():
     assert formatter.session_labels(sessions) == ["20 Oct, HR"]
 
 
+def test_readiness_change_and_headline_never_invent_a_trend():
+    assert formatter.readiness_change([42]) is None  # one profile: no delta at all
+    assert formatter.readiness_change([42, 58]) == ("+16 since the last profile", "normal")
+    assert formatter.readiness_change([58, 50]) == ("-8 since the last profile", "normal")
+    assert formatter.readiness_change([50, 50]) == ("±0 since the last profile", "off")
+    assert formatter.readiness_headline([42]) == "Readiness is 42/100 from your first profile"
+    assert formatter.readiness_headline([42, 50, 58]) == (
+        "Readiness rose from 42 to 58 over 3 profiles"
+    )
+    assert formatter.readiness_headline([58, 42]).startswith("Readiness fell from 58 to 42")
+    assert formatter.readiness_headline([50, 50]) == "Readiness held at 50/100 over 2 profiles"
+    assert formatter.local_day("2026-10-19 20:00:00") == "20 Oct"  # UTC evening, next day in India
+
+
 def test_critic_plain_renumbers_without_escaping():
     assert formatter.critic_plain("question 2: __init__ twice") == "Q3: __init__ twice"
 
