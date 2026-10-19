@@ -369,6 +369,36 @@ def test_interview_session_runs_to_completion(seeded):
         at.chat_input[0].set_value("Situation task action result " * 8).run()
         assert not at.exception
     assert any("Session complete" in s.value for s in at.success)
+    [progress] = at.main.get("progress")
+    assert progress.proto.text == f"All {INTERVIEW_MAX_TURNS} questions answered"
+    assert _button(at, "New session")
+
+
+def test_interview_setup_describes_each_type(seeded):
+    at = _app(seeded, "views/interview.py")
+    [kind] = at.radio
+    assert kind.options == ["HR", "Technical", "Project"]
+    hints = ("Motivation, teamwork", "Core concepts", "The projects on your resume")
+    assert all(c.startswith(h) for c, h in zip(kind.proto.captions, hints, strict=True))
+    assert "What happens next" in [s.value for s in at.subheader]
+
+
+def test_interview_shows_progress_scored_feedback_and_the_critic_trail(seeded):
+    at = _app(seeded, "views/interview.py")
+    _button(at, "Start session").click().run()
+    [progress] = at.main.get("progress")
+    assert progress.proto.text == f"Question 1 of {INTERVIEW_MAX_TURNS}"
+    assert any(s.label.startswith("Interview agent — last run") for s in at.status)
+    assert ":gray-badge[:material/add_comment: New question]" in _md(at)
+    at.chat_input[0].set_value("I like coding.").run()
+    [progress] = at.main.get("progress")
+    assert progress.proto.text == f"Question 2 of {INTERVIEW_MAX_TURNS}"
+    titles = [m.value for m in at.markdown if m.value.startswith("**Feedback** · ")]
+    assert len(titles) == 1 and titles[0].endswith("/5 overall")
+    [bars] = [h for h in at.get("html") if '<div class="piq-criteria">' in h.proto.body]
+    assert bars.proto.body.count('<div class="piq-criterion">') == 4
+    assert at.expander[0].label == "Strengths, what to improve and a model answer"
+    assert ":gray-badge[:material/subdirectory_arrow_right: Follow-up]" in _md(at)
 
 
 def test_dashboard_renders(seeded):

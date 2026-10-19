@@ -219,14 +219,57 @@ def test_markdown_builders_escape_every_dynamic_value(hostile):
         assert hostile not in md.replace(safe, "")
 
 
+@pytest.mark.parametrize("hostile", ["<script>alert(1)</script>", '"><img src=x onerror=alert(1)>'])
+def test_criteria_html_escapes_criterion_names(hostile):
+    html = formatter.criteria_html({hostile: 3})
+    assert hostile not in html and escape(hostile.title()) in html
+
+
 def test_quiz_review_requires_one_answer_per_question():
     with pytest.raises(ValueError):
         formatter.quiz_review(f.quiz(n=2), [0])
 
 
-def test_evaluation_md_and_small_labels():
-    md = formatter.evaluation_md(f.evaluation(relevance=5, depth=4, structure=3, clarity=2))
-    assert md.startswith("**Overall 3.5/5** — Relevance 5/5 · Depth 4/5")
+def test_feedback_shows_the_overall_score_then_each_criterion():
+    # Was one line ("**Overall 3.5/5** — Relevance 5/5 · ..."); now a title and four bars.
+    ev = f.evaluation(relevance=5, depth=4, structure=3, clarity=2)
+    assert formatter.feedback_title(ev) == "**Feedback** · 3.5/5 overall"
+    html = formatter.criteria_html(ev.scores)
+    assert html.count('<div class="piq-criterion">') == 4
+    for name, v, width in (("Relevance", 5, 100), ("Depth", 4, 80), ("Clarity", 2, 40)):
+        assert f"<span>{name}</span>" in html and f"<span>{v}/5</span>" in html
+        assert f'style="width:{width}%"' in html
+    assert 'aria-hidden="true"' in html  # the words and number carry the score
+    md = formatter.evaluation_md(ev)
+    assert md.startswith("**Strengths**  \n- s") and "**Improve**  \n- i" in md and "\n> m" in md
+    empty = ev.model_copy(update={"strengths": [], "improvements": []})
+    assert "**Strengths**  \n:gray[None this time.]" in formatter.evaluation_md(empty)
+
+
+def test_interview_questions_say_whether_they_follow_up():
+    from piq.schemas import InterviewTurn
+
+    turn = InterviewTurn(
+        question="Why *this* role?", intent="probe", is_followup=True, is_final=False
+    )
+    assert formatter.question_md(turn) == (
+        "Why \\*this\\* role?  \n:gray-badge[:material/subdirectory_arrow_right: Follow-up]"
+    )
+    new = formatter.question_md(turn.model_copy(update={"is_followup": False}))
+    assert new.endswith(":gray-badge[:material/add_comment: New question]")
+
+
+@pytest.mark.parametrize(
+    ("answered", "current", "shown"),
+    [
+        (0, True, (0.2, "Question 1 of 5")),
+        (1, False, (0.4, "Question 2 of 5")),  # waiting for the next question (or a retry)
+        (4, True, (1.0, "Question 5 of 5")),
+        (5, False, (1.0, "All 5 questions answered")),
+    ],
+)
+def test_interview_progress_counts_questions(answered, current, shown):
+    assert formatter.interview_progress(answered, current, 5) == shown
 
 
 def test_score_trend_pivots_by_attempt_and_handles_empty():

@@ -103,6 +103,32 @@
   font-size: 0.875rem;
 }
 
+/* Interview feedback (formatter.criteria_html): criterion, a small bar, the score. The bar
+   is the primary teal (>= 3:1 in both schemes) on a hairline track. */
+[data-testid="stHtml"] .piq-criteria {
+  display: grid;
+  grid-template-columns: max-content minmax(4rem, 12rem) max-content;
+  gap: 0.25rem 0.75rem;
+  align-items: center;
+}
+
+[data-testid="stHtml"] .piq-criterion {
+  display: contents;
+}
+
+[data-testid="stHtml"] .piq-bar {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: light-dark(#DCE1DE, #2C383B);
+}
+
+[data-testid="stHtml"] .piq-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: light-dark(#0D6670, #1F7F86);
+}
+
 /* Honour a request for less motion (spinners and expanders included). */
 @media (prefers-reduced-motion: reduce) {
   [data-testid="stApp"] *,

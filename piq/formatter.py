@@ -263,17 +263,48 @@ def quiz_review(quiz: QuizSet, chosen: Sequence[int | None]) -> list[str]:
     return [review_md(i, q, a) for i, (q, a) in enumerate(pairs, 1)]
 
 
-def turn_label(turn: InterviewTurn) -> str:
-    return "follow-up" if turn.is_followup else "new question"
+# --- mock interview -----------------------------------------------------------------------
+
+
+def question_md(turn: InterviewTurn) -> str:
+    """The interviewer's question with a quiet badge: a follow-up on the last answer, or new."""
+    kind = ":gray-badge[:material/subdirectory_arrow_right: Follow-up]"
+    if not turn.is_followup:
+        kind = ":gray-badge[:material/add_comment: New question]"
+    return f"{md_escape(turn.question)}  \n{kind}"
+
+
+def interview_progress(answered: int, current: bool, max_turns: int) -> tuple[float, str]:
+    """The session's position for a progress bar: its value and its words."""
+    if not current and answered >= max_turns:
+        return 1.0, f"All {max_turns} questions answered"
+    n = min(answered + 1, max_turns)
+    return n / max_turns, f"Question {n} of {max_turns}"
+
+
+def feedback_title(ev: AnswerEvaluation) -> str:
+    return f"**Feedback** · {ev.overall:.1f}/5 overall"
+
+
+def criteria_html(scores: Mapping[str, int]) -> str:
+    """The four rubric scores as small bars (styled by static/app.css); the words and the
+    number carry the score, the bar only shows it at a glance."""
+    rows = [
+        '<div class="piq-criterion">'
+        f"<span>{escape(name.title())}</span>"
+        f'<span class="piq-bar" aria-hidden="true"><span style="width:{20 * int(v)}%">'
+        f"</span></span><span>{int(v)}/5</span></div>"
+        for name, v in scores.items()
+    ]
+    return f'<div class="piq-criteria">{"".join(rows)}</div>'
 
 
 def evaluation_md(ev: AnswerEvaluation) -> str:
-    scores = " · ".join(f"{k.title()} {v}/5" for k, v in ev.scores.items())
+    """What to keep, what to change and a model answer, quoted."""
     quote = "\n".join(f"> {line}" for line in md_escape(ev.model_answer).splitlines())
     return (
-        f"**Overall {ev.overall}/5** — {scores}\n\n"
-        f"**Strengths**\n{_bullets(ev.strengths)}\n\n"
-        f"**Improve**\n{_bullets(ev.improvements)}\n\n"
+        f"**Strengths**  \n{list_md(ev.strengths, 'None this time.')}\n\n"
+        f"**Improve**  \n{list_md(ev.improvements, 'Nothing to change.')}\n\n"
         f"**Model answer**\n{quote}"
     )
 

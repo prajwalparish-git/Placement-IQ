@@ -232,10 +232,12 @@ def results_summary_present() -> Iterator[None]:
 # --- browser -------------------------------------------------------------------
 
 _STATE = "document.querySelector('[data-testid=stApp]')?.getAttribute('data-test-script-state')"
-# Streamlit scrolls inside its own containers, so measure them, not just the document.
+# Streamlit scrolls inside its own containers (a chat page inside the scroll-to-bottom one),
+# so measure them, not just the document.
 _CONTENT_HEIGHT = (
     "() => Math.max(document.documentElement.scrollHeight, ...[...document.querySelectorAll("
-    "'[data-testid=stMain], [data-testid=stAppViewContainer]')].map(e => e.scrollHeight))"
+    "'[data-testid=stMain], [data-testid=stAppViewContainer], "
+    "[data-testid=stAppScrollToBottomContainer]')].map(e => e.scrollHeight))"
 )
 
 

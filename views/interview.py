@@ -1,55 +1,119 @@
+"""Mock interview: a written interview of up to INTERVIEW_MAX_TURNS questions; vague answers
+get a follow-up, every answer gets scored feedback, and a critic checks each question."""
+
 import streamlit as st
 
 from piq import formatter, services
-from piq.config import INTERVIEW_TYPES
-from piq.ui import require_profile, run_agent, show_last_run
+from piq.config import INTERVIEW_MAX_TURNS, INTERVIEW_TYPES
+from piq.ui import page_header, require_profile, run_agent, show_last_run
 
-st.header("Mock interview")
+INTERVIEWER, STUDENT, FEEDBACK = (
+    ":material/record_voice_over:",
+    ":material/person:",
+    ":material/grading:",
+)
+TYPE_HINTS = {
+    "HR": "Motivation, teamwork and how you handle situations, told with examples.",
+    "Technical": "Core concepts for your target role, explained in your own words.",
+    "Project": "The projects on your resume: design choices, problems and results.",
+}
+NEXT = (
+    (
+        "fact_check",
+        f"The interviewer asks up to {INTERVIEW_MAX_TURNS} questions, each checked by a critic "
+        "first. A vague answer gets a follow-up.",
+    ),
+    ("edit_note", "Type each answer as you would say it."),
+    (
+        "grading",
+        "Every answer is scored for relevance, depth, structure and clarity, with a model "
+        "answer to compare.",
+    ),
+)
+
+
+def _setup(sid: str) -> None:
+    setup_col, next_col = st.columns([3, 2], gap="medium")
+    with setup_col, st.container(border=True):
+        st.subheader("Start a mock interview", anchor=False)
+        kind = st.radio(
+            "Interview type", INTERVIEW_TYPES, captions=[TYPE_HINTS[t] for t in INTERVIEW_TYPES]
+        )
+        if st.button("Start session", type="primary", icon=":material/play_arrow:"):
+            session = run_agent(
+                "Interview agent", lambda ev: services.start_interview(sid, kind, ev)
+            )
+            if session:
+                st.session_state["interview"] = session
+                st.rerun()
+        show_last_run("Interview agent")
+    with next_col, st.container(border=True):
+        st.subheader("What happens next", anchor=False)
+        for n, (icon, text) in enumerate(NEXT, 1):
+            st.markdown(f":primary[:material/{icon}:] **{n}.** {text}")
+
+
+def _feedback(turn: services.AnsweredTurn, latest: bool) -> None:
+    with st.chat_message("Feedback", avatar=FEEDBACK):
+        st.markdown(formatter.feedback_title(turn.evaluation))
+        st.html(formatter.criteria_html(turn.evaluation.scores))
+        with st.expander("Strengths, what to improve and a model answer", expanded=latest):
+            st.markdown(formatter.evaluation_md(turn.evaluation))
+
+
+page_header(
+    "Mock interview",
+    f"A written interview of up to {INTERVIEW_MAX_TURNS} questions. Vague answers get a "
+    "follow-up, every answer gets scored feedback, and a critic checks each question first.",
+)
 sid, _ = require_profile()
 session: services.InterviewSession | None = st.session_state.get("interview")
 
 if session is None:
-    kind = st.radio("Interview type", INTERVIEW_TYPES, horizontal=True)
-    if st.button("Start session", type="primary"):
-        session = run_agent("Interview agent", lambda ev: services.start_interview(sid, kind, ev))
-        if session:
-            st.session_state["interview"] = session
-            st.rerun()
-    show_last_run("Interview agent")
+    _setup(sid)
     st.stop()
 
-for turn in session.history:
-    st.chat_message("assistant").markdown(formatter.md_escape(turn.question))
-    st.chat_message("user").markdown(formatter.md_escape(turn.answer))
-    with (
-        st.chat_message("assistant", avatar="📊"),
-        st.expander(f"Feedback — {turn.evaluation.overall}/5"),
-    ):
-        st.markdown(formatter.evaluation_md(turn.evaluation))
+value, words = formatter.interview_progress(
+    len(session.history), session.current is not None, INTERVIEW_MAX_TURNS
+)
+st.subheader(f"{session.interview_type} interview", anchor=False)
+st.progress(value, text=words)
+
+for i, turn in enumerate(session.history):
+    st.chat_message("Interviewer", avatar=INTERVIEWER).markdown(formatter.md_escape(turn.question))
+    st.chat_message("You", avatar=STUDENT).markdown(formatter.md_escape(turn.answer))
+    _feedback(turn, latest=i == len(session.history) - 1)
 
 if session.done:
     st.success(
-        f"Session complete — average {session.average:.2f}/5 over {len(session.history)} questions."
+        f"Session complete — average {session.average:.1f}/5 over {len(session.history)} "
+        "questions.",
+        icon=":material/task_alt:",
     )
-    if st.button("New session"):
+    if st.button("New session", type="primary", icon=":material/restart_alt:"):
         st.session_state.pop("interview")
         st.rerun()
     st.stop()
 
-show_last_run("Interview agent")
 if session.current is None:  # the answer is saved; only the follow-up question failed
-    if st.button("Retry next question", type="primary"):
-        nxt = run_agent("Interview agent", lambda ev: services.continue_interview(sid, session, ev))
-        if nxt:
-            st.session_state["interview"] = nxt
-            st.rerun()
+    with st.chat_message("Interviewer", avatar=INTERVIEWER):
+        show_last_run("Interview agent")
+        if st.button("Retry next question", type="primary", icon=":material/refresh:"):
+            nxt = run_agent(
+                "Interview agent", lambda ev: services.continue_interview(sid, session, ev)
+            )
+            if nxt:
+                st.session_state["interview"] = nxt
+                st.rerun()
     st.stop()
 
-current = session.current
-st.chat_message("assistant").markdown(
-    f"{formatter.md_escape(current.question)}  \n_{formatter.turn_label(current)}_"
-)
+with st.chat_message("Interviewer", avatar=INTERVIEWER):
+    st.markdown(formatter.question_md(session.current))
+    show_last_run("Interview agent")  # how the critic checked this question
 if answer := st.chat_input("Your answer"):
+    st.chat_message("You", avatar=STUDENT).markdown(
+        formatter.md_escape(answer)
+    )  # shown while scored
     answered = run_agent("Evaluator", lambda _: services.answer_question(sid, session, answer))
     if answered is None:
         st.stop()
