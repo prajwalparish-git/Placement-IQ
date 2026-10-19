@@ -233,3 +233,14 @@ def test_brand_colour_reads_on_every_background():
             assert contrast(BRAND_COLOR, PALETTE[scheme][layer]) >= 3, (scheme, layer)
         for tc in TOPIC_COLORS[scheme].values():
             assert distance(BRAND_COLOR, tc) >= MIN_STATUS_DISTANCE
+
+
+def test_a_selected_pill_uses_the_readable_teal_text():
+    # Streamlit colours a selected pill's text with the primary, which is too dark in dark mode.
+    rule = re.search(
+        r'\[data-testid="stButtonGroup"\][^{]*aria-checked="true"[^{]*\{([^}]*)\}', CSS
+    )
+    light, dark = PALETTE["light"]["primary_text"], PALETTE["dark"]["primary_text"]
+    assert rule and f"light-dark({light}, {dark})" in rule[1]
+    for scheme in SCHEMES:
+        assert contrast(PALETTE[scheme]["primary_text"], PALETTE[scheme]["background"]) >= 4.5

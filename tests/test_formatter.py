@@ -1,3 +1,5 @@
+from html import escape
+
 import pytest
 
 from piq import formatter
@@ -40,6 +42,60 @@ def test_plan_minutes_has_every_topic_and_one_column_per_week():
         0,
         420,
     )
+
+
+def test_plan_summary_totals_the_week_and_names_its_main_topic():
+    plan = f.plan(topics=("OS",) * 4 + ("DBMS",) * 3, minutes=(90,) * 7)
+    assert formatter.plan_summary(plan) == "630 minutes over 7 days, most of them on OS."
+
+
+def test_plan_days_html_lists_every_day_in_order_with_its_topic_chip():
+    plan = f.plan(topics=("DBMS", "OS") * 3 + ("CN",), minutes=tuple(range(60, 130, 10)))
+    plan.days.reverse()
+    html = formatter.plan_days_html(plan)
+    assert html.startswith('<ol class="piq-days" aria-label="Week 1, day by day">')
+    assert html.count('<li class="piq-day">') == 7
+    days = [html.index(f">Day {n}<") for n in range(1, 8)]
+    assert days == sorted(days)  # day 1 first, whatever order the model returned
+    assert formatter.topic_chip_html("DBMS") in html and "120 min" in html
+    assert "a · b" in html and "Goal: g" in html
+
+
+@pytest.mark.parametrize("hostile", ["<script>alert(1)</script>", '"><img src=x onerror=alert(1)>'])
+def test_plan_days_html_escapes_model_text(hostile):
+    plan = f.plan()
+    day = plan.days[0].model_copy(update={"subtopics": [hostile, "b"], "practice_goal": hostile})
+    html = formatter.plan_days_html(plan.model_copy(update={"days": [day, *plan.days[1:]]}))
+    assert hostile not in html and escape(hostile) in html
+
+
+@pytest.mark.parametrize(
+    ("before", "after", "headline"),
+    [
+        ({"DBMS": 360, "OS": 300}, {"OS": 840}, "OS now gets the most minutes"),
+        (
+            {"OS": 600, "DBMS": 360},
+            {"OS": 840},
+            "OS gets 240 more minutes and DBMS 360 fewer than in week 3",
+        ),
+        ({"OS": 600}, {"OS": 600, "CN": 60}, "CN gets 60 more minutes than in week 3"),
+        ({"OS": 600, "DBMS": 360}, {"OS": 600}, "DBMS gets 360 fewer minutes than in week 3"),
+        ({"OS": 600}, {"OS": 600}, "The same minutes per topic as in week 3"),
+    ],
+)
+def test_minutes_shift_headline_states_the_change(before, after, headline):
+    assert formatter.minutes_shift_headline(before, after, 3) == headline
+
+
+def test_minutes_shift_alt_reads_every_topic():
+    alt = formatter.minutes_shift_alt({"OS": 600}, {"OS": 840, "DBMS": 120}, (3, 4))
+    assert alt.startswith("Minutes per topic, week 3 to week 4: Aptitude 0 to 0, DBMS 0 to 120")
+    assert "OS 600 to 840" in alt
+
+
+def test_weakness_source_explains_both_inputs():
+    text = formatter.weakness_source()
+    assert "last three quizzes" in text and "70%" in text and "40%" in text
 
 
 def test_quiz_review_marks_right_wrong_and_unanswered():
@@ -144,11 +200,6 @@ def test_evaluation_md_and_small_labels():
     assert formatter.score_line(66.7, "OS", "hard") == (
         "**OS: 67%** — next suggested difficulty: **hard**"
     )
-
-
-def test_weakness_table_sorted_desc():
-    df = formatter.weakness_table({"OS": 0.2, "DBMS": 0.9, "CN": 0.5})
-    assert list(df.index) == ["DBMS", "CN", "OS"]
 
 
 def test_score_trend_pivots_by_attempt_and_handles_empty():

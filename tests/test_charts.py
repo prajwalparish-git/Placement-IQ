@@ -42,6 +42,28 @@ def test_weakness_bars_take_an_optional_takeaway_title():
     assert spec["title"] == "OS is your weakest topic"
 
 
+def test_minutes_shift_is_a_dumbbell_from_grey_to_topic_colour():
+    spec = charts.minutes_shift({"OS": 600, "DBMS": 360}, {"OS": 840, "DBMS": 0}, (3, 4)).to_dict()
+    line, earlier, later = spec["layer"]
+    assert [layer["mark"]["type"] for layer in spec["layer"]] == ["rule", "point", "circle"]
+    assert line["encoding"]["x"]["field"] == "before" and line["encoding"]["x2"]["field"] == "after"
+    # The weeks differ by shape (hollow vs filled), not colour alone.
+    assert earlier["mark"]["filled"] is False and earlier["mark"]["color"] == charts.NEUTRAL
+    assert later["encoding"]["x"]["field"] == "after"
+    assert later["encoding"]["color"]["scale"] == {"domain": list(TOPICS)}
+    y = later["encoding"]["y"]
+    assert all(layer["encoding"]["y"] == y for layer in spec["layer"])
+    assert y["sort"][:2] == ["OS  600 → 840", "DBMS  360 → 0"]  # busiest first
+    assert y["axis"]["labelLimit"] == 0  # numbers in labels are never cut off
+    assert later["encoding"]["x"]["axis"]["values"] == [0, 420, 840]  # whole hours
+    assert len(y["sort"]) == len(TOPICS)
+    rows = spec["datasets"][spec["data"]["name"]]
+    assert {r["topic"]: r["change"] for r in rows}["DBMS"] == -360
+    titles = [t["title"] for t in later["encoding"]["tooltip"]]
+    assert titles == ["Topic", "Week 3 (min)", "Week 4 (min)", "Change (min)"]
+    assert spec["height"] == charts.ROW_PX * len(TOPICS)
+
+
 def test_readiness_ring_fills_the_score_in_the_brand_teal():
     spec = charts.readiness_ring(42).to_dict()
     assert spec["mark"]["type"] == "arc"

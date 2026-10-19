@@ -41,6 +41,57 @@
   border-radius: 0.5rem;
 }
 
+/* A selected pill or segment takes the primary as its text colour; the dark primary is
+   tuned for white button labels (3.7:1 on the page), so use the lighter teal text token.
+   Four attribute selectors outrank Streamlit's own rule for the selected state. */
+[data-testid="stButtonGroup"] [data-selected][aria-checked="true"]:not([data-disabled]) {
+  color: light-dark(#0D6670, #6CCBC4);
+}
+
+/* The weekly plan, day by day (formatter.plan_days_html): the day in a fixed column and a
+   hairline between days, so seven days scan like a timeline at any width, with no table. */
+[data-testid="stHtml"] .piq-days {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+[data-testid="stHtml"] .piq-day {
+  display: grid;
+  grid-template-columns: 4rem 1fr;
+  gap: 0.25rem 1rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid light-dark(#DCE1DE, #2C383B);
+}
+
+[data-testid="stHtml"] .piq-day:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+[data-testid="stHtml"] .piq-day-n {
+  font-weight: 700;
+  line-height: 1.9;
+}
+
+[data-testid="stHtml"] .piq-day-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+[data-testid="stHtml"] .piq-day-min {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-testid="stHtml"] .piq-day-goal {
+  color: light-dark(#566461, #A0AEAB);
+  font-size: 0.875rem;
+}
+
 /* Honour a request for less motion (spinners and expanders included). */
 @media (prefers-reduced-motion: reduce) {
   [data-testid="stApp"] *,

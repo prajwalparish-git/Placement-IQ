@@ -125,6 +125,73 @@ def plan_minutes(plans: Iterable[WeeklyPlan]) -> pd.DataFrame:
     return pd.DataFrame(data, index=list(TOPICS)).fillna(0).astype(int)
 
 
+# --- weekly plan -----------------------------------------------------------------------
+
+
+def plan_summary(plan: WeeklyPlan) -> str:
+    """One line under the week's title: the total and where most of it goes."""
+    minutes = plan.minutes_by_topic()
+    top = max(minutes, key=lambda t: minutes[t])
+    return f"{sum(minutes.values())} minutes over {len(plan.days)} days, most of them on {top}."
+
+
+def plan_days_html(plan: WeeklyPlan) -> str:
+    """The week day by day: day, topic chip, minutes, subtopics and goal. One escaped HTML
+    list (styled by static/app.css) rather than seven sets of widgets: it reads at any width
+    and costs the page a single element."""
+    rows = [
+        '<li class="piq-day">'
+        f'<span class="piq-day-n">Day {d.day}</span><div>'
+        f'<div class="piq-day-head">{topic_chip_html(d.topic)}'
+        f'<span class="piq-day-min">{d.duration_min} min</span></div>'
+        f"<div>{escape(' · '.join(d.subtopics))}</div>"
+        f'<div class="piq-day-goal">Goal: {escape(d.practice_goal)}</div>'
+        "</div></li>"
+        for d in sorted(plan.days, key=lambda d: d.day)
+    ]
+    label = f"Week {plan.week_no}, day by day"
+    return f'<ol class="piq-days" aria-label="{label}">{"".join(rows)}</ol>'
+
+
+def minutes_shift_headline(
+    before: Mapping[str, int], after: Mapping[str, int], before_week: int
+) -> str:
+    """The week-over-week chart's takeaway: a new top topic, else the biggest gain and the
+    biggest loss (the planner moves minutes from one topic to another)."""
+    old = {t: before.get(t, 0) for t in TOPICS}
+    new = {t: after.get(t, 0) for t in TOPICS}
+    change = {t: new[t] - old[t] for t in TOPICS}
+    leaders = [t for t in TOPICS if new[t] == max(new.values())]
+    if len(leaders) == 1 and old[leaders[0]] < max(old.values()):
+        return f"{leaders[0]} now gets the most minutes"
+    gain = max(TOPICS, key=lambda t: change[t])
+    loss = min(TOPICS, key=lambda t: change[t])
+    since = f"than in week {before_week}"
+    if change[gain] > 0 and change[loss] < 0:
+        return f"{gain} gets {change[gain]} more minutes and {loss} {-change[loss]} fewer {since}"
+    if change[gain] > 0:
+        return f"{gain} gets {change[gain]} more minutes {since}"
+    if change[loss] < 0:
+        return f"{loss} gets {-change[loss]} fewer minutes {since}"
+    return f"The same minutes per topic as in week {before_week}"
+
+
+def minutes_shift_alt(
+    before: Mapping[str, int], after: Mapping[str, int], weeks: tuple[int, int]
+) -> str:
+    """The same chart in words, for screen readers."""
+    pairs = ", ".join(f"{t} {before.get(t, 0)} to {after.get(t, 0)}" for t in TOPICS)
+    return f"Minutes per topic, week {weeks[0]} to week {weeks[1]}: {pairs}"
+
+
+def weakness_source() -> str:
+    """Where the weakness numbers come from: the adaptive loop, in one sentence."""
+    return (
+        "Weakness is 100% minus your average over the last three quizzes on a topic. Before "
+        "a topic's first quiz it is 70% if your resume lacks it, else 40%."
+    )
+
+
 def quiz_review_md(quiz: QuizSet, chosen: list[int | None]) -> str:
     blocks = []
     for i, (q, a) in enumerate(zip(quiz.questions, chosen, strict=True), 1):
@@ -154,14 +221,6 @@ def evaluation_md(ev: AnswerEvaluation) -> str:
         f"**Strengths**\n{_bullets(ev.strengths)}\n\n"
         f"**Improve**\n{_bullets(ev.improvements)}\n\n"
         f"**Model answer**\n{quote}"
-    )
-
-
-def weakness_table(weakness: Mapping[str, float]) -> pd.DataFrame:
-    return (
-        pd.DataFrame({"Weakness": dict(weakness)})
-        .rename_axis("Topic")
-        .sort_values("Weakness", ascending=False)
     )
 
 

@@ -230,6 +230,44 @@ def test_plan_generates_next_week_and_compares(seeded):
     assert at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")
 
 
+def test_plan_shows_the_latest_week_day_by_day_with_why_and_the_shift(seeded):
+    at = _app(seeded, "views/plan.py")
+    [week] = at.get("button_group")  # the week selector (pills)
+    assert week.value == 4 and week.options[0] == "Week 1"
+    assert "Week 4" in [s.value for s in at.subheader]
+    [why] = at.info
+    assert why.value.startswith("**Why this plan.** Seeded plan for week 4")
+    [days] = [h for h in at.get("html") if '<ol class="piq-days"' in h.proto.body]
+    assert days.proto.body.count('<li class="piq-day">') == 7
+    shift = "OS gets 240 more minutes and DBMS 360 fewer than in week 3"
+    assert shift in [s.value for s in at.subheader]
+    assert "Hollow grey dot: week 3" in _captions(at)
+    assert "last three quizzes" in _captions(at)  # where weakness comes from
+    assert not at.dataframe  # the table is one toggle away
+
+
+def test_plan_week_one_has_no_shift_and_table_view_shows_the_table(seeded):
+    at = _app(seeded, "views/plan.py")
+    at.get("button_group")[0].set_value(1).run()
+    assert "Week 1" in [s.value for s in at.subheader]
+    assert not any("than in week" in s.value for s in at.subheader)  # nothing to compare
+    at.toggle[0].set_value(True).run()
+    assert list(at.dataframe[0].value.columns) == ["Topic", "Subtopics", "Minutes", "Goal"]
+    assert not [h for h in at.get("html") if '<ol class="piq-days"' in h.proto.body]
+
+
+def test_plan_without_a_plan_yet_invites_week_one():
+    from piq import services
+
+    sid, _ = services.onboard(
+        "UI0005", "Java Backend Developer", services.load_sample("java_backend_fresher.txt")
+    )
+    at = _app(sid, "views/plan.py")
+    assert "No plan yet" in [s.value for s in at.subheader]
+    assert _button(at, "Generate week 1 plan")
+    assert at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")  # weakness still shown
+
+
 def test_quiz_generate_answer_and_review(seeded):
     at = _app(seeded, "views/quiz.py")
     _button(at, "Generate quiz").click().run()

@@ -7,6 +7,7 @@ scheme's chartCategoricalColors, which config.toml lists in TOPICS order. OS is 
 the same colour in every chart. Neutral marks keep the theme's defaults.
 """
 
+import math
 from collections.abc import Mapping
 
 import altair as alt
@@ -72,6 +73,53 @@ def weakness_bars(weakness: Mapping[str, float], title: str | None = None) -> al
     )
     layered = alt.layer(bars, threshold).properties(height=ROW_PX * len(df))
     return themed(layered.properties(title=title) if title else layered)
+
+
+def minutes_shift(
+    before: Mapping[str, int], after: Mapping[str, int], weeks: tuple[int, int]
+) -> alt.LayerChart:
+    """Minutes per topic in two weeks as a dumbbell: a hollow grey dot for the earlier week, a
+    filled dot in the topic's colour for the later one, joined by a line, so the shift reads
+    as movement and the weeks differ by shape, not colour alone. Axis labels carry the
+    numbers ("OS  600 → 840"); the busiest topic comes first."""
+    df = pd.DataFrame(
+        {
+            "topic": list(TOPICS),
+            "before": [int(before.get(t, 0)) for t in TOPICS],
+            "after": [int(after.get(t, 0)) for t in TOPICS],
+        }
+    )
+    df["change"] = df["after"] - df["before"]
+    df["label"] = [f"{t}  {b} → {a}" for t, b, a in zip(df.topic, df.before, df.after, strict=True)]
+    order = df.sort_values(["after", "before"], ascending=False, kind="stable")["label"].tolist()
+    y = alt.Y(
+        "label:N",
+        sort=order,
+        title=None,
+        axis=alt.Axis(labelFontSize=14, labelPadding=8, labelLimit=0),  # never cut a number
+    )
+    # Three ticks in whole hours (0, half, top) stay apart on a phone.
+    top = max(60, 60 * math.ceil(int(df[["before", "after"]].max().max()) / 60))
+    scale = alt.Scale(domain=[0, top])
+    axis = alt.Axis(title=None, format="d", values=[0, top // 2, top])
+    tooltip = [
+        alt.Tooltip("topic:N", title="Topic"),
+        alt.Tooltip("before:Q", title=f"Week {weeks[0]} (min)"),
+        alt.Tooltip("after:Q", title=f"Week {weeks[1]} (min)"),
+        alt.Tooltip("change:Q", title="Change (min)", format="+d"),
+    ]
+    base = alt.Chart(df).encode(y=y, tooltip=tooltip)
+    line = base.mark_rule(strokeWidth=2, color=NEUTRAL, opacity=0.6).encode(
+        x=alt.X("before:Q", scale=scale, axis=axis), x2="after:Q"
+    )
+    earlier = base.mark_point(size=110, strokeWidth=2, color=NEUTRAL, filled=False).encode(
+        x=alt.X("before:Q", scale=scale, axis=axis)
+    )
+    later = base.mark_circle(size=150, opacity=1).encode(
+        x=alt.X("after:Q", scale=scale, axis=axis),
+        color=alt.Color("topic:N", scale=TOPIC_SCALE, legend=None),
+    )
+    return themed(alt.layer(line, earlier, later).properties(height=ROW_PX * len(df)))
 
 
 def readiness_ring(score: int) -> alt.Chart:
