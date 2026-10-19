@@ -165,6 +165,15 @@ def results_caption(summary: Mapping) -> str:
     return " · ".join(parts)
 
 
+def results_note(summary: Mapping) -> str:
+    """How to read the rates; names the duplicate-rate exception only when that row exists."""
+    exception = " except the duplicate rate" if summary.get("consecutive") else ""
+    return (
+        f"Rates run from 0 to 1; higher is better{exception}. "
+        "Confirm quiz validity by hand with evaluation/results/questions.csv."
+    )
+
+
 def _md_table(df: pd.DataFrame) -> str:
     head = f"| {df.index.name or ''} | " + " | ".join(df.columns) + " |"
     rule = "|---" * (len(df.columns) + 1) + "|"

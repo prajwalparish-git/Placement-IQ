@@ -20,10 +20,7 @@ st.caption(formatter.results_caption(summary))
 table = formatter.results_table(summary)
 st.dataframe(table.round(2), width="stretch")
 st.bar_chart(table.drop(index=formatter.ATTEMPTS, errors="ignore"), horizontal=True, stack=False)
-st.caption(
-    "Rates run from 0 to 1; higher is better except the duplicate rate. "
-    "Confirm quiz validity by hand with evaluation/results/questions.csv."
-)
+st.caption(formatter.results_note(summary))
 
 if stats := summary.get("agent_stats"):
     st.subheader("Agent cost during the evaluation")

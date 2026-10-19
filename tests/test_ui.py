@@ -267,6 +267,23 @@ def test_results_page_without_and_with_results(tmp_path, monkeypatch):
     assert len(at.dataframe) == 2  # metrics table + agent cost
 
 
+def test_results_note_mentions_the_duplicate_rate_only_when_it_is_shown(tmp_path, monkeypatch):
+    import json
+
+    from piq import services
+    from tests import factories as f
+
+    monkeypatch.setattr(services, "RESULTS_DIR", tmp_path)
+    for consecutive, shown in ((None, False), (f.eval_summary()["consecutive"], True)):
+        summary = f.eval_summary(consecutive=consecutive)
+        (tmp_path / "summary.json").write_text(json.dumps(summary))
+        at = _app(page="views/results.py")
+        rows = " ".join(at.dataframe[0].value.index)
+        captions = " ".join(c.value for c in at.caption)
+        assert ("Duplicate rate" in rows) == shown
+        assert ("duplicate rate" in captions) == shown
+
+
 def test_seed_demo_fills_an_empty_database_on_start(monkeypatch):
     import streamlit as st
 

@@ -157,6 +157,12 @@ def test_results_markdown_and_caption():
     assert "not meaningful" in formatter.results_md(f.eval_summary(mode="mock"))
 
 
+def test_results_note_names_the_duplicate_rate_only_with_that_row():
+    assert "except the duplicate rate" in formatter.results_note(f.eval_summary())
+    note = formatter.results_note(f.eval_summary(consecutive=None))
+    assert "duplicate" not in note and note.startswith("Rates run from 0 to 1; higher is better.")
+
+
 def test_results_svg_is_well_formed_with_one_bar_per_measured_value():
     import xml.etree.ElementTree as ET
 
