@@ -77,23 +77,31 @@ def _bullets(items: Iterable[str], empty: str = "_none_") -> str:
     return "\n".join(f"- {md_escape(i)}" for i in items) if items else empty
 
 
-def _joined(items: Iterable[str]) -> str:
-    return md_escape(", ".join(items)) or "_none_"
+# --- profile (Onboard) ----------------------------------------------------------------
 
 
-def profile_md(p: StudentProfile) -> str:
-    return (
-        f"### {md_escape(p.name)} — {md_escape(p.target_role)}\n"
-        f"**Readiness:** {p.readiness_score}/100 "
-        f"({len(p.matched_skills)} of {len(p.matched_skills) + len(p.missing_skills)} "
-        "required skills evidenced)\n\n"
-        f"**Education:** {md_escape(p.education)}\n\n"
-        f"**Matched skills:** {_joined(p.matched_skills)}\n\n"
-        f"**Missing skills:** {_joined(p.missing_skills)}\n\n"
-        f"**Projects**\n{_bullets(p.projects)}\n\n"
-        f"**Internships**\n{_bullets(p.internships)}\n\n"
-        f"**Resume fixes**\n{_bullets(p.resume_feedback)}"
-    )
+def readiness_summary(p: StudentProfile) -> str:
+    total = len(p.matched_skills) + len(p.missing_skills)
+    role = md_escape(p.target_role)
+    return f"{len(p.matched_skills)} of the {total} skills {role} needs are on the resume."
+
+
+def skill_chips(skills: Iterable[str], present: bool) -> str:
+    """Skills as badges: a filled check for one on the resume, an empty circle for a
+    missing one, so the difference never rests on colour alone."""
+    state = "done" if present else "todo"
+    return " ".join(status_md(state, s) for s in skills)
+
+
+def list_md(items: Iterable[str], empty: str) -> str:
+    return _bullets(items, f":gray[{empty}]")
+
+
+def fixes_md(fixes: Iterable[str]) -> str:
+    """Resume fixes as a to-do checklist. The boxes are grey: a list marker, not a control
+    that looks clickable."""
+    lines = [f":gray[:material/check_box_outline_blank:] {md_escape(f)}" for f in fixes]
+    return "  \n".join(lines) or ":gray[Nothing to fix.]"
 
 
 def plan_table(plan: WeeklyPlan) -> pd.DataFrame:

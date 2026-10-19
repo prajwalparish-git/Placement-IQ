@@ -42,6 +42,18 @@ def test_weakness_bars_take_an_optional_takeaway_title():
     assert spec["title"] == "OS is your weakest topic"
 
 
+def test_readiness_ring_fills_the_score_in_the_brand_teal():
+    spec = charts.readiness_ring(42).to_dict()
+    assert spec["mark"]["type"] == "arc"
+    assert spec["datasets"][spec["data"]["name"]] == [
+        {"part": "Ready", "value": 42, "order": 0},
+        {"part": "To go", "value": 58, "order": 1},
+    ]
+    scale = spec["encoding"]["color"]["scale"]
+    assert scale == {"domain": ["Ready", "To go"], "range": [charts.BRAND_COLOR, charts.NEUTRAL]}
+    assert "tooltip" in spec["encoding"]
+
+
 def test_shared_theme_sets_fonts_and_drops_the_frame():
     config = charts.weakness_bars(WEAKNESS, "t").to_dict()["config"]
     assert config["font"] == "Atkinson Hyperlegible Next"

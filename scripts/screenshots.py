@@ -6,8 +6,8 @@
 For each colour scheme it starts the app on a fresh, isolated database (MOCK_MODE and
 SEED_DEMO on, the developer's .env ignored, Groq never contacted) and captures:
   * every page with no student selected and with the demo student selected
-  * key in-flow states: a new plan week, the critic loop, quiz taking and review,
-    an interview mid-session and complete
+  * key in-flow states: an onboarding error, a new plan week, the critic loop, quiz
+    taking and review, an interview mid-session and complete
 at each viewport width, as <page>-<state>-<width>-<scheme>.png, compressed to about
 250 KB or less. Browser console errors are printed and make the run exit with status 1.
 
@@ -59,6 +59,7 @@ PAGES = (
 )
 STATES = ("nostudent", "demo")
 FLOWS = (
+    ("onboard", "error"),
     ("plan", "newweek"),
     ("quiz", "critic"),
     ("quiz", "taking"),
@@ -77,12 +78,13 @@ MARKERS = {
     ("interview", "nostudent"): "Select a student",
     ("dashboard", "nostudent"): "Select a student",
     ("results", "nostudent"): "Baseline",
-    ("onboard", "demo"): "Readiness:",
+    ("onboard", "demo"): "Missing for this role",
     ("plan", "demo"): "Generate week 5 plan",
     ("quiz", "demo"): "Generate quiz",
     ("interview", "demo"): "Start session",
     ("dashboard", "demo"): "Quizzes taken",
     ("results", "demo"): "Baseline",
+    ("onboard", "error"): "Upload a resume or pick a sample",
     ("plan", "newweek"): "Generate week 6 plan",
     ("quiz", "critic"): "Critic rejected the quiz",
     ("quiz", "taking"): "Submit",
@@ -366,6 +368,13 @@ def capture_scheme(
                 _goto(page, p.title)
                 _capture_widths(page, out, p.slug, state, widths, scheme, written)
 
+        if "onboard" in only:
+            where["step"] = "onboard: re-profile without a resume"
+            _goto(page, "Onboard")
+            page.get_by_text("Re-profile with a new resume").click()
+            page.wait_for_timeout(400)
+            _click(page, "Analyse resume")
+            _capture_widths(page, out, "onboard", "error", widths, scheme, written)
         if "plan" in only:
             where["step"] = "plan: generate a new week"
             _goto(page, "Weekly plan")

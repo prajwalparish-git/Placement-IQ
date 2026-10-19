@@ -28,6 +28,10 @@ def _md(at: AppTest) -> str:
     return "\n".join(m.value for m in at.markdown)
 
 
+def _captions(at: AppTest) -> str:
+    return "\n".join(c.value for c in at.caption)
+
+
 @pytest.fixture
 def seeded() -> str:
     seed.main()
@@ -155,8 +159,41 @@ def test_onboard_with_sample_resume():
     _button(at, "Analyse resume").click().run()
     assert not at.exception
     assert at.session_state["student_id"]
-    assert "Readiness:" in _md(at)
+    [readiness] = [m for m in at.metric if m.label == "Readiness"]  # was "Readiness:" text
+    assert readiness.value.endswith("/100")
+    assert any(s.label.startswith("Profile agent — last run") for s in at.status)
     assert [s["usn"] for s in db.list_students()] == ["UI0001"]
+
+
+def test_onboard_without_a_student_explains_what_happens_next():
+    at = _app(page="views/onboard.py")
+    assert [t.value for t in at.title] == ["Onboard"]
+    assert [s.value for s in at.subheader] == ["New student", "What happens next"]
+    assert all(f"**{n}.**" in _md(at) for n in (1, 2, 3))
+    assert not at.metric  # no profile yet, so no score
+
+
+def test_onboard_profile_shows_readiness_skills_and_fixes(seeded):
+    at = _app(seeded, "views/onboard.py")
+    assert [s.value for s in at.subheader] == ["Demo Student", "From the resume"]
+    [readiness] = [m for m in at.metric if m.label == "Readiness"]
+    assert readiness.value == "42/100"
+    assert at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")  # the ring
+    md = _md(at)
+    # Matched and missing skills differ by icon and words, not by colour alone.
+    assert ":green-badge[:material/check_circle: Java]" in md
+    assert ":gray-badge[:material/radio_button_unchecked: Operating Systems]" in md
+    assert "5 of the 12 skills Java Backend Developer needs are on the resume." in _captions(at)
+    assert "**Internships**  \n:gray[None listed.]" in md
+    assert "**Resume fixes**  \n:gray[:material/check_box_outline_blank:] Add measurable" in md
+    assert at.expander[0].label == "Re-profile with a new resume"  # one click away
+
+
+def test_onboard_reprofile_without_a_resume_shows_the_error(seeded):
+    at = _app(seeded, "views/onboard.py")
+    _button(at, "Analyse resume").click().run()
+    assert any("Upload a resume or pick a sample" in e.value for e in at.error)
+    assert [s["usn"] for s in db.list_students()] == [seed.USN]  # nothing saved
 
 
 def test_onboard_rejects_missing_usn():

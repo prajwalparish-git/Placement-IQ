@@ -4,10 +4,22 @@ from piq import formatter
 from tests import factories as f
 
 
-def test_profile_md_shows_score_and_handles_empty_sections():
-    md = formatter.profile_md(f.profile(projects=[], internships=[]))
-    assert "**Readiness:** 50/100 (2 of 4 required skills evidenced)" in md
-    assert md.count("_none_") == 2
+def test_profile_pieces_show_counts_and_handle_empty_sections():
+    p = f.profile(projects=[], internships=[])
+    assert formatter.readiness_summary(p) == (
+        "2 of the 4 skills Java Backend Developer needs are on the resume."
+    )
+    assert formatter.skill_chips(["Java"], present=True) == (
+        ":green-badge[:material/check_circle: Java]"
+    )
+    assert formatter.skill_chips(["Docker"], present=False) == (
+        ":gray-badge[:material/radio_button_unchecked: Docker]"
+    )
+    assert formatter.list_md([], "None listed.") == ":gray[None listed.]"
+    assert formatter.fixes_md(["Add numbers."]) == (
+        ":gray[:material/check_box_outline_blank:] Add numbers\\."
+    )
+    assert formatter.fixes_md([]) == ":gray[Nothing to fix.]"
 
 
 def test_plan_table_is_ordered_by_day():
@@ -109,7 +121,10 @@ def test_markdown_builders_escape_every_dynamic_value(hostile):
     )
     profile = f.profile(name=hostile, projects=[hostile], resume_feedback=[hostile])
     for md in (
-        formatter.profile_md(profile),
+        formatter.readiness_summary(f.profile(role=hostile)),
+        formatter.skill_chips([hostile], present=False),
+        formatter.list_md(profile.projects, "none"),
+        formatter.fixes_md(profile.resume_feedback),
         formatter.quiz_review_md(quiz, [1]),
         formatter.evaluation_md(ev),
         formatter.results_caption(f.eval_summary(stopped_early=hostile)),

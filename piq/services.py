@@ -27,6 +27,7 @@ from piq.config import (
     WEAK_THRESHOLD,
 )
 from piq.graph import OnEvent
+from piq.resume import ResumeError as ResumeError  # re-exported: views catch it via services
 from piq.resume import extract_text
 from piq.schemas import AnswerEvaluation, InterviewTurn, QuizSet, StudentProfile, WeeklyPlan
 

@@ -12,7 +12,7 @@ from collections.abc import Mapping
 import altair as alt
 import pandas as pd
 
-from piq.config import PALETTE, TOPICS, WEAK_THRESHOLD
+from piq.config import BRAND_COLOR, PALETTE, TOPICS, WEAK_THRESHOLD
 
 FONT = "Atkinson Hyperlegible Next"
 HEADING_FONT = "Bricolage Grotesque"
@@ -72,3 +72,26 @@ def weakness_bars(weakness: Mapping[str, float], title: str | None = None) -> al
     )
     layered = alt.layer(bars, threshold).properties(height=ROW_PX * len(df))
     return themed(layered.properties(title=title) if title else layered)
+
+
+def readiness_ring(score: int) -> alt.Chart:
+    """Readiness out of 100 as a ring: the filled arc in the brand teal (>= 3:1 in both
+    schemes), the rest a faint track. The number itself is shown next to it as text."""
+    df = pd.DataFrame({"part": ["Ready", "To go"], "value": [score, 100 - score], "order": [0, 1]})
+    ring = (
+        alt.Chart(df)
+        .mark_arc(innerRadius=34, outerRadius=52)
+        .encode(
+            theta=alt.Theta("value:Q", stack=True),
+            order=alt.Order("order:Q"),
+            color=alt.Color(
+                "part:N",
+                scale=alt.Scale(domain=["Ready", "To go"], range=[BRAND_COLOR, NEUTRAL]),
+                legend=None,
+            ),
+            opacity=alt.condition(alt.datum.part == "Ready", alt.value(1.0), alt.value(0.25)),
+            tooltip=[alt.Tooltip("part:N", title=" "), alt.Tooltip("value:Q", title="Points")],
+        )
+        .properties(width=112, height=112)
+    )
+    return themed(ring)
