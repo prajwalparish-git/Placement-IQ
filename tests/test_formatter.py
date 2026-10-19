@@ -387,7 +387,38 @@ def test_results_markdown_and_caption():
 def test_results_note_names_the_duplicate_rate_only_with_that_row():
     assert "except the duplicate rate" in formatter.results_note(f.eval_summary())
     note = formatter.results_note(f.eval_summary(consecutive=None))
-    assert "duplicate" not in note and note.startswith("Rates run from 0 to 1; higher is better.")
+    assert "duplicate" not in note
+    assert note.startswith("In the table, rates run from 0 to 1; higher is better.")
+
+
+def test_results_metrics_define_each_rate_and_its_direction():
+    metrics = formatter.results_metrics(f.eval_summary())
+    assert [m.name for m in metrics] == [
+        "Plan valid rate",
+        "Quiz valid rate",
+        "Weak-topic share of minutes",
+        "Repeated questions over 5 quizzes",
+        "Interview follow-up relevance",
+    ]
+    assert [m.higher_is_better for m in metrics] == [True, True, True, False, True]
+    assert all(m.definition.endswith(".") for m in metrics)
+    assert (metrics[0].baseline, metrics[0].placementiq) == (0.4, 1.0)
+    assert metrics[-1].baseline is None  # the baseline has no interviewer
+    minimal = formatter.results_metrics(f.eval_summary(consecutive=None, interviews=None))
+    assert len(minimal) == 3
+    assert formatter.direction_md(True) == ":gray-badge[:material/arrow_upward: Higher is better]"
+    assert formatter.direction_md(False).endswith("Lower is better]")
+
+
+def test_compare_html_draws_both_systems_in_their_colours():
+    plan, *_, followup = formatter.results_metrics(f.eval_summary())
+    html = formatter.compare_html(plan)
+    grey, teal = formatter.SYSTEM_COLORS["Baseline"], formatter.SYSTEM_COLORS["PlacementIQ"]
+    assert f'style="width:40%;background:{grey}"' in html and "<span>40%</span>" in html
+    assert f'style="width:100%;background:{teal}"' in html and "<span>100%</span>" in html
+    assert html.index("Baseline") < html.index("PlacementIQ")
+    missing = formatter.compare_html(followup)
+    assert "<span>Not measured</span>" in missing and missing.count("width:") == 1
 
 
 def test_results_svg_is_well_formed_with_one_bar_per_measured_value():

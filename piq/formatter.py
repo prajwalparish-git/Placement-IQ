@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 
 from piq.config import (
+    BRAND_COLOR,
     DIFFICULTIES,
     DIFFICULTY_DOWN_BELOW,
     DIFFICULTY_UP_AT,
@@ -447,6 +448,100 @@ def results_table(summary: Mapping) -> pd.DataFrame:
     return df.rename_axis("Metric")
 
 
+@dataclass(frozen=True)
+class Metric:
+    """One comparison on the Results page: plain words, its direction, both systems' values
+    (0-1 rates; None = not measured)."""
+
+    name: str
+    definition: str
+    higher_is_better: bool
+    baseline: float | None
+    placementiq: float | None
+
+
+# The two systems keep one colour each on the Results page (never a topic colour): a grey
+# and the brand teal, both >= 3:1 on either background.
+SYSTEM_COLORS = {"Baseline": PALETTE["light"]["border"], "PlacementIQ": BRAND_COLOR}
+
+
+def results_metrics(summary: Mapping) -> list[Metric]:
+    """The measured rates of a run_eval summary, each with its definition and direction."""
+    b, p = summary.get("baseline") or {}, summary.get("placementiq") or {}
+    out = [
+        Metric(
+            "Plan valid rate",
+            "Share of weekly plans that pass every plan check: seven days for the right week, "
+            "weak topics included with at least half the minutes, more minutes for weaker topics.",
+            True,
+            b.get("plan_valid_rate"),
+            p.get("plan_valid_rate"),
+        ),
+        Metric(
+            "Quiz valid rate",
+            "Share of quizzes in which every question passes the question checks and the critic.",
+            True,
+            b.get("quiz_valid_rate"),
+            p.get("quiz_valid_rate"),
+        ),
+        Metric(
+            "Weak-topic share of minutes",
+            "Average share of a week's study time that goes to the student's weak topics.",
+            True,
+            b.get("avg_weak_share"),
+            p.get("avg_weak_share"),
+        ),
+    ]
+    if c := summary.get("consecutive"):
+        out.append(
+            Metric(
+                f"Repeated questions over {c['quizzes_per_topic']} quizzes",
+                f"Share of questions that repeat an earlier one when a topic is quizzed "
+                f"{c['quizzes_per_topic']} times in a row.",
+                False,
+                c["baseline_duplicate_rate"],
+                c["placementiq_duplicate_rate"],
+            )
+        )
+    if iv := summary.get("interviews"):
+        out.append(
+            Metric(
+                "Interview follow-up relevance",
+                "Share of follow-up questions that build on the candidate's last answer, as "
+                "decided by a judge model. The baseline has no interviewer, so it is not measured.",
+                True,
+                None,
+                iv["followup_relevance"],
+            )
+        )
+    return out
+
+
+def direction_md(higher_is_better: bool) -> str:
+    """Which way is good, as a badge with an arrow and words."""
+    if higher_is_better:
+        return ":gray-badge[:material/arrow_upward: Higher is better]"
+    return ":gray-badge[:material/arrow_downward: Lower is better]"
+
+
+def compare_html(metric: Metric) -> str:
+    """Both systems' values as labelled bars in their system colours (styled by app.css);
+    a value that was not measured says so instead of drawing an empty bar."""
+    rows = []
+    for system, value in (("Baseline", metric.baseline), ("PlacementIQ", metric.placementiq)):
+        if value is None:
+            bar, shown = "", "Not measured"
+        else:
+            width = round(100 * min(max(float(value), 0.0), 1.0))
+            bar = f'<span style="width:{width}%;background:{SYSTEM_COLORS[system]}"></span>'
+            shown = f"{float(value):.0%}"
+        rows.append(
+            f'<div class="piq-criterion"><span>{system}</span>'
+            f'<span class="piq-bar" aria-hidden="true">{bar}</span><span>{shown}</span></div>'
+        )
+    return f'<div class="piq-criteria">{"".join(rows)}</div>'
+
+
 def results_caption(summary: Mapping) -> str:
     cases = (summary.get("placementiq") or {}).get("cases", 0)
     parts = [f"{md_escape(str(summary.get('mode', '?')))} run", f"{cases} cases"]
@@ -462,7 +557,7 @@ def results_note(summary: Mapping) -> str:
     """How to read the rates; names the duplicate-rate exception only when that row exists."""
     exception = " except the duplicate rate" if summary.get("consecutive") else ""
     return (
-        f"Rates run from 0 to 1; higher is better{exception}. "
+        f"In the table, rates run from 0 to 1; higher is better{exception}. "
         "Confirm quiz validity by hand with evaluation/results/questions.csv."
     )
 

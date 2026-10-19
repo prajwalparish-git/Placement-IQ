@@ -533,11 +533,19 @@ def test_results_page_without_and_with_results(tmp_path, monkeypatch):
     monkeypatch.setattr(services, "RESULTS_DIR", tmp_path)
     at = _app(page="views/results.py")
     assert any("No results yet" in i.value for i in at.info)
+    assert at.code[0].value == "python -m evaluation.run_eval --consecutive 5 --interviews"
 
     (tmp_path / "summary.json").write_text(json.dumps(f.eval_summary(mode="mock")))
     at = _app(page="views/results.py")
     assert any("MOCK_MODE" in w.value for w in at.warning)
     assert len(at.dataframe) == 2  # metrics table + agent cost
+    md = _md(at)
+    assert "**Plan valid rate** :gray-badge[:material/arrow_upward: Higher is better]" in md
+    assert "**Repeated questions over 5 quizzes** :gray-badge[:material/arrow_downward:" in md
+    bars = [h for h in at.get("html") if '<div class="piq-criteria">' in h.proto.body]
+    assert len(bars) == 5 and "Not measured" in bars[-1].proto.body
+    assert {m.label: m.value for m in at.metric} == {"Baseline": "1.00", "PlacementIQ": "1.80"}
+    assert at.expander[0].label == "All numbers as a table"
 
 
 def test_results_note_mentions_the_duplicate_rate_only_when_it_is_shown(tmp_path, monkeypatch):
