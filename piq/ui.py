@@ -22,11 +22,14 @@ FAILED = formatter.FAILED
 USER_ERRORS = (CriticRejected, LLMError, services.ServiceError, ResumeError)
 
 
-def set_student(student_id: str | None, keep_runs: tuple[str, ...] = ()) -> None:
+def set_student(
+    student_id: str | None, keep_runs: tuple[str, ...] = (), *, fresh: bool = False
+) -> None:
     """Make `student_id` current. On a change, drop the previous student's quiz, interview and
     agent step logs, except the logs of `keep_runs` (labels) already made for the new student.
-    """
-    if student_id != st.session_state.get("student_id"):
+    `fresh`: drop them even for the same student (a new profile makes their open quiz and
+    interview stale)."""
+    if fresh or student_id != st.session_state.get("student_id"):
         kept = {RUN_PREFIX + label for label in keep_runs}
         for k in list(st.session_state):
             if k in PER_STUDENT_KEYS or (str(k).startswith(RUN_PREFIX) and k not in kept):

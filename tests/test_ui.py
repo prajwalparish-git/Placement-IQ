@@ -223,6 +223,24 @@ def test_onboarding_a_usn_that_is_taken_asks_before_replacing_that_student(seede
     assert at.session_state["student_id"] == seeded
 
 
+def test_reprofiling_the_selected_student_closes_their_open_quiz_and_interview(seeded):
+    at = _app(seeded, "views/quiz.py")
+    _button(at, "Generate quiz").click().run()
+    at.switch_page("views/interview.py").run()
+    _button(at, "Start session").click().run()
+    assert at.session_state["quiz"] and at.session_state["interview"]
+    at.switch_page("views/onboard.py").run()
+    next(s for s in at.selectbox if s.label.startswith("…or use")).select(
+        "java_backend_fresher.txt"
+    )
+    _button(at, "Analyse resume").click().run()
+    assert not at.exception
+    assert at.session_state["student_id"] == seeded  # the same student, a new profile
+    # Both were built from the old profile, so they close.
+    assert "quiz" not in at.session_state and "interview" not in at.session_state
+    assert any(s.label.startswith("Profile agent — last run") for s in at.status)
+
+
 def test_reprofiling_the_selected_student_needs_no_confirmation(seeded):
     at = _app(seeded, "views/onboard.py")
     next(s for s in at.selectbox if s.label.startswith("…or use")).select(

@@ -65,7 +65,7 @@ def _form(roles: list[str], role_index: int) -> None:
 def _analyse(usn: str, role: str, text: str) -> None:
     result = run_agent("Profile agent", lambda ev: services.onboard(usn, role, text, ev))
     if result:
-        set_student(result[0], keep_runs=("Profile agent",))
+        set_student(result[0], keep_runs=("Profile agent",), fresh=True)
         st.rerun()
 
 
