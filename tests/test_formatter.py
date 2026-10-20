@@ -179,10 +179,10 @@ def test_blanks_md_names_the_unanswered_questions():
 def test_quiz_setup_lines_explain_the_hint_and_the_suggestion():
     assert formatter.topic_option("OS", 0.43) == "OS · 43% weak"
     assert formatter.suggestion_md("CN", None, "medium") == (
-        ":primary-badge[:material/recommend: Suggested: medium] No CN quiz yet, so start at medium."
+        ":gray-badge[:material/recommend: Suggested: medium] No CN quiz yet, so start at medium."
     )
     assert formatter.suggestion_md("OS", (80.0, "medium"), "hard") == (
-        ":primary-badge[:material/recommend: Suggested: hard] Your last OS quiz: 80% on medium. "
+        ":gray-badge[:material/recommend: Suggested: hard] Your last OS quiz: 80% on medium. "
         "80% or more moves you up a level; under 50%, down."
     )
 
@@ -478,6 +478,8 @@ def test_telemetry_tables_are_ready_to_read():
     assert df["Failed calls"].tolist()[0] == 2  # an older summary without the count: blank
     assert df["Failed calls"].isna().tolist() == [False, True]
     assert list(formatter.agent_table([]).columns) == list(formatter.AGENT_COLUMNS)
+    older = [{k: v for k, v in stats[0].items() if k != "failures"}]  # summary.json before H6
+    assert "Failed calls" not in formatter.agent_table(older).columns
     rejected = [
         {
             "created_at": "2026-10-19 20:00:00",  # UTC; 01:30 the next day in India
@@ -517,6 +519,7 @@ def test_streak_and_activity_words():
         ":primary[:material/event_available:] Study streak: **3 days** (longest 5 days)."
     )
     assert "No study streak right now; your longest was 1 day." in formatter.streak_md(0, 1)
+    assert formatter.streak_md(6, 6).endswith("Study streak: **6 days**, your longest.")
     assert formatter.activity_headline(0, 0) == "No quizzes or interviews in the last 12 weeks"
     assert formatter.activity_headline(9, 3) == (
         "Active on 9 days in the last 12 weeks; longest streak 3 days"
@@ -549,6 +552,10 @@ def test_results_markdown_and_caption():
     assert formatter.results_caption(stopped).endswith(
         "stopped early (c07: limit); continue with --resume"
     )
+    # The rate limit's wait time was true when the run stopped, not when the page is read.
+    hinted = f.eval_summary(stopped_early="c16: limit reached. Try again in about 291 s.")
+    assert "Try again" not in formatter.results_caption(hinted)
+    assert "stopped early (c16: limit reached\\.); continue" in formatter.results_caption(hinted)
     assert "not meaningful" in formatter.results_md(f.eval_summary(mode="mock"))
 
 

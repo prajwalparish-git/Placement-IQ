@@ -396,9 +396,7 @@ def test_quiz_setup_hints_weakness_and_explains_the_suggestion(seeded):
     assert topic.key == "quiz_topic" and topic.value == "OS"  # the weakest topic leads
     assert topic.options[0] == "OS · 43% weak" and len(topic.options) == 6
     assert difficulty.value == "medium"
-    assert ":primary-badge[:material/recommend: Suggested: medium] Your last OS quiz: 70%" in _md(
-        at
-    )
+    assert ":gray-badge[:material/recommend: Suggested: medium] Your last OS quiz: 70%" in _md(at)
     assert not at.radio  # the setup has no radios: every radio on the next screen is an answer
     topic.set_value("OOP").run()  # 90% on medium last time: the suggestion moves up
     assert at.get("button_group")[1].value == "hard"
@@ -535,7 +533,8 @@ def test_dashboard_renders(seeded):
     assert metrics["Quizzes taken"] == "24"  # seeded quizzes
     assert metrics["Readiness"] == "42/100" and metrics["Interview sessions"] == "2"
     charts = at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")
-    assert len(charts) == 6 + 3  # a sparkline per topic, interviews, plan minutes, activity
+    # A sparkline per topic, readiness (one point), interviews, plan minutes, activity.
+    assert len(charts) == 6 + 4
     assert {m.label for m in at.metric} >= {"Study streak"}
     # Topic mastery: weakest first, each with its weakness and a trend in icon and words.
     lines = [m.value for m in at.markdown if m.value.startswith("**") and " weak" in m.value]
@@ -554,7 +553,7 @@ def test_dashboard_readiness_shows_a_delta_and_trend_only_after_a_second_profile
     [readiness] = [m for m in at.metric if m.label == "Readiness"]
     assert readiness.proto.delta == ""  # one profile: no invented delta
     assert "Readiness is 42/100 from your first profile" in [s.value for s in at.subheader]
-    assert "re-profile with an updated resume" in _captions(at)
+    assert "One profile so far. Re-profile with an updated resume" in _captions(at)
 
     resume = services.load_sample("python_developer.txt")
     services.onboard(seed.USN, "Python Developer", resume)  # a second profile, 73/100

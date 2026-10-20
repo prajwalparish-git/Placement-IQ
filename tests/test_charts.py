@@ -131,7 +131,8 @@ def test_week_mix_stacks_topics_in_order_per_week():
     rows = spec["datasets"][spec["data"]["name"]]
     assert ("Week 2", "CN") not in {(r["week"], r["topic"]) for r in rows}  # no empty segment
     assert {r["topic"]: r["rank"] for r in rows} == {"OS": 2, "DBMS": 1}
-    assert spec["height"] == charts.ROW_PX * 2
+    assert spec["height"] == charts.ROW_PX * 2 + charts.LEGEND_PX  # axis and legend fit inside
+    assert enc["color"]["legend"]["columns"] == 3  # wraps on a phone
 
 
 def test_interview_trend_is_a_0_to_5_line_in_the_brand_teal():
@@ -180,8 +181,13 @@ def test_activity_heatmap_is_a_12_week_calendar_with_neutral_empty_days():
     assert len(rows) == 7 * 11 + 2
     enc = spec["encoding"]
     assert enc["y"]["sort"] == ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    assert enc["color"]["condition"]["value"] == charts.NEUTRAL  # a day without study
-    assert enc["color"]["field"] == "count" and "range" not in enc["color"].get("scale", {})
+    assert enc["color"] == {
+        "condition": {"test": "(datum.count === 0)", "value": charts.NEUTRAL},  # no study
+        "value": charts.BRAND_COLOR,
+    }
+    opacity = enc["opacity"]  # stronger for busier days, never lighter than an empty one
+    assert opacity["condition"]["value"] == 0.18 and opacity["field"] == "count"
+    assert opacity["scale"]["range"] == [0.5, 1]
     assert [t["title"] for t in enc["tooltip"]] == ["Day", "Quizzes and interviews"]
     assert charts.activity_heatmap_spec({date(2026, 10, 19): 2}, today) == charts.to_spec(
         charts.activity_heatmap({date(2026, 10, 19): 2}, today)

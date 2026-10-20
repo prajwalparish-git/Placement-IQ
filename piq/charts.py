@@ -25,6 +25,7 @@ FONT = "Atkinson Hyperlegible Next"
 HEADING_FONT = "Bricolage Grotesque"
 TOPIC_SCALE = alt.Scale(domain=list(TOPICS))
 ROW_PX = 34  # one horizontal bar plus breathing room
+LEGEND_PX = 80  # an x axis and a two-row legend under a chart
 # Marks that must read in either scheme (Vega cannot follow the theme switch for them):
 # this grey keeps >= 3:1 on both page backgrounds.
 NEUTRAL = PALETTE["light"]["border"]
@@ -242,7 +243,8 @@ def week_mix(weeks: Mapping[int, Mapping[str, int]]) -> alt.Chart:
             color=alt.Color(
                 "topic:N",
                 scale=TOPIC_SCALE,
-                legend=alt.Legend(orient="bottom", title=None, direction="horizontal"),
+                # Three columns wrap on a phone, where one row was cut off.
+                legend=alt.Legend(orient="bottom", title=None, columns=3, labelFontSize=13),
             ),
             order=alt.Order("rank:Q"),
             tooltip=[
@@ -251,7 +253,8 @@ def week_mix(weeks: Mapping[int, Mapping[str, int]]) -> alt.Chart:
                 alt.Tooltip("minutes:Q", title="Minutes"),
             ],
         )
-        .properties(height=ROW_PX * len(order))
+        # Streamlit fits the whole chart into `height`, axis and legend included.
+        .properties(height=ROW_PX * len(order) + LEGEND_PX)
     )
     return themed(chart)
 
@@ -339,8 +342,8 @@ def _readiness_trend_json(scores: tuple[int, ...], labels: tuple[str, ...]) -> s
 
 def activity_heatmap(days: Mapping[date, int], today: date, weeks: int = 12) -> alt.Chart:
     """The last `weeks` weeks as a calendar: a column per week (oldest on the left), a row per
-    weekday, each day shaded by how many quizzes and interviews it had (the theme's
-    sequential colours); a day without any is a faint neutral cell."""
+    weekday, each day in the brand teal, stronger the more quizzes and interviews it had; a
+    day without any is a faint neutral cell."""
     first = today - timedelta(days=today.weekday() + 7 * (weeks - 1))  # a Monday
     rows = [
         {
@@ -365,12 +368,18 @@ def activity_heatmap(days: Mapping[date, int], today: date, weeks: int = 12) -> 
                     labelExpr="indexof(['Mon','Wed','Fri'], datum.value) >= 0 ? datum.value : ''"
                 ),
             ),
-            color=alt.condition(
+            # One teal for study, stronger for busier days; a palette ramp put one quiz
+            # lighter than an empty day in light mode.
+            color=alt.condition(alt.datum.count == 0, alt.value(NEUTRAL), alt.value(BRAND_COLOR)),
+            opacity=alt.condition(
                 alt.datum.count == 0,
-                alt.value(NEUTRAL),
-                alt.Color("count:Q", legend=None, scale=alt.Scale(domainMin=1)),
+                alt.value(0.18),
+                alt.Opacity(
+                    "count:Q",
+                    legend=None,
+                    scale=alt.Scale(domain=[1, 3], range=[0.5, 1], clamp=True),
+                ),
             ),
-            opacity=alt.condition(alt.datum.count == 0, alt.value(0.18), alt.value(1.0)),
             tooltip=[
                 alt.Tooltip("date:T", title="Day", format="%a %d %b"),
                 alt.Tooltip("count:Q", title="Quizzes and interviews"),

@@ -34,7 +34,9 @@ def _activity(streak: services.Streak) -> None:
         width="stretch",
         alt=f"Calendar of the last 12 weeks: {formatter.days(recent)} with study.",
     )
-    st.caption("One square per day, a column per week, oldest on the left; darker is busier.")
+    st.caption(
+        "One square per day, a column per week, oldest on the left; a stronger teal is busier."
+    )
 
 
 def _topic_mastery(d: services.Dashboard) -> None:
@@ -66,19 +68,19 @@ def _topic_mastery(d: services.Dashboard) -> None:
 def _readiness(d: services.Dashboard) -> None:
     scores = [r["readiness_score"] for r in d.readiness]
     st.subheader(formatter.readiness_headline(scores), anchor=False)
-    if len(scores) < 2:  # one point is not a trend: say how to get one instead
-        st.caption(
-            "Readiness changes when you re-profile with an updated resume on the Onboard "
-            "page; each profile adds a point here."
-        )
-        return
     labels = [formatter.local_day(r["created_at"]) for r in d.readiness]
     st.vega_lite_chart(
         spec=charts.readiness_trend_spec(scores, labels),
         width="stretch",
         alt="Readiness by profile: " + ", ".join(f"{s} of 100" for s in scores),
     )
-    st.caption("Readiness out of 100 at each profile.")
+    if len(scores) < 2:  # one point is not a trend: say how to get one
+        st.caption(
+            "One profile so far. Re-profile with an updated resume on the Onboard page; "
+            "each profile adds a point here."
+        )
+    else:
+        st.caption("Readiness out of 100 at each profile.")
 
 
 def _interviews(d: services.Dashboard) -> None:

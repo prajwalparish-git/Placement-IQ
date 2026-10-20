@@ -319,7 +319,8 @@ def topic_option(topic: str, weakness: float) -> str:
 
 def suggestion_md(topic: str, last: tuple[float, str] | None, suggested: str) -> str:
     """Why a difficulty is suggested: the latest score on the topic and the rule."""
-    badge = f":primary-badge[:material/recommend: Suggested: {suggested}]"
+    # Grey, not primary: Streamlit draws a primary badge in the dark primary, too faint.
+    badge = f":gray-badge[:material/recommend: Suggested: {suggested}]"
     if last is None:
         return f"{badge} No {topic} quiz yet, so start at {suggested}."
     pct, difficulty = last
@@ -594,6 +595,10 @@ def streak_md(current: int, longest: int) -> str:
             f":primary[:material/event_available:] No study streak right now; your longest "
             f"was {days(longest)}."
         )
+    if current == longest:
+        return (
+            f":primary[:material/event_available:] Study streak: **{days(current)}**, your longest."
+        )
     return (
         f":primary[:material/event_available:] Study streak: **{days(current)}** "
         f"(longest {days(longest)})."
@@ -660,7 +665,10 @@ def agent_table(rows: Iterable[Mapping]) -> pd.DataFrame:
         }
         for r in map(dict, rows)
     ]
-    return pd.DataFrame(data, columns=AGENT_COLUMNS)
+    df = pd.DataFrame(data, columns=AGENT_COLUMNS)
+    if len(df) and df["Failed calls"].isna().all():  # a summary from before failures were counted
+        df = df.drop(columns="Failed calls")
+    return df
 
 
 AGENT_COLUMNS = (
@@ -811,14 +819,17 @@ def compare_html(metric: Metric) -> str:
     return f'<div class="piq-criteria">{"".join(rows)}</div>'
 
 
+_STALE_WAIT = re.compile(r"\s*Try again (in about \d+ s|shortly)\.")
+
+
 def results_caption(summary: Mapping) -> str:
     cases = (summary.get("placementiq") or {}).get("cases", 0)
     parts = [f"{md_escape(str(summary.get('mode', '?')))} run", f"{cases} cases"]
     if summary.get("errors"):
         parts.append(f"{summary['errors']} failed")
     if summary.get("stopped_early"):
-        reason = md_escape(str(summary["stopped_early"]))
-        parts.append(f"stopped early ({reason}); continue with --resume")
+        reason = _STALE_WAIT.sub("", str(summary["stopped_early"])).strip()  # long past
+        parts.append(f"stopped early ({md_escape(reason)}); continue with --resume")
     return " · ".join(parts)
 
 

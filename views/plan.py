@@ -95,11 +95,11 @@ with plan_col:
         with st.container(border=True):
             st.subheader(f"Week {shown.week_no}", anchor=False)
             st.caption(formatter.plan_summary(shown))
-            done = _days_done(sid, shown.week_no, ov.done.get(shown.week_no, set()))
             st.info(
                 f"**Why this plan.** {formatter.md_escape(shown.rationale)}",
                 icon=":material/lightbulb:",
             )
+            done = _days_done(sid, shown.week_no, ov.done.get(shown.week_no, set()))
             if st.toggle("Table view", help="The same seven days as a table."):
                 st.dataframe(formatter.plan_table(shown), width="stretch")
             else:
