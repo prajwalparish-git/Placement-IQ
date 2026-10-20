@@ -29,6 +29,7 @@ from piq.config import (
     RESULTS_DIR,
     TIMEZONE,
     TOPICS,
+    TREND_STEP,
     WEAK_THRESHOLD,
 )
 from piq.graph import OnEvent
@@ -351,6 +352,39 @@ def continue_interview(
 
 
 @dataclass(frozen=True)
+class TopicMastery:
+    """One topic on the dashboard: its quiz scores, weakness now and which way it moves."""
+
+    topic: str
+    scores: list[float]  # attempt order, oldest first
+    weakness: float  # as the next plan sees it (checks.topic_weakness)
+    trend: str  # "improving", "steady", "slipping", or "new" with fewer than two quizzes
+
+
+def score_trend(scores: Sequence[float]) -> str:
+    """The latest score against the mean of up to three before it."""
+    if len(scores) < 2:
+        return "new"
+    before = scores[-4:-1]
+    change = scores[-1] - sum(before) / len(before)
+    if change >= TREND_STEP:
+        return "improving"
+    return "slipping" if change <= -TREND_STEP else "steady"
+
+
+def topic_mastery(profile: StudentProfile, attempts: Sequence[Mapping]) -> list[TopicMastery]:
+    """Every topic, weakest first, from quiz_history rows (oldest first): the same last-three
+    average db.topic_performance takes, computed here so the dashboard needs no extra query."""
+    scores: dict[str, list[float]] = {t: [] for t in TOPICS}
+    for a in attempts:
+        scores[a["topic"]].append(float(a["score_pct"]))
+    recent = {t: round(sum(s[-3:]) / len(s[-3:]), 1) for t, s in scores.items() if s}
+    weakness = checks.topic_weakness(recent, agents.missing_topics(profile))
+    ranked = sorted(TOPICS, key=lambda t: -weakness[t])
+    return [TopicMastery(t, scores[t], weakness[t], score_trend(scores[t])) for t in ranked]
+
+
+@dataclass(frozen=True)
 class Dashboard:
     profile: StudentProfile
     quiz_history: list[sqlite3.Row]
@@ -363,6 +397,10 @@ class Dashboard:
     @property
     def streak(self) -> "Streak":
         return study_streak(self.quiz_history, self.sessions)
+
+    @property
+    def mastery(self) -> list[TopicMastery]:
+        return topic_mastery(self.profile, self.quiz_history)
 
 
 def dashboard(student_id: str, profile: StudentProfile | None = None) -> Dashboard:

@@ -519,6 +519,10 @@ def test_dashboard_renders(seeded):
     charts = at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")
     assert len(charts) == 6 + 3  # a sparkline per topic, interviews, plan minutes, activity
     assert {m.label for m in at.metric} >= {"Study streak"}
+    # Topic mastery: weakest first, each with its weakness and a trend in icon and words.
+    lines = [m.value for m in at.markdown if m.value.startswith("**") and " weak" in m.value]
+    assert lines[0] == "**OS** :gray[· 43% weak · 70% latest]" and len(lines) == 6
+    assert ":green-badge[:material/trending_up: Improving]" in _md(at)
     subheaders = [s.value for s in at.subheader]
     assert "OS is up from 30% to 70%" in subheaders
     assert "Week 4 puts 100% of its minutes on OS" in subheaders

@@ -443,13 +443,23 @@ def evaluation_md(ev: AnswerEvaluation) -> str:
 # --- dashboard ----------------------------------------------------------------------------
 
 
-def topic_scores(rows: Iterable[Mapping]) -> dict[str, list[float]]:
-    """quiz_history rows (oldest first) -> each topic's scores in attempt order, every topic
-    present (empty before its first quiz)."""
-    out: dict[str, list[float]] = {t: [] for t in TOPICS}
-    for r in rows:
-        out.setdefault(r["topic"], []).append(float(r["score_pct"]))
-    return out
+TRENDS = {  # trend -> (badge colour, icon, words): never colour alone
+    "improving": ("green", "trending_up", "Improving"),
+    "steady": ("gray", "trending_flat", "Steady"),
+    "slipping": ("yellow", "trending_down", "Slipping"),
+    "new": ("gray", "more_horiz", "One quiz so far"),
+}
+
+
+def trend_md(trend: str) -> str:
+    color, icon, words = TRENDS[trend]
+    return f":{color}-badge[:material/{icon}: {words}]"
+
+
+def mastery_line(topic: str, weakness: float, scores: Sequence[float]) -> str:
+    """A topic card's first line: the topic, its weakness and its latest score."""
+    latest = f" · {scores[-1]:.0f}% latest" if scores else " · no quiz yet"
+    return f"**{topic}** :gray[· {weakness:.0%} weak{latest}]"
 
 
 def topic_scores_headline(scores: Mapping[str, Sequence[float]]) -> str:

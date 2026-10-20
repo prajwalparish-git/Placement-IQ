@@ -3,7 +3,6 @@ from html import escape
 import pytest
 
 from piq import formatter
-from piq.config import TOPICS
 from tests import factories as f
 
 
@@ -360,15 +359,15 @@ def test_interview_progress_counts_questions(answered, current, shown):
     assert formatter.interview_progress(answered, current, 5) == shown
 
 
-def test_topic_scores_keep_attempt_order_for_every_topic():
-    assert formatter.topic_scores([]) == {t: [] for t in TOPICS}
-    rows = [
-        {"attempted_at": "t1", "topic": "OS", "difficulty": "easy", "score_pct": 40.0},
-        {"attempted_at": "t2", "topic": "DBMS", "difficulty": "easy", "score_pct": 60.0},
-        {"attempted_at": "t3", "topic": "OS", "difficulty": "easy", "score_pct": 80.0},
-    ]
-    scores = formatter.topic_scores(rows)
-    assert scores["OS"] == [40.0, 80.0] and scores["DBMS"] == [60.0] and scores["CN"] == []
+def test_mastery_words_pair_every_trend_with_an_icon_and_words():
+    assert formatter.trend_md("improving") == ":green-badge[:material/trending_up: Improving]"
+    assert formatter.trend_md("slipping") == ":yellow-badge[:material/trending_down: Slipping]"
+    assert formatter.trend_md("steady") == ":gray-badge[:material/trending_flat: Steady]"
+    assert formatter.trend_md("new") == ":gray-badge[:material/more_horiz: One quiz so far]"
+    assert (
+        formatter.mastery_line("OS", 0.3, [40.0, 70.0]) == "**OS** :gray[· 30% weak · 70% latest]"
+    )
+    assert formatter.mastery_line("CN", 0.7, []) == "**CN** :gray[· 70% weak · no quiz yet]"
 
 
 @pytest.mark.parametrize(

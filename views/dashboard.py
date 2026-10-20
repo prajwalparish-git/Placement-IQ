@@ -4,7 +4,6 @@ interview scores), then how the agents and the critic behave, kept apart."""
 import streamlit as st
 
 from piq import charts, formatter, services
-from piq.config import TOPICS
 from piq.ui import Stat, empty_state, page_header, require_profile, stat_row
 
 
@@ -38,24 +37,29 @@ def _activity(streak: services.Streak) -> None:
     st.caption("One square per day, a column per week, oldest on the left; darker is busier.")
 
 
-def _topic_scores(d: services.Dashboard) -> None:
-    scores = formatter.topic_scores(d.quiz_history)
-    st.subheader(formatter.topic_scores_headline(scores), anchor=False)
+def _topic_mastery(d: services.Dashboard) -> None:
+    """Every topic, weakest first: weakness now, which way it moves, and its quiz scores."""
+    mastery = d.mastery
+    st.subheader(
+        formatter.topic_scores_headline({m.topic: m.scores for m in mastery}), anchor=False
+    )
     if not d.quiz_history:
         st.caption("No quizzes yet. Each topic's scores appear here after its first quiz.")
         return
-    st.caption("Quiz scores per topic, oldest to latest, on a 0-100% scale.")
-    for row in (TOPICS[:3], TOPICS[3:]):
-        for column, topic in zip(st.columns(3, gap="small"), row, strict=True):
+    st.caption(
+        "Weakest topic first. Weakness is what the next plan uses; the line is every quiz "
+        "score on the topic, oldest to latest, on a 0-100% scale."
+    )
+    for row in (mastery[:3], mastery[3:]):
+        for column, m in zip(st.columns(3, gap="small"), row, strict=True):
             with column, st.container(border=True, gap="small"):
-                topic_scores = scores[topic]
-                latest = f"{topic_scores[-1]:.0f}% latest" if topic_scores else "No quiz yet"
-                st.markdown(f"**{topic}** :gray[· {latest}]")
-                if topic_scores:
+                st.markdown(formatter.mastery_line(m.topic, m.weakness, m.scores))
+                if m.scores:
+                    st.markdown(formatter.trend_md(m.trend))
                     st.vega_lite_chart(
-                        spec=charts.score_spark_spec(topic, topic_scores),
+                        spec=charts.score_spark_spec(m.topic, m.scores),
                         width="stretch",
-                        alt=f"{topic} quiz scores: " + ", ".join(f"{s:.0f}%" for s in topic_scores),
+                        alt=f"{m.topic} quiz scores: " + ", ".join(f"{s:.0f}%" for s in m.scores),
                     )
 
 
@@ -151,7 +155,7 @@ except services.ServiceError as e:
 
 streak = d.streak
 _kpis(d, streak)
-_topic_scores(d)
+_topic_mastery(d)
 readiness_col, interview_col = st.columns(2, gap="medium")
 with readiness_col, st.container(border=True, height="stretch"):
     _readiness(d)

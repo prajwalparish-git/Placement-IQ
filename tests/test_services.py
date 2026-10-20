@@ -417,3 +417,32 @@ def test_study_streak_combines_quizzes_and_interview_sessions():
     streak = services.study_streak(attempts, sessions, today=_d(20))
     assert (streak.current, streak.longest) == (3, 3)
     assert streak.days == {_d(18): 1, _d(19): 2, _d(20): 1}
+
+
+@pytest.mark.parametrize(
+    ("scores", "trend"),
+    [
+        ([], "new"),
+        ([60.0], "new"),
+        ([40.0, 60.0], "improving"),
+        ([60.0, 60.0, 60.0, 65.0], "steady"),
+        ([80.0, 70.0, 75.0, 60.0], "slipping"),  # 60 against the mean of 80, 70, 75
+        ([10.0, 70.0, 70.0, 70.0, 75.0], "steady"),  # only the three before the latest count
+    ],
+)
+def test_score_trend_compares_the_latest_quiz_with_the_ones_before(scores, trend):
+    assert services.score_trend(scores) == trend
+
+
+def test_topic_mastery_matches_the_planners_weakness_and_ranks_weakest_first():
+    from scripts import seed
+
+    seed.main()
+    sid = next(s["id"] for s in db.list_students() if s["usn"] == seed.USN)
+    profile = services.current_profile(sid)
+    mastery = services.topic_mastery(profile, db.quiz_history(sid))
+    planned = services.plan_overview(sid, profile).weakness  # from db.topic_performance
+    assert {m.topic: m.weakness for m in mastery} == planned
+    assert [m.weakness for m in mastery] == sorted(planned.values(), reverse=True)
+    os_ = next(m for m in mastery if m.topic == "OS")
+    assert os_.scores == [30.0, 40.0, 60.0, 70.0] and os_.trend == "improving"
