@@ -42,8 +42,10 @@ START ─▶ generate ─▶ verify ──approved, or out of retries──▶ E
 | `piq/llm.py` | The only LLM gateway: JSON mode, Pydantic validation, one repair retry, token and latency logging, `RateLimited` errors, mock switch. |
 | `piq/checks.py` | Weakness scoring; deterministic plan, quiz, profile and turn rules; question hashing. |
 | `piq/db.py` + `schema.sql` | All persistence and aggregate queries. |
-| `piq/formatter.py` | Output layer: models and rows to markdown and DataFrames. Pure functions. |
-| `piq/ui.py` | Student selector; `run_agent` shows the critic loop live and keeps the log, failures included, after reruns. |
+| `piq/formatter.py` | Output layer: models and rows to Markdown, escaped HTML, DataFrames and download files (CSV, .ics, notes). Pure functions. |
+| `piq/charts.py` | Altair chart builders (pure, unit-tested on encodings) and their cached Vega-Lite specs for the views. |
+| `piq/ui.py` | Student selector; `run_agent` shows the critic loop live as a step-by-step trail and keeps it, failures included, after reruns; the design-system components (page header, empty state, stat cards, topic chip, status badge). |
+| `static/`, `.streamlit/config.toml` | The design system: light and dark theme tokens, self-hosted fonts, the brand mark and one small stylesheet. |
 | `piq/resume.py` | Extracts text from PDF, DOCX and TXT, with size and empty-text guards. |
 | `scripts/*` | Demo seed, model and quota check, graph export, test-case report. |
 | `evaluation/run_eval.py`, `report.py`, `views/results.py` | Baseline-vs-system comparison (resumable, checkpointed after every case), its report files, and the Results page. |
@@ -56,12 +58,20 @@ START ─▶ generate ─▶ verify ──approved, or out of retries──▶ E
 | Interviewer | large | `InterviewTurn` | one question; not asked before; follow-up/final flags set in code |
 | Evaluator | large | `AnswerEvaluation` | schema only (each score an integer 0–5); overall computed in code |
 
+### UI layer and design system
+- **Shell.** `app.py` loads the stylesheet, sets the logo and favicon, and builds a grouped sidebar navigation: **Prepare** (Home, Onboard, Weekly plan, Quiz, Mock interview) and **Insights** (Dashboard, Results). Under it: the student picker, their readiness and, in mock mode, a quiet badge.
+- **Pages** open with a title, one sentence of purpose and the primary action (`ui.page_header`), and design every state: empty (`ui.empty_state`, including "No student selected"), loading (the live critic trail, skeletons), error (a retry card) and mock.
+- **Rendering.** Text goes through `formatter` (escaped Markdown, or escaped HTML in `st.html` for the plan's day list and the score bars), charts through `charts`. Session state holds typed objects only.
+- **The critic loop is the signature.** Every agent run shows as a timeline (generated, critic rejected with its reasons, regenerated, approved or stopped) that stays visible after reruns.
+- Tokens, type scale, components and chart rules are in [docs/design/DESIGN.md](docs/design/DESIGN.md).
+
 ## 3. How components communicate
 - **Function calls.** Everything in-process is a plain synchronous Python call. The service functions are the API surface. We expose no HTTP routes, because Streamlit is the only client.
 - **External API.** Groq chat completions with `response_format=json_object`, through the `groq` SDK. HTTP 429 and transient errors retry inside the SDK (`max_retries=4`).
   - A 429 that survives those retries becomes `RateLimited` with the server's retry-after hint. The UI shows it, and the evaluation stops early, keeping partial results.
   - A 404 on a model raises a clear "update `.env`" error.
-  - Groq's `json_validate_failed`, an empty reply, is treated as repairable.
+  - Groq's `json_validate_failed`, an empty reply, is treated as repairable; the repair message quotes Groq's own error text.
+  - A call that fails anyway is still logged with its tokens and latency, marked failed.
 - **Events.** `graph.run(..., on_event)` emits "generated", "critic rejected: reasons" and "approved". `ui.run_agent` shows them in an `st.status` box and saves them in session state.
 - **State.** Session state holds typed objects only (`QuizSet`, `QuizResult`, `InterviewSession`). All durable state is in SQLite.
 - **DB calls.** `db.tx()` opens a short-lived connection per call with foreign keys on, committing or rolling back automatically. All queries use parameters.
@@ -102,8 +112,10 @@ students 1─* plans           (week_no, plan_json, rationale)   UNIQUE(student_
 students 1─* quiz_attempts   (topic, difficulty, total, correct, score_pct)
 quiz_attempts 1─* quiz_questions (question_hash, text, correct_index, chosen_index)
 students 1─* interview_turns (session_id, type, question, answer, scores_json, overall)
+students 1─* plan_progress   (week_no, day, done_at)   PRIMARY KEY(student_id, week_no, day)
 agent_logs                   (agent, model, tokens, latency, critic_approved, retry_count, reject_reason)
 ```
+- A failed LLM call or an unjudged draft is an `agent_logs` row whose `reject_reason` starts with `failed: ` and whose `critic_approved` is NULL; rejection rates ignore it and `agent_stats` counts it as a failure. (No status column: existing tables are not altered without a migration.)
 - `students.usn` is the natural key (`NOT NULL UNIQUE`), and `id` is a UUID surrogate. Child rows are deleted with `ON DELETE CASCADE`.
 - Storage rule: agent outputs that are always read whole are stored as JSON. Anything filtered, aggregated or charted gets its own column.
 - Key queries:
@@ -118,13 +130,18 @@ agent_logs                   (agent, model, tokens, latency, critic_approved, re
 3. **Code computes, the LLM writes.** Readiness, missing skills, weakness, weak-topic share, minute ordering, difficulty and the overall score are all deterministic. This makes them explainable, testable and stable from run to run.
 4. **Two-stage critic with per-question repair.** Free deterministic checks run first. The LLM critic judges each question once: verdicts are cached by exact content. A retry replaces only the rejected questions. This was found live: regenerating all five questions on each retry never converged (3 of 3 attempts rejected). Per-question repair passes on attempt 2.
 5. **SQLite history instead of ChromaDB and embeddings.** A student has dozens of turns, not millions, so recent rows fit in the prompt. This avoids torch, a model download and about 2 GB of dependencies.
-6. **`sqlite3`, not SQLAlchemy.** Seven tables of hand-written SQL, with no extra dependency. The SQL is also easy to show in a DBMS review.
+6. **`sqlite3`, not SQLAlchemy.** Eight tables of hand-written SQL, with no extra dependency. The SQL is also easy to show in a DBMS review.
 7. **The `groq` SDK directly.** No `langchain-groq` or `tenacity`: the SDK already provides JSON mode and backoff.
 8. **Model IDs only in `.env`.** `scripts/check_models.py` verifies them before a demo, and a 404 at runtime fails loudly.
 9. **MOCK_MODE is the default.** Mock output goes through the same validation and checks. The quiz's first mock attempt is deliberately flawed so the critic loop shows up offline.
-10. **Streamlit's built-in charts** instead of Plotly; Altair already ships with Streamlit.
+10. **Altair, not Plotly**, because it already ships with Streamlit. Builders return `alt.Chart` and are tested on their encodings; the views render the same charts as plain Vega-Lite built once per distinct data, because layering and validating an Altair chart cost 40-60 ms on every rerun (`docs/performance.md`).
 11. **Formatter as the output layer.** Views stay thin and every rendering decision can be unit-tested.
 12. **Synchronous code only**, avoiding the known Streamlit-plus-asyncio problems.
+13. **Stay on Streamlit for the redesign.** Theme tokens, a few components and one small stylesheet give a professional result without a second frontend, which would split the app and break the services-as-API rule and the headless UI tests.
+14. **Theme first, CSS last.** Everything `config.toml` can express lives there (light and dark); the stylesheet only adds what it cannot (card hairlines, focus rings, the day list and score bars) and selects by `data-testid`, never by generated class names that change between Streamlit versions.
+15. **Topic colours mean topics, status always has words.** Six Okabe-Ito hues, tuned per scheme for contrast, are fixed per topic in every chart and chip; no state relies on colour alone. A test keeps status colours visibly apart from topic colours.
+16. **New features add no LLM calls and, where possible, no queries.** Streak, topic mastery and plan progress reuse rows a page already reads or join onto an existing query.
+17. **Per-student session state is cleared in one place** (`ui.set_student`), on a student change and after a re-profile, so one student's quiz, interview or pending confirmation never shows for another.
 
 ### Complexity
 - **Removed from the original plan:** ChromaDB and sentence-transformers, the Supervisor node, an LLM-computed readiness score, the live model-list fetch at startup, SQLAlchemy alongside raw SQL, `langchain-groq`, `tenacity`, Plotly, a seven-package layout, and a prompt-hash cache (session state already prevents repeat calls).
@@ -141,6 +158,9 @@ agent_logs                   (agent, model, tokens, latency, critic_approved, re
 - Resume text, which is personal data, is sent to a third-party API. Students need to consent.
 - Weakness priors (0.7 for a resume gap, 0.4 otherwise) and the 50% share are heuristics that haven't been validated.
 - The verdict cache lives in memory per process, so it is lost on restart.
+- Streamlit's data grid puts four invisible keyboard stops (its toolbar) on every table; this is left as Streamlit ships it.
+- `scripts/perf.py` measures with AppTest; in its default mode most of each number is AppTest's own per-instance setup (`docs/performance.md`).
+- Activity days count an interview on the day its session started, so a session spanning midnight counts once.
 - No OCR, so scanned PDFs are rejected. No migrations. Timestamps are UTC.
 - On Streamlit Community Cloud the disk resets on restart; `SEED_DEMO=true` recreates the demo student, but other data is lost.
 - The evaluation has n = 20, which is small. Interview follow-up relevance is labelled by hand. Mock-mode results are invalid by design.
