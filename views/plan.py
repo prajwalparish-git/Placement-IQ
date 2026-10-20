@@ -8,6 +8,23 @@ from piq.config import STUDY_TIME, TIMEZONE
 from piq.ui import empty_state, page_header, require_profile, run_agent, show_last_run
 
 
+def _days_done(sid: str, week_no: int, saved: set[int]) -> set[int]:
+    """Tick the days of the week you finished; a change is saved at once."""
+    picked = st.pills(
+        "Days done",
+        list(range(1, 8)),
+        selection_mode="multi",
+        default=sorted(saved),
+        format_func=lambda d: f"Day {d}",
+        key=f"plan_done_{sid}_{week_no}",  # per student: a switch must not carry ticks over
+        help="Home and the Dashboard count the days you mark here.",
+        wrap=True,
+    )
+    if set(picked) != saved:
+        return services.set_days_done(sid, week_no, picked)
+    return saved
+
+
 def _export(plan: services.WeeklyPlan) -> None:
     """The shown week as a calendar file or a table, to keep outside the app."""
     with st.expander("Export this week", icon=":material/download:"):
@@ -78,6 +95,7 @@ with plan_col:
         with st.container(border=True):
             st.subheader(f"Week {shown.week_no}", anchor=False)
             st.caption(formatter.plan_summary(shown))
+            done = _days_done(sid, shown.week_no, ov.done.get(shown.week_no, set()))
             st.info(
                 f"**Why this plan.** {formatter.md_escape(shown.rationale)}",
                 icon=":material/lightbulb:",
@@ -85,7 +103,7 @@ with plan_col:
             if st.toggle("Table view", help="The same seven days as a table."):
                 st.dataframe(formatter.plan_table(shown), width="stretch")
             else:
-                st.html(formatter.plan_days_html(shown))
+                st.html(formatter.plan_days_html(shown, done))
             _export(shown)
 
 with side_col:

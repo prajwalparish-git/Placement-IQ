@@ -305,7 +305,8 @@ def test_plan_generates_next_week_and_compares(seeded):
 
 def test_plan_shows_the_latest_week_day_by_day_with_why_and_the_shift(seeded):
     at = _app(seeded, "views/plan.py")
-    [week] = at.get("button_group")  # the week selector (pills)
+    week, days = at.get("button_group")  # the week selector, then the days marked done
+    assert days.key == f"plan_done_{seeded}_4"
     assert week.value == 4 and week.options[0] == "Week 1"
     assert "Week 4" in [s.value for s in at.subheader]
     [why] = at.info
@@ -327,6 +328,20 @@ def test_plan_week_one_has_no_shift_and_table_view_shows_the_table(seeded):
     at.toggle[0].set_value(True).run()
     assert list(at.dataframe[0].value.columns) == ["Topic", "Subtopics", "Minutes", "Goal"]
     assert not [h for h in at.get("html") if '<ol class="piq-days"' in h.proto.body]
+
+
+def test_plan_days_marked_done_are_saved_and_counted_on_home_and_dashboard(seeded):
+    at = _app(seeded, "views/plan.py")
+    [done] = [b for b in at.get("button_group") if b.key == f"plan_done_{seeded}_4"]
+    assert done.value == []
+    done.set_value([1, 3]).run()
+    assert not at.exception
+    assert dict((p.week_no, d) for p, d in db.plans_with_progress(seeded))[4] == {1, 3}
+    [days] = [h for h in at.get("html") if '<ol class="piq-days"' in h.proto.body]
+    assert days.proto.body.count('<span class="piq-done">Done</span>') == 2
+    for page in ("views/home.py", "views/dashboard.py"):
+        at.switch_page(page).run()
+        assert ":primary[:material/task_alt:] Week 4: 2 of 7 days done." in _md(at)
 
 
 def test_plan_week_exports_as_calendar_and_table(seeded):

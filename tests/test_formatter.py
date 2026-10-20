@@ -111,6 +111,16 @@ def test_plan_days_html_lists_every_day_in_order_with_its_topic_chip():
     assert "a · b" in html and "Goal: g" in html
 
 
+def test_plan_days_html_marks_done_days_in_words():
+    html = formatter.plan_days_html(f.plan(), done={2, 5})
+    assert html.count('<span class="piq-done">Done</span>') == 2
+    day2 = html[html.index(">Day 2<") : html.index(">Day 3<")]
+    assert "Done" in day2 and "Done" not in html[: html.index(">Day 2<")]
+    assert formatter.days_done_md(4, 3) == (
+        ":primary[:material/task_alt:] Week 4: 3 of 7 days done."
+    )
+
+
 @pytest.mark.parametrize("hostile", ["<script>alert(1)</script>", '"><img src=x onerror=alert(1)>'])
 def test_plan_days_html_escapes_model_text(hostile):
     plan = f.plan()

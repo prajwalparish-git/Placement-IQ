@@ -114,13 +114,48 @@ def save_plan(student_id: str, plan: WeeklyPlan, at: str | None = None) -> None:
 
 
 def latest_plan(student_id: str) -> sqlite3.Row | None:
-    """The newest plan's week_no and created_at (UTC), or None before week 1."""
+    """The newest plan's week_no, created_at (UTC) and days_done, or None before week 1."""
     with tx() as c:
         return c.execute(
-            "SELECT week_no, created_at FROM plans WHERE student_id = ? "
-            "ORDER BY week_no DESC LIMIT 1",
+            """SELECT week_no, created_at,
+                      (SELECT COUNT(*) FROM plan_progress pp
+                       WHERE pp.student_id = plans.student_id
+                         AND pp.week_no = plans.week_no) AS days_done
+               FROM plans WHERE student_id = ? ORDER BY week_no DESC LIMIT 1""",
             (student_id,),
         ).fetchone()
+
+
+def plans_with_progress(student_id: str) -> list[tuple[WeeklyPlan, set[int]]]:
+    """Every plan, oldest week first, with the days marked done, in one query."""
+    with tx() as c:
+        rows = c.execute(
+            """SELECT p.plan_json, GROUP_CONCAT(pp.day) AS done FROM plans p
+               LEFT JOIN plan_progress pp
+                 ON pp.student_id = p.student_id AND pp.week_no = p.week_no
+               WHERE p.student_id = ? GROUP BY p.id ORDER BY p.week_no""",
+            (student_id,),
+        ).fetchall()
+    return [
+        (
+            WeeklyPlan.model_validate_json(r["plan_json"]),
+            {int(d) for d in r["done"].split(",")} if r["done"] else set(),
+        )
+        for r in rows
+    ]
+
+
+def set_days_done(student_id: str, week_no: int, days: set[int]) -> None:
+    """Make exactly `days` (1-7) the done days of a week; a day already done keeps its time."""
+    with tx() as c:
+        c.executemany(
+            "DELETE FROM plan_progress WHERE student_id = ? AND week_no = ? AND day = ?",
+            [(student_id, week_no, d) for d in range(1, 8) if d not in days],
+        )
+        c.executemany(
+            "INSERT OR IGNORE INTO plan_progress (student_id, week_no, day) VALUES (?, ?, ?)",
+            [(student_id, week_no, d) for d in sorted(days)],
+        )
 
 
 def list_plans(student_id: str) -> list[WeeklyPlan]:

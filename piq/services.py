@@ -129,19 +129,33 @@ class PlanOverview:
     scores: dict[str, float]
     weakness: dict[str, float]
     next_week: int
+    done: dict[int, set[int]]  # week_no -> days marked done
 
 
 def plan_overview(student_id: str, profile: StudentProfile | None = None) -> PlanOverview:
     """`profile`: the student's current profile when the caller already loaded it."""
     profile = profile or _require_profile(student_id)
-    plans = db.list_plans(student_id)
+    with_progress = db.plans_with_progress(student_id)
+    plans = [p for p, _ in with_progress]
     scores = db.topic_performance(student_id)
     return PlanOverview(
         plans=plans,
         scores=scores,
         weakness=checks.topic_weakness(scores, agents.missing_topics(profile)),
         next_week=plans[-1].week_no + 1 if plans else 1,
+        done={p.week_no: days for p, days in with_progress},
     )
+
+
+def set_days_done(student_id: str, week_no: int, days: Iterable[int]) -> set[int]:
+    """Mark exactly `days` (1-7) of a week done; returns them."""
+    chosen = set(days)
+    if not chosen <= set(range(1, 8)):
+        raise ServiceError("Days run from 1 to 7.")
+    if week_no < 1:
+        raise ServiceError("Weeks start at 1.")
+    db.set_days_done(student_id, week_no, chosen)
+    return chosen
 
 
 def generate_next_plan(student_id: str, on_event: OnEvent | None = None) -> WeeklyPlan:
@@ -388,11 +402,15 @@ def topic_mastery(profile: StudentProfile, attempts: Sequence[Mapping]) -> list[
 class Dashboard:
     profile: StudentProfile
     quiz_history: list[sqlite3.Row]
-    plans: list[WeeklyPlan]
+    plans_done: list[tuple[WeeklyPlan, set[int]]]  # each plan and its days marked done
     sessions: list[sqlite3.Row]
     agent_stats: list[sqlite3.Row]
     rejections: list[sqlite3.Row]
     readiness: list[sqlite3.Row]  # (created_at, readiness_score) per profile, oldest first
+
+    @property
+    def plans(self) -> list[WeeklyPlan]:
+        return [p for p, _ in self.plans_done]
 
     @property
     def streak(self) -> "Streak":
@@ -410,7 +428,7 @@ def dashboard(student_id: str, profile: StudentProfile | None = None) -> Dashboa
         return Dashboard(
             profile=profile,
             quiz_history=db.quiz_history(student_id),
-            plans=db.list_plans(student_id),
+            plans_done=db.plans_with_progress(student_id),
             sessions=db.interview_history(student_id),
             agent_stats=db.agent_stats(),
             rejections=db.recent_rejections(),
@@ -471,6 +489,7 @@ class HomeOverview:
     checklist: list[ChecklistItem]
     recent: list[Activity]
     streak: "Streak"
+    week_done: tuple[int, int] | None  # (latest week, days marked done), None before week 1
 
 
 @dataclass(frozen=True)
@@ -674,6 +693,7 @@ def home(
         checklist=_checklist(profile, latest, len(attempts), len(sessions)),
         recent=_recent(latest, attempts, sessions),
         streak=study_streak(attempts, sessions),
+        week_done=(latest["week_no"], latest["days_done"]) if latest else None,
     )
 
 

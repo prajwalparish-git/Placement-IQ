@@ -123,3 +123,29 @@ def test_agent_log_marking_and_stats():
     assert (stats["evaluator"]["rejections"], stats["evaluator"]["rejection_rate"]) == (0, None)
     [rejection] = db.recent_rejections()
     assert rejection["reject_reason"] == "dup"
+
+
+def test_plan_progress_marks_days_and_joins_onto_the_plans():
+    sid = db.save_profile("P9", f.profile())
+    db.save_plan(sid, f.plan(week=1))
+    db.save_plan(sid, f.plan(week=2))
+    db.set_days_done(sid, 1, {1, 3})
+    with db.tx() as c:
+        first = c.execute(
+            "SELECT done_at FROM plan_progress WHERE week_no = 1 AND day = 1"
+        ).fetchone()["done_at"]
+    db.set_days_done(sid, 1, {1, 4})  # day 3 undone, day 4 added, day 1 kept
+    assert [(p.week_no, done) for p, done in db.plans_with_progress(sid)] == [
+        (1, {1, 4}),
+        (2, set()),
+    ]
+    with db.tx() as c:
+        kept = c.execute(
+            "SELECT done_at FROM plan_progress WHERE week_no = 1 AND day = 1"
+        ).fetchone()["done_at"]
+    assert kept == first  # a day already done keeps its time
+    db.set_days_done(sid, 2, {7})
+    assert (db.latest_plan(sid)["week_no"], db.latest_plan(sid)["days_done"]) == (2, 1)
+    db.delete_student("P9")  # cascades to plan_progress too
+    with db.tx() as c:
+        assert c.execute("SELECT COUNT(*) FROM plan_progress").fetchone()[0] == 0

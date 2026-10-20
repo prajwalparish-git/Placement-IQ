@@ -77,3 +77,13 @@ CREATE TABLE IF NOT EXISTS agent_logs (
 CREATE INDEX IF NOT EXISTS idx_quiz_student_topic ON quiz_attempts (student_id, topic, attempted_at);
 CREATE INDEX IF NOT EXISTS idx_turns_student ON interview_turns (student_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_qq_hash ON quiz_questions (question_hash);
+
+-- Plan days the student marked done (Weekly plan). Added with CREATE TABLE IF NOT EXISTS,
+-- so an existing database gains it without a migration.
+CREATE TABLE IF NOT EXISTS plan_progress (
+    student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    week_no    INTEGER NOT NULL,
+    day        INTEGER NOT NULL CHECK (day BETWEEN 1 AND 7),
+    done_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (student_id, week_no, day)
+);

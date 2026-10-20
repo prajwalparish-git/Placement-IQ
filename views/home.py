@@ -102,6 +102,8 @@ with side:
         total = len(profile.matched_skills) + len(profile.missing_skills)
         st.caption(f"{len(profile.matched_skills)} of {total} required skills are on your resume.")
         st.markdown(formatter.streak_md(overview.streak.current, overview.streak.longest))
+        if overview.week_done:
+            st.markdown(formatter.days_done_md(*overview.week_done))
     with st.container(border=True):
         st.markdown("**Getting started**")
         st.markdown(

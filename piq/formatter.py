@@ -4,7 +4,7 @@ Pure functions, no Streamlit import, so every rendering decision is unit-testabl
 """
 
 import re
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from html import escape
@@ -245,15 +245,17 @@ def plan_ics(
     return ("\r\n".join(_ics_fold(line) for line in lines) + "\r\n").encode("utf-8")
 
 
-def plan_days_html(plan: WeeklyPlan) -> str:
-    """The week day by day: day, topic chip, minutes, subtopics and goal. One escaped HTML
-    list (styled by static/app.css) rather than seven sets of widgets: it reads at any width
-    and costs the page a single element."""
+def plan_days_html(plan: WeeklyPlan, done: Collection[int] = ()) -> str:
+    """The week day by day: day, topic chip, minutes, subtopics, goal and, for a day in
+    `done`, the word "Done". One escaped HTML list (styled by static/app.css) rather than
+    seven sets of widgets: it reads at any width and costs the page a single element."""
     rows = [
         '<li class="piq-day">'
         f'<span class="piq-day-n">Day {d.day}</span><div>'
         f'<div class="piq-day-head">{topic_chip_html(d.topic)}'
-        f'<span class="piq-day-min">{d.duration_min} min</span></div>'
+        f'<span class="piq-day-min">{d.duration_min} min</span>'
+        + ('<span class="piq-done">Done</span>' if d.day in done else "")
+        + "</div>"
         f"<div>{escape(' · '.join(d.subtopics))}</div>"
         f'<div class="piq-day-goal">Goal: {escape(d.practice_goal)}</div>'
         "</div></li>"
@@ -261,6 +263,11 @@ def plan_days_html(plan: WeeklyPlan) -> str:
     ]
     label = f"Week {plan.week_no}, day by day"
     return f'<ol class="piq-days" aria-label="{label}">{"".join(rows)}</ol>'
+
+
+def days_done_md(week_no: int, done: int, total: int = 7) -> str:
+    """A week's progress, in teal with an icon, as streaks and today's focus are."""
+    return f":primary[:material/task_alt:] Week {week_no}: {done} of {total} days done."
 
 
 def minutes_shift_headline(

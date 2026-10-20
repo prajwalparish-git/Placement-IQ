@@ -446,3 +446,17 @@ def test_topic_mastery_matches_the_planners_weakness_and_ranks_weakest_first():
     assert [m.weakness for m in mastery] == sorted(planned.values(), reverse=True)
     os_ = next(m for m in mastery if m.topic == "OS")
     assert os_.scores == [30.0, 40.0, 60.0, 70.0] and os_.trend == "improving"
+
+
+def test_days_done_are_validated_and_reach_the_overviews(student):
+    services.generate_next_plan(student)
+    with pytest.raises(ServiceError, match="1 to 7"):
+        services.set_days_done(student, 1, [0, 8])
+    with pytest.raises(ServiceError, match="start at 1"):
+        services.set_days_done(student, 0, [1])
+    assert services.set_days_done(student, 1, [2, 5, 2]) == {2, 5}
+    assert services.plan_overview(student).done == {1: {2, 5}}
+    assert services.home(student).week_done == (1, 2)
+    assert [(p.week_no, done) for p, done in services.dashboard(student).plans_done] == [
+        (1, {2, 5})
+    ]

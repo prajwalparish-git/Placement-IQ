@@ -106,6 +106,8 @@ def _plans(d: services.Dashboard) -> None:
     st.vega_lite_chart(
         spec=charts.week_mix_spec(weeks), width="stretch", alt=formatter.plan_mix_alt(weeks)
     )
+    week, done = d.plans_done[-1][0].week_no, len(d.plans_done[-1][1])
+    st.markdown(formatter.days_done_md(week, done))
     st.caption("Minutes per week, split by topic.")
 
 

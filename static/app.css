@@ -61,12 +61,7 @@
 
 /* The weekly plan, day by day (formatter.plan_days_html): the day in a fixed column and a
    hairline between days, so seven days scan like a timeline at any width, with no table. */
-[data-testid="stHtml"] .piq-days {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
+[data-testid="stHtml"] .piq-days { list-style: none; margin: 0; padding: 0; }
 [data-testid="stHtml"] .piq-day {
   display: grid;
   grid-template-columns: 4rem 1fr;
@@ -74,17 +69,8 @@
   padding: 0.75rem 0;
   border-top: 1px solid light-dark(#DCE1DE, #2C383B);
 }
-
-[data-testid="stHtml"] .piq-day:first-child {
-  border-top: none;
-  padding-top: 0;
-}
-
-[data-testid="stHtml"] .piq-day-n {
-  font-weight: 700;
-  line-height: 1.9;
-}
-
+[data-testid="stHtml"] .piq-day:first-child { border-top: none; padding-top: 0; }
+[data-testid="stHtml"] .piq-day-n { font-weight: 700; line-height: 1.9; }
 [data-testid="stHtml"] .piq-day-head {
   display: flex;
   flex-wrap: wrap;
@@ -92,16 +78,10 @@
   gap: 0.25rem 0.75rem;
   margin-bottom: 0.25rem;
 }
-
-[data-testid="stHtml"] .piq-day-min {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-[data-testid="stHtml"] .piq-day-goal {
-  color: light-dark(#566461, #A0AEAB);
-  font-size: 0.875rem;
-}
+[data-testid="stHtml"] .piq-day-min { font-weight: 700; font-variant-numeric: tabular-nums; }
+[data-testid="stHtml"] .piq-day-goal { color: light-dark(#566461, #A0AEAB); font-size: 0.875rem; }
+/* A day marked done says so in words, in the teal used for progress (streaks, focus). */
+[data-testid="stHtml"] .piq-done { color: light-dark(#0D6670, #6CCBC4); font-weight: 700; }
 
 /* Interview feedback (formatter.criteria_html): criterion, a small bar, the score. The bar
    is the primary teal (>= 3:1 in both schemes) on a hairline track. */
@@ -112,10 +92,7 @@
   align-items: center;
 }
 
-[data-testid="stHtml"] .piq-criterion {
-  display: contents;
-}
-
+[data-testid="stHtml"] .piq-criterion { display: contents; }
 [data-testid="stHtml"] .piq-bar {
   height: 0.5rem;
   border-radius: 999px;
