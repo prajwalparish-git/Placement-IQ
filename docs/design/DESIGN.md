@@ -149,6 +149,11 @@ their readiness at a glance and, in mock mode, a grey "Mock mode" badge.
 | `topic_chip(topic)` | The topic's colour as a dot next to its name |
 | `status_badge(state, text)` / `formatter.status_md` | Icon plus words for done, to do, warning, error, info |
 | `run_agent` / `show_last_run` | The critic trail (below) |
+| `require_profile()` | A page that needs a student shows "No student selected", how to pick one (naming the phone's sidebar button) and "Open Onboard" |
+| `formatter.plan_days_html` | The week day by day (day, topic chip, minutes, subtopics, goal, "Done"): one escaped `st.html` list instead of seven sets of widgets |
+| `formatter.criteria_html` | Score bars (criterion, bar, "3.4/5"); `compare_html` reuses them for Baseline vs PlacementIQ in the two system colours |
+| `formatter.trend_md`, `days_done_md`, `streak_md` | Trend, weekly progress and streak, each as icon plus words |
+| Grey "Suggested" badge | A recommendation, not a status; Streamlit's primary badge is too faint in dark mode |
 
 **The critic trail.** Each agent run is a status box ("Quiz agent — done", "— failed" or
 "— last run[ failed]", unchanged) holding native timeline steps (`st.status(type="step")`):
@@ -171,14 +176,27 @@ timeline. The box opens by itself after a retry or a failure.
   `charts.NEUTRAL`, a grey that keeps 3:1 on both backgrounds.
 - Direct labels instead of legends where possible, tooltips on every mark, consistent
   formats (`%`, `min`, `/5`) and an `alt` description for screen readers.
+- Builders: `weakness_bars`, `minutes_shift` (a dumbbell: hollow grey dot for the earlier
+  week, filled topic dot for the later one), `readiness_ring`, `score_spark` (one topic
+  each), `week_mix` (stacked minutes per week), `interview_trend` and `readiness_trend`
+  (brand teal: not topics), and `activity_heatmap` (brand teal, stronger for busier days;
+  empty days a faint grey, because a sequential ramp made one quiz lighter than none).
+- Views render `charts.*_spec`: the same chart as plain Vega-Lite, built once per distinct
+  data and cached as JSON text, because layering and validating Altair on every rerun cost
+  40-60 ms a chart. The cache is keyed by the values, never by student.
+- Streamlit fits a whole chart, axes and legend included, into its `height`; a chart with a
+  legend reserves `LEGEND_PX` for it, and a legend wraps in columns on a phone.
 
 ## The stylesheet (`static/app.css`)
 
-Only what the theme cannot express, under 150 lines and 8 KB: hairline card edges, metric
-values in the heading face, a prose measure, visible focus rings and reduced motion. It
-selects by `data-testid` only (never generated class names) and writes colours as
-`light-dark(light, dark)` pairs from `PALETTE`; Streamlit sets `color-scheme` on the app, so
-they follow its own switch. `tests/test_theme.py` enforces all of this.
+Only what the theme cannot express, under 150 lines and 8 KB (118 lines, 4.5 KB): hairline
+card edges, metric values in the heading face, a prose measure, visible focus rings, body-size
+quiz questions with room between options, the readable teal for a selected pill, the plan's
+day list, the score bars and reduced motion. Every selector includes a `data-testid` (our
+own `piq-*` classes appear only beneath `[data-testid="stHtml"]`; never generated class
+names) and colours are `light-dark(light, dark)` pairs from `PALETTE`; Streamlit sets
+`color-scheme` on the app, so they follow its own switch. `tests/test_theme.py` enforces
+all of this.
 
 ## Escaping
 
@@ -198,6 +216,11 @@ builder. Tests feed `*p`, `__init__`, `![x](http://example.com/a.png)` and
 | Keep cards one level deep | Put a card inside a card inside a card |
 | Use Material Symbols | Use emoji as icons |
 
+## Performance
+
+Render time per page before and after the redesign, measured like for like, is in
+[`docs/performance.md`](../performance.md).
+
 ## Screenshot workflow
 
 `python -m scripts.screenshots docs/design/after` captures every page with no student and
@@ -206,11 +229,21 @@ state must show its marker text before it is saved, so a wrong state fails the r
 console errors fail it too. Open the PNGs, critique them against the brief's rubric, fix,
 and capture again. The full folders are git-ignored; a curated set is committed once.
 
+## Pages
+
+| Page | Layout | States |
+|---|---|---|
+| Home | Today's focus, weakness chart; readiness, streak and week progress, checklist, recent activity | The loop explained (no student), finish onboarding, skeleton, retry card |
+| Onboard | Readiness card (ring, skill chips) and resume card; re-profile and delete one click away | New student form with three next steps, taken-USN confirmation, errors in the form |
+| Weekly plan | Week pills; the week (why, days done, day list or table, export); shift and weakness charts | No student, no plan yet, the planner's trail |
+| Quiz | Setup by weakness with a suggested difficulty; question cards under the critic trail; score card and marked review | No student, blank answers warning, failed generation kept visible |
+| Mock interview | Type with descriptions; chat with progress, scored feedback and the trail; session summary | No student, retry after a failed follow-up |
+| Dashboard | KPIs; topic mastery; readiness and interviews; plan minutes and activity; then the agents and critic | No student, each section's own empty text, retry card |
+| Results | A card per metric with its definition and direction; the cost card; the table and agent cost | No results (the exact command), mock warning, stopped early |
+
 ## Known limitations
 
 - Streamlit's data grid puts four keyboard stops (its toolbar) on every table, which stay
   invisible until hovered. This is left as Streamlit ships it.
-- Until Phase 3 rebuilds them with `piq/charts.py`, the older pages' built-in charts take the
-  topic palette for series that are not topics (weeks, systems).
 - The trail's approved step uses the same neutral check as a draft: Streamlit sets step icons
   from the state (complete or error) and allows no custom icon.
