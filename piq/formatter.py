@@ -368,6 +368,77 @@ def quiz_review(quiz: QuizSet, chosen: Sequence[int | None]) -> list[str]:
     return [review_md(i, q, a) for i, (q, a) in enumerate(pairs, 1)]
 
 
+def _quote(text: str) -> str:
+    """Text as a Markdown quote, one line per line (escaped)."""
+    lines = md_escape(text).splitlines() or [""]
+    return "\n".join(f"> {line}  " if line.strip() else ">" for line in lines)
+
+
+def quiz_notes(
+    quiz: QuizSet, chosen: Sequence[int | None], score_pct: float, next_difficulty: str, day: date
+) -> str:
+    """A reviewed quiz as Markdown notes to keep (plain Markdown, no Streamlit directives;
+    model text escaped so it reads literally in any viewer)."""
+    correct = sum(a == q.correct_index for q, a in zip(quiz.questions, chosen, strict=True))
+    out = [
+        f"# {quiz.topic} quiz ({quiz.difficulty}), {day:%d %b %Y}",
+        "",
+        f"Score: {score_pct:.0f}% ({correct} of {len(quiz.questions)} correct). "
+        f"Next suggested difficulty: {next_difficulty}.",
+    ]
+    for i, (q, a) in enumerate(zip(quiz.questions, chosen, strict=True), 1):
+        mark = "not answered" if a is None else "correct" if a == q.correct_index else "wrong"
+        out += ["", f"## Q{i}. {md_escape(q.text)}", ""]
+        if a is not None:
+            out.append(f"- Your answer ({mark}): {md_escape(q.options[a])}")
+        else:
+            out.append("- Your answer: none")
+        if a != q.correct_index:
+            out.append(f"- Correct answer: {md_escape(q.options[q.correct_index])}")
+        out.append(f"- Why: {md_escape(q.explanation)}")
+    return "\n".join(out) + "\n"
+
+
+def interview_notes(
+    interview_type: str,
+    turns: Sequence[tuple[str, str, AnswerEvaluation]],
+    day: date,
+    tips: Mapping[str, str] | None = None,
+) -> str:
+    """An interview's questions, answers and feedback as Markdown notes to keep; `tips` are
+    the session summary's (when it is finished)."""
+    average = sum(ev.overall for *_, ev in turns) / len(turns) if turns else 0.0
+    out = [
+        f"# {interview_type} mock interview, {day:%d %b %Y}",
+        "",
+        f"Average {average:.1f}/5 over {len(turns)} questions.",
+    ]
+    if tips:
+        out += ["", "## What to work on", ""]
+        out += [f"- {name.title()}: {tip}" for name, tip in tips.items()]
+    for i, (question, answer, ev) in enumerate(turns, 1):
+        scores = " · ".join(f"{k.title()} {v}/5" for k, v in ev.scores.items())
+        out += [
+            "",
+            f"## Q{i}. {md_escape(question)}",
+            "",
+            "Your answer:",
+            "",
+            _quote(answer),
+            "",
+            f"Scores: {scores} (overall {_out_of_5(ev.overall)})",
+            "",
+            f"**Strengths**\n{_bullets(ev.strengths, '- None this time.')}",
+            "",
+            f"**Improve**\n{_bullets(ev.improvements, '- Nothing to change.')}",
+            "",
+            "**Model answer**",
+            "",
+            _quote(ev.model_answer),
+        ]
+    return "\n".join(out) + "\n"
+
+
 # --- mock interview -----------------------------------------------------------------------
 
 

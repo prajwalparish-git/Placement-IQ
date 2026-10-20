@@ -283,6 +283,49 @@ def test_criteria_html_escapes_criterion_names(hostile):
     assert hostile not in html and escape(hostile.title()) in html
 
 
+def test_quiz_notes_are_plain_markdown_with_every_question():
+    from datetime import date
+
+    q = f.quiz(n=3)
+    chosen = [q.questions[0].correct_index, None, 3]
+    notes = formatter.quiz_notes(q, chosen, 33.3, "easy", date(2026, 10, 20))
+    assert notes.startswith("# OS quiz (easy), 20 Oct 2026\n\nScore: 33% (1 of 3 correct).")
+    assert notes.count("\n## Q") == 3
+    assert "- Your answer (correct): " in notes and "- Your answer: none" in notes
+    assert "- Your answer (wrong): z" in notes and notes.count("- Correct answer:") == 2
+    assert ":gray[" not in notes and "-badge[" not in notes  # no Streamlit-only syntax
+
+
+def test_interview_notes_quote_answers_and_list_feedback():
+    from datetime import date
+
+    ev = f.evaluation(relevance=4, depth=2).model_copy(update={"strengths": []})
+    turns = [("Tell me about yourself?", "I build things.\nMostly in Python.", ev)]
+    notes = formatter.interview_notes("HR", turns, date(2026, 10, 20), {"depth": "Add a number."})
+    assert notes.startswith("# HR mock interview, 20 Oct 2026\n\nAverage 3.0/5 over 1 questions.")
+    assert "## What to work on\n\n- Depth: Add a number." in notes
+    assert "> I build things\\.  \n> Mostly in Python\\.  " in notes  # quoted line by line
+    assert "Scores: Relevance 4/5 · Depth 2/5 · Structure 3/5 · Clarity 3/5" in notes
+    assert "**Strengths**\n- None this time." in notes and ":gray[" not in notes
+
+
+@pytest.mark.parametrize("hostile", HOSTILE)
+def test_notes_escape_every_dynamic_value(hostile):
+    from datetime import date
+
+    safe = formatter.md_escape(hostile)
+    q = f.question(text=f"Explain {hostile} now", options=(hostile, "b", "c", "d"))
+    quiz = f.quiz(n=1).model_copy(
+        update={"questions": [q.model_copy(update={"explanation": hostile})]}
+    )
+    ev = f.evaluation().model_copy(update={"strengths": [hostile], "model_answer": hostile})
+    for notes in (
+        formatter.quiz_notes(quiz, [1], 0.0, "easy", date(2026, 10, 20)),
+        formatter.interview_notes("HR", [(hostile, hostile, ev)], date(2026, 10, 20)),
+    ):
+        assert safe in notes and hostile not in notes.replace(safe, "")
+
+
 def test_quiz_review_requires_one_answer_per_question():
     with pytest.raises(ValueError):
         formatter.quiz_review(f.quiz(n=2), [0])

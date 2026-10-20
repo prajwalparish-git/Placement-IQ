@@ -98,9 +98,21 @@ if session.done:
         st.markdown(formatter.summary_md(summary.averages, summary.strongest, summary.weakest))
         st.markdown("**What to work on**")
         st.markdown(formatter.tips_md(summary.tips))
-    if st.button("New session", type="primary", icon=":material/restart_alt:"):
-        st.session_state.pop("interview")
-        st.rerun()
+    with st.container(horizontal=True, vertical_alignment="center"):
+        if st.button("New session", type="primary", icon=":material/restart_alt:"):
+            st.session_state.pop("interview")
+            st.rerun()
+        today = formatter.local_today()
+        turns = [(t.question, t.answer, t.evaluation) for t in session.history]
+        st.download_button(
+            "Download feedback (.md)",
+            formatter.interview_notes(session.interview_type, turns, today, summary.tips),
+            file_name=f"placementiq-{session.interview_type.lower()}-interview-{today:%Y%m%d}.md",
+            mime="text/markdown",
+            icon=":material/download:",
+            type="tertiary",
+            on_click="ignore",
+        )
     st.stop()
 
 if session.current is None:  # the answer is saved; only the follow-up question failed

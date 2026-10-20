@@ -117,6 +117,18 @@ def _review(result: services.QuizResult) -> None:
             st.page_link(
                 "views/plan.py", label="Open Weekly plan", icon=":material/calendar_month:"
             )
+            today = formatter.local_today()
+            st.download_button(
+                "Download review (.md)",
+                formatter.quiz_notes(
+                    quiz, result.chosen, result.score_pct, result.next_difficulty, today
+                ),
+                file_name=f"placementiq-{quiz.topic.lower()}-quiz-{today:%Y%m%d}.md",
+                mime="text/markdown",
+                icon=":material/download:",
+                type="tertiary",
+                on_click="ignore",
+            )
     st.subheader("Question by question", anchor=False)
     for block in formatter.quiz_review(quiz, result.chosen):
         st.container(border=True).markdown(block)

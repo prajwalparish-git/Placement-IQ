@@ -406,6 +406,8 @@ def test_quiz_review_shows_a_score_card_marks_and_next_steps(seeded):
     assert "4 of 5 correct, so the next suggested difficulty is **hard**" in md
     links = [(p.proto.page, p.proto.label) for p in at.get("page_link")]
     assert links == [("plan", "Open Weekly plan")]
+    [notes] = at.get("download_button")
+    assert notes.proto.label == "Download review (.md)"
     _button(at, "New quiz").click().run()
     assert _button(at, "Generate quiz")
 
@@ -481,6 +483,7 @@ def test_interview_session_runs_to_completion(seeded):
     assert len(bars) == INTERVIEW_MAX_TURNS + 1  # one per answer, plus the averages
     assert any(m.value.startswith(("Strongest: **", "Even across")) for m in at.markdown)
     assert _button(at, "New session")
+    assert [d.proto.label for d in at.get("download_button")] == ["Download feedback (.md)"]
 
 
 def test_interview_setup_describes_each_type(seeded):
