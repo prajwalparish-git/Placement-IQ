@@ -1,6 +1,8 @@
 """Quiz: five questions on one topic, each checked by a critic before you see it. The score
 sets the next difficulty and counts toward next week's plan."""
 
+from functools import partial
+
 import streamlit as st
 
 from piq import formatter, services
@@ -120,8 +122,13 @@ def _review(result: services.QuizResult) -> None:
             today = formatter.local_today()
             st.download_button(
                 "Download review (.md)",
-                formatter.quiz_notes(
-                    quiz, result.chosen, result.score_pct, result.next_difficulty, today
+                partial(  # built only when clicked
+                    formatter.quiz_notes,
+                    quiz,
+                    result.chosen,
+                    result.score_pct,
+                    result.next_difficulty,
+                    today,
                 ),
                 file_name=f"placementiq-{quiz.topic.lower()}-quiz-{today:%Y%m%d}.md",
                 mime="text/markdown",

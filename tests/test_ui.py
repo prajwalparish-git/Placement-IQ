@@ -357,6 +357,18 @@ def test_plan_week_exports_as_calendar_and_table(seeded):
     assert [d.proto.label for d in downloads] == ["Calendar (.ics)", "Table (.csv)"]
 
 
+def test_plan_export_files_are_built_only_when_downloaded(seeded, monkeypatch):
+    from piq import formatter
+
+    def not_on_render(*args, **kwargs):
+        raise AssertionError("built during a render")
+
+    monkeypatch.setattr(formatter, "plan_csv", not_on_render)
+    monkeypatch.setattr(formatter, "plan_ics", not_on_render)
+    at = _app(seeded, "views/plan.py")  # renders the export without building either file
+    assert len(at.get("download_button")) == 2
+
+
 def test_plan_without_a_plan_yet_invites_week_one():
     from piq import services
 

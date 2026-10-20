@@ -1,6 +1,6 @@
 """Server-side render time per page (dev tool; no browser).
 
-    python -m scripts.perf docs/design/perf-before.md [--runs 7]
+    python -m scripts.perf docs/design/perf-before.md [--runs 7] [--mode fresh|rerun]
 
 In an isolated environment (MOCK_MODE, a temporary database seeded with the demo student,
 the developer's .env ignored, Groq never contacted) it renders every page with Streamlit's
@@ -108,11 +108,29 @@ def markdown_table(rows: list[dict], cold_ms: float, static_bytes: int, runs: in
     return "\n".join(lines) + "\n"
 
 
-def main(argv: list[str] | None = None) -> int:
+MODES = {
+    "fresh": "a new AppTest for every run: includes AppTest's own per-instance setup (it "
+    "scans every installed package for components, which a server does once at start)",
+    "rerun": "one AppTest per page, run again: the page's own render cost, as when a "
+    "student moves between pages in one session",
+}
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("out", type=Path, help="markdown file to write, e.g. docs/design/perf.md")
     ap.add_argument("--runs", type=int, default=7)
-    args = ap.parse_args(argv)
+    ap.add_argument(
+        "--mode",
+        choices=list(MODES),
+        default="fresh",
+        help="; ".join(f"{k}: {v}" for k, v in MODES.items()),
+    )
+    return ap.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
 
     from scripts.screenshots import PAGES, isolated_env
 
@@ -145,10 +163,12 @@ def main(argv: list[str] | None = None) -> int:
         rows = []
         for page in PAGES:
             times, counts = [], {}
+            at = None
             for i in range(args.runs + 1):  # run 0 is the warm-up
-                at = AppTest.from_file(str(ROOT / "app.py"), default_timeout=120)
-                at.session_state["student_id"] = sid
-                at.switch_page(page.path)
+                if at is None or args.mode == "fresh":
+                    at = AppTest.from_file(str(ROOT / "app.py"), default_timeout=120)
+                    at.session_state["student_id"] = sid
+                    at.switch_page(page.path)
                 with counting_queries(db) as c:
                     started = time.perf_counter()
                     at.run()
@@ -169,6 +189,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{page.title}: median {rows[-1]['median']:.0f} ms", flush=True)
 
     table = markdown_table(rows, cold_ms, dir_size(ROOT / "static"), args.runs)
+    table += f"\nMode: {args.mode} ({MODES[args.mode]}).\n"
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(table, encoding="utf-8")
     print(table)

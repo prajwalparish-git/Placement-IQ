@@ -40,3 +40,11 @@ def test_markdown_table():
     assert "| Quiz | 101 | 131 | 3 | 4 |" in table
     assert "Cold start (fresh process to first full render): 2345 ms" in table
     assert "static/ total: 2.0 KB" in table
+
+
+def test_modes_default_to_fresh_and_rerun_is_available():
+    args = perf.parse_args(["out.md"])
+    assert (args.mode, args.runs) == ("fresh", 7)
+    assert perf.parse_args(["out.md", "--mode", "rerun"]).mode == "rerun"
+    with pytest.raises(SystemExit):
+        perf.parse_args(["out.md", "--mode", "warm"])

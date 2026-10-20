@@ -1,6 +1,8 @@
 """Mock interview: a written interview of up to INTERVIEW_MAX_TURNS questions; vague answers
 get a follow-up, every answer gets scored feedback, and a critic checks each question."""
 
+from functools import partial
+
 import streamlit as st
 
 from piq import formatter, services
@@ -106,7 +108,9 @@ if session.done:
         turns = [(t.question, t.answer, t.evaluation) for t in session.history]
         st.download_button(
             "Download feedback (.md)",
-            formatter.interview_notes(session.interview_type, turns, today, summary.tips),
+            partial(  # built only when clicked
+                formatter.interview_notes, session.interview_type, turns, today, summary.tips
+            ),
             file_name=f"placementiq-{session.interview_type.lower()}-interview-{today:%Y%m%d}.md",
             mime="text/markdown",
             icon=":material/download:",
