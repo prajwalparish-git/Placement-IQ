@@ -1,5 +1,7 @@
-# Planning document — never tracked
+# Planning documents and local working briefs — never tracked
 PlacementIQ_Project_Spec*
+REDESIGN_BRIEF.md
+REDESIGN_PROGRESS.md
 
 # Secrets
 .env
@@ -24,3 +26,10 @@ evaluation/results/*
 Thumbs.db
 .vscode/
 .idea/
+
+# Local Claude Code settings
+.claude/settings.json
+
+# Screenshot captures: only curated sets are committed, with git add -f
+docs/design/before/
+docs/design/after/

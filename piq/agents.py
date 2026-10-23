@@ -10,7 +10,13 @@ import threading
 from functools import lru_cache
 
 from piq import checks, llm, prompts
-from piq.config import DATA_DIR, INTERVIEW_MAX_TURNS, QUIZ_SIZE
+from piq.config import (
+    DATA_DIR,
+    DIFFICULTY_DOWN_BELOW,
+    DIFFICULTY_UP_AT,
+    INTERVIEW_MAX_TURNS,
+    QUIZ_SIZE,
+)
 from piq.graph import OnEvent, Task, run_or_raise
 from piq.schemas import (
     AnswerEvaluation,
@@ -166,9 +172,9 @@ def suggest_difficulty(last_score: float | None, current: str = "medium") -> str
     if last_score is None:
         return current
     i = order.index(current)
-    if last_score >= 80:
+    if last_score >= DIFFICULTY_UP_AT:
         i = min(i + 1, 2)
-    elif last_score < 50:
+    elif last_score < DIFFICULTY_DOWN_BELOW:
         i = max(i - 1, 0)
     return order[i]
 
@@ -246,9 +252,18 @@ def _critique(inp: dict, quiz: QuizSet, pending: list[int], keys: list[str]) -> 
         student_id=inp["student_id"],
         temperature=0.0,
     )
-    by_index = {v.index: v for v in critique.verdicts}
-    if 0 not in by_index and set(by_index) == set(range(1, len(pending) + 1)):
-        by_index = {k - 1: v for k, v in by_index.items()}  # tolerate 1-based numbering
+    # Use the reply only if its numbering is unambiguous: exactly 0..n-1 or 1..n, each once.
+    # A gap, a duplicate or a stray number makes any mapping a guess, and a guessed verdict
+    # would be cached against the wrong question; unjudged questions count as rejected.
+    indices = [v.index for v in critique.verdicts]
+    n = len(pending)
+    if len(set(indices)) != len(indices) or set(indices) not in (
+        set(range(n)),
+        set(range(1, n + 1)),
+    ):
+        return
+    shift = 0 if 0 in indices else 1  # tolerate 1-based numbering
+    by_index = {v.index - shift: v for v in critique.verdicts}
     with _VERDICTS_LOCK:
         for n, i in enumerate(pending):
             if (v := by_index.get(n)) is not None:

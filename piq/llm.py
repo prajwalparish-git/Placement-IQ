@@ -9,13 +9,17 @@ In MOCK_MODE the response comes from `piq.mock` and still goes through validatio
 import json
 import logging
 import time
+from collections.abc import Mapping
 from functools import lru_cache
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ValidationError
 
 from piq import db, mock
 from piq.config import settings
+
+if TYPE_CHECKING:
+    from groq import Groq
 
 Size = Literal["large", "small"]
 log = logging.getLogger("piq.llm")
@@ -28,13 +32,17 @@ class LLMError(RuntimeError):
 class RateLimited(LLMError):
     """Groq's free-tier quota is exhausted even after the SDK's own retries."""
 
-    def __init__(self, retry_after: float | None):
+    def __init__(self, retry_after: float | None) -> None:
         self.retry_after = retry_after
         hint = f"Try again in about {retry_after:.0f} s." if retry_after else "Try again shortly."
         super().__init__(f"Groq free-tier rate limit reached. {hint}")
 
 
-def _retry_after(headers) -> float | None:
+class _InvalidJson(Exception):
+    """Groq refused the model's output as invalid JSON (json_validate_failed): repairable."""
+
+
+def _retry_after(headers: Mapping[str, str]) -> float | None:
     try:
         return float(headers.get("retry-after"))
     except (TypeError, ValueError):
@@ -42,7 +50,7 @@ def _retry_after(headers) -> float | None:
 
 
 @lru_cache
-def _client():
+def _client() -> "Groq":
     from groq import Groq  # imported lazily so MOCK_MODE never needs network config
 
     return Groq(api_key=settings().groq_api_key, max_retries=4, timeout=60)
@@ -75,7 +83,7 @@ def _complete(model: str, messages: list[dict], temperature: float) -> tuple[str
     except groq.BadRequestError as e:
         # Groq rejects output that is not valid JSON in json_object mode; treat as repairable.
         if "json_validate_failed" in str(e):
-            return "", 0, 0
+            raise _InvalidJson(str(e)) from e
         raise LLMError(f"Groq rejected the request: {e}") from e
     except groq.APIError as e:
         raise LLMError(f"Groq API error: {e}") from e
@@ -107,17 +115,24 @@ def call[T: BaseModel](
     t0 = time.perf_counter()
     tok_in = tok_out = 0
     error = ""
-    for attempt in range(2):
-        if model == "mock":
-            content, i, o = json.dumps(mock.respond(agent, context)), 0, 0
-        else:
-            content, i, o = _complete(model, messages, temperature)
-        tok_in, tok_out = tok_in + i, tok_out + o
-        try:
-            out = schema.model_validate_json(content)
-            break
-        except ValidationError as e:
-            error = str(e)
+    try:
+        for attempt in range(2):
+            content = ""
+            if model == "mock":
+                content, i, o = json.dumps(mock.respond(agent, context)), 0, 0
+            else:
+                try:
+                    content, i, o = _complete(model, messages, temperature)
+                except _InvalidJson as e:  # Groq's words tell the model what to fix
+                    i = o = 0
+                    error = f"Groq rejected the output as invalid JSON: {e}"
+            tok_in, tok_out = tok_in + i, tok_out + o
+            if content:
+                try:
+                    out = schema.model_validate_json(content)
+                    break
+                except ValidationError as e:
+                    error = str(e)
             log.warning("%s: invalid output (attempt %d): %s", agent, attempt + 1, error[:300])
             messages += [
                 {"role": "assistant", "content": content or "(invalid JSON)"},
@@ -127,8 +142,12 @@ def call[T: BaseModel](
                     "Return the corrected JSON object only.",
                 },
             ]
-    else:
-        raise LLMError(f"{agent}: output failed validation twice: {error[:500]}")
+        else:
+            raise LLMError(f"{agent}: output failed validation twice: {error[:500]}")
+    except LLMError as e:  # a failed call still cost time and tokens: log it, marked failed
+        latency = int((time.perf_counter() - t0) * 1000)
+        db.log_call(agent, model, tok_in, tok_out, latency, student_id, failed=str(e))
+        raise
     latency = int((time.perf_counter() - t0) * 1000)
     log_id = db.log_call(agent, model, tok_in, tok_out, latency, student_id)
     return out, log_id

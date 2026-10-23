@@ -1,41 +1,107 @@
-"""Streamlit helpers shared by the views: student selection and the visible agent loop."""
+"""Streamlit helpers shared by the views: student selection, the visible agent loop and
+the design system's components (page header, empty state, stat cards, chips, badges)."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+from functools import lru_cache
 
 import streamlit as st
+from streamlit.delta_generator import DeltaGenerator
 
-from piq import services
+from piq import formatter, services
+from piq.config import STATIC_DIR
 from piq.graph import CriticRejected, OnEvent
 from piq.llm import LLMError
 from piq.resume import ResumeError
 from piq.schemas import StudentProfile
 
 NEW = "— new student —"
-PER_STUDENT_KEYS = ("quiz", "quiz_result", "interview")
+PER_STUDENT_KEYS = (
+    "quiz",
+    "quiz_result",
+    "quiz_blanks",
+    "interview",
+    "onboard_confirm",
+    "onboard_delete",
+)
 RUN_PREFIX = "run:"  # session key prefix for persisted agent step logs
-FAILED = "failed: "
+FAILED = formatter.FAILED
 USER_ERRORS = (CriticRejected, LLMError, services.ServiceError, ResumeError)
 
 
+def set_student(
+    student_id: str | None, keep_runs: tuple[str, ...] = (), *, fresh: bool = False
+) -> None:
+    """Make `student_id` current. On a change, drop the previous student's quiz, interview and
+    agent step logs, except the logs of `keep_runs` (labels) already made for the new student.
+    `fresh`: drop them even for the same student (a new profile makes their open quiz and
+    interview stale)."""
+    if fresh or student_id != st.session_state.get("student_id"):
+        kept = {RUN_PREFIX + label for label in keep_runs}
+        for k in list(st.session_state):
+            if k in PER_STUDENT_KEYS or (str(k).startswith(RUN_PREFIX) and k not in kept):
+                del st.session_state[k]
+    st.session_state["student_id"] = student_id
+
+
 def student_selector() -> None:
-    labels = {f"{s['usn']} — {s['name']}": s["id"] for s in services.list_students()}
+    students = services.list_students()
+    labels = {f"{s['usn']} — {s['name']}": s["id"] for s in students}
     ids = list(labels.values())
     current = st.session_state.get("student_id")
     index = ids.index(current) + 1 if current in ids else 0
     choice = st.sidebar.selectbox("Student", [NEW, *labels], index=index)
-    new_id = labels.get(choice)
-    if new_id != current:
-        st.session_state["student_id"] = new_id
-        for k in list(st.session_state):
-            if k in PER_STUDENT_KEYS or str(k).startswith(RUN_PREFIX):
-                del st.session_state[k]
+    set_student(labels.get(choice))
+    # Refreshed on every run before the page renders, so pages reuse it instead of a query.
+    selected = next((s for s in students if s["id"] == labels.get(choice)), None)
+    st.session_state["student"] = dict(selected) if selected else None
+    st.session_state["student_count"] = len(students)
+
+
+def current_student() -> dict | None:
+    """The selected student's row (id, name, usn, target_role, readiness_score), or None."""
+    return st.session_state.get("student")
+
+
+def student_count() -> int:
+    """How many students the sidebar picker offers (counted by it on this run)."""
+    return st.session_state.get("student_count", 0)
+
+
+def sidebar_context(mock_mode: bool) -> None:
+    """Under the student picker: their readiness at a glance and, in mock mode, a quiet
+    badge (the old warning box was the loudest thing on every page)."""
+    with st.sidebar:
+        if student := current_student():
+            score = student["readiness_score"] or 0
+            st.progress(score / 100, text=f"Readiness {score}/100")
+        if mock_mode:
+            st.badge(
+                "Mock mode",
+                icon=":material/science:",
+                color="gray",
+                help="Answers come from built-in samples; no AI service is called.",
+            )
 
 
 def require_profile() -> tuple[str, StudentProfile]:
+    """The selected student and their profile. Without one, an empty state says how to get
+    one (the sidebar is hidden on a phone, so it names the button that opens it) and the
+    page stops."""
     sid = st.session_state.get("student_id")
     profile = services.current_profile(sid)
     if not profile:
-        st.info("Select a student in the sidebar, or onboard one on the Onboard page.")
+        body = (
+            "Choose your name under **Student** in the sidebar (on a phone, open it with "
+            ":material/keyboard_double_arrow_right: at the top left), or onboard a new "
+            "student with a resume."
+            if student_count()
+            else "Nobody has onboarded yet. Analyse a resume to create the first profile."
+        )
+        if empty_state(
+            "person_search", "No student selected", body, "Open Onboard", key="need_student"
+        ):
+            st.switch_page("views/onboard.py")
         st.stop()
     return sid, profile
 
@@ -48,10 +114,16 @@ def _failed(events: list[str]) -> bool:
     return any(m.startswith(FAILED) for m in events)
 
 
-def _line(msg: str) -> str:
-    if msg.startswith(FAILED):
-        return "❌ " + msg
-    return ("🔁 " if msg.startswith("critic rejected") else "✔️ ") + msg
+def _step(parent: DeltaGenerator, step: formatter.TrailStep) -> None:
+    """One step of the critic trail. Steps are native timeline steps (icon column and a
+    connecting line); each carries a line of content, because an empty step ends the line."""
+    state = "error" if step.failed else "complete"
+    box = parent.status(f"**{step.title}**", type="step", state=state, expanded=True)
+    if step.reasons:  # the critic's own words, at the step title's size
+        lines = [f":small[{r}]" for r in step.reasons]
+        box.markdown(lines[0] if len(lines) == 1 else "\n".join(f"- {line}" for line in lines))
+    if step.note:
+        box.caption(step.note)
 
 
 def run_agent[T](label: str, fn: Callable[[OnEvent], T]) -> T | None:
@@ -66,14 +138,15 @@ def run_agent[T](label: str, fn: Callable[[OnEvent], T]) -> T | None:
 
         def on_event(msg: str) -> None:
             events.append(msg)
-            box.write(_line(msg))
+            _step(box, formatter.trail_steps(events)[-1])
 
         try:
             out = fn(on_event)
         except USER_ERRORS as e:
             events.append(f"{FAILED}{e}")
+            _step(box, formatter.trail_steps(events)[-1])
             box.update(label=f"{label} — failed", state="error")
-            st.error(str(e))
+            st.error(formatter.critic_text(str(e)))
             return None
         finally:
             st.session_state[RUN_PREFIX + label] = events
@@ -93,6 +166,77 @@ def show_last_run(label: str) -> None:
             f"{label} — last run{' failed' if failed else ''}",
             state="error" if failed else "complete",
             expanded=failed or _rejected(events),
-        ):
-            for m in events:
-                st.write(_line(m))
+        ) as box:
+            for step in formatter.trail_steps(events):
+                _step(box, step)
+
+
+# --- design-system components -------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Stat:
+    label: str
+    value: str
+    delta: str | None = None
+    help: str | None = None
+    delta_color: str = "normal"  # "off" for a change that is neither good nor bad
+
+
+@lru_cache(maxsize=1)
+def _stylesheet() -> str:
+    return (STATIC_DIR / "app.css").read_text(encoding="utf-8")
+
+
+def load_css() -> None:
+    """Add static/app.css (what the theme cannot express) once per run, before the page."""
+    st.html(f"<style>{_stylesheet()}</style>")
+
+
+def page_header(
+    title: str,
+    purpose: str,
+    action: str | None = None,
+    *,
+    icon: str | None = None,
+    key: str | None = None,
+) -> bool:
+    """Every page opens with its title, one plain sentence of purpose (Markdown: escape any
+    dynamic part) and optionally its primary action, under the sentence so nothing is
+    squeezed on a phone. Returns True when the action is clicked."""
+    st.title(title, anchor=False)
+    st.markdown(f":gray[{purpose}]")
+    return bool(action) and st.button(action, type="primary", icon=icon, key=key)
+
+
+def empty_state(
+    icon: str, title: str, body: str, action: str | None = None, *, key: str | None = None
+) -> bool:
+    """An empty screen as an invitation: what is missing and the one next step."""
+    with st.container(border=True, gap="small"):
+        st.subheader(title, anchor=False, icon=f":material/{icon}:")
+        st.markdown(body)
+        return bool(action) and st.button(action, type="primary", key=key)
+
+
+def stat_row(stats: Sequence[Stat]) -> None:
+    """Equal-height stat cards in one row; they stack on phones."""
+    for column, s in zip(st.columns(len(stats)), stats, strict=True):
+        column.metric(
+            s.label,
+            s.value,
+            s.delta,
+            delta_color=s.delta_color,
+            help=s.help,
+            border=True,
+            height="stretch",
+        )
+
+
+def topic_chip(topic: str) -> None:
+    st.html(formatter.topic_chip_html(topic))
+
+
+def status_badge(state: str, text: str) -> None:
+    icon, color = formatter.STATUS[state]
+    st.badge(text, icon=f":material/{icon}:", color=color)

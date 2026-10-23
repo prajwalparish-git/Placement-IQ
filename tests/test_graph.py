@@ -62,6 +62,21 @@ def test_every_attempt_is_marked_in_agent_logs():
     assert [tuple(r) for r in rows] == [(0, 0, "is bad"), (0, 1, "is bad"), (1, 2, None)]
 
 
+def test_a_verify_that_raises_marks_the_attempt_failed():
+    def gen(inp, reasons, previous):
+        return "x", db.log_call("v", "mock", 3, 4, 5)
+
+    def verify(inp, out):
+        raise RuntimeError("critic unavailable")
+
+    with pytest.raises(RuntimeError, match="critic unavailable"):
+        graph.run(graph.Task("v", gen, verify), {})
+    with db.tx() as c:
+        [row] = c.execute("SELECT critic_approved, retry_count, reject_reason FROM agent_logs")
+    assert row["critic_approved"] is None and row["retry_count"] == 0
+    assert row["reject_reason"] == "failed: verify raised RuntimeError: critic unavailable"
+
+
 def test_compiled_graph_is_cached_per_task_and_exports_mermaid():
     task = _logged_task([], "x")
     assert graph._compiled(task) is graph._compiled(task)

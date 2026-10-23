@@ -70,6 +70,20 @@ def test_topic_performance_uses_the_three_most_recent_attempts():
     db.save_quiz_attempt(sid, f.quiz(n=2), [None, None], at="2026-01-05 10:00:00")
     assert db.topic_performance(sid) == {"DBMS": 100.0, "OS": 0.0}
     assert len(db.quiz_history(sid)) == 5
+    # The same query also returns each topic's latest attempt (for the quiz setup).
+    stats = db.topic_stats(sid)
+    assert stats["DBMS"] == {"avg_pct": 100.0, "last_pct": 100.0, "last_difficulty": "easy"}
+    assert stats["OS"]["last_pct"] == 0.0
+
+
+def test_agent_stats_count_failed_calls_apart_from_rejections():
+    rejected = db.log_call("quiz", "mock", 1, 1, 10)
+    db.mark_log(rejected, False, 0, "bad")
+    db.log_call("quiz", "mock", 1, 1, 10, failed="Groq API error")
+    [row] = db.agent_stats()
+    assert (row["calls"], row["rejections"], row["failures"]) == (2, 1, 1)
+    assert row["rejection_rate"] == 1.0  # a failed call had no critic, so it is not a rejection
+    assert [r["reject_reason"] for r in db.recent_rejections()] == ["bad"]
 
 
 def test_past_turns_exclude_current_session_newest_first():
@@ -109,3 +123,29 @@ def test_agent_log_marking_and_stats():
     assert (stats["evaluator"]["rejections"], stats["evaluator"]["rejection_rate"]) == (0, None)
     [rejection] = db.recent_rejections()
     assert rejection["reject_reason"] == "dup"
+
+
+def test_plan_progress_marks_days_and_joins_onto_the_plans():
+    sid = db.save_profile("P9", f.profile())
+    db.save_plan(sid, f.plan(week=1))
+    db.save_plan(sid, f.plan(week=2))
+    db.set_days_done(sid, 1, {1, 3})
+    with db.tx() as c:
+        first = c.execute(
+            "SELECT done_at FROM plan_progress WHERE week_no = 1 AND day = 1"
+        ).fetchone()["done_at"]
+    db.set_days_done(sid, 1, {1, 4})  # day 3 undone, day 4 added, day 1 kept
+    assert [(p.week_no, done) for p, done in db.plans_with_progress(sid)] == [
+        (1, {1, 4}),
+        (2, set()),
+    ]
+    with db.tx() as c:
+        kept = c.execute(
+            "SELECT done_at FROM plan_progress WHERE week_no = 1 AND day = 1"
+        ).fetchone()["done_at"]
+    assert kept == first  # a day already done keeps its time
+    db.set_days_done(sid, 2, {7})
+    assert (db.latest_plan(sid)["week_no"], db.latest_plan(sid)["days_done"]) == (2, 1)
+    db.delete_student("P9")  # cascades to plan_progress too
+    with db.tx() as c:
+        assert c.execute("SELECT COUNT(*) FROM plan_progress").fetchone()[0] == 0

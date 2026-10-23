@@ -9,7 +9,7 @@ College mini-project scope: one Streamlit process and one SQLite file. Keep it t
 | Layer | Choice | Version |
 |---|---|---|
 | Language | Python | 3.13 (tested on 3.13.3) |
-| UI and charts | Streamlit (includes Altair and pandas) | 1.66.0 |
+| UI and charts | Streamlit (includes Altair and pandas; both pinned because imported directly) | 1.66.0 (Altair 6.3.0, pandas 3.0.6) |
 | Agent loop | LangGraph | 1.2.16 |
 | LLM SDK | Groq SDK, JSON mode, built-in retry on 429 | 1.7.0 |
 | LLM models (`.env`) | `openai/gpt-oss-120b` (large), `openai/gpt-oss-20b` (small) | verified 2026-10-19 |
@@ -18,16 +18,21 @@ College mini-project scope: one Streamlit process and one SQLite file. Keep it t
 | Resume parsing | pypdf / python-docx | 6.21.1 / 1.2.0 |
 | Config | python-dotenv | 1.2.4 |
 | Dev | pytest / ruff | 9.1.1 / 0.17.1 |
+| Dev, visual QA only | Playwright (+ Chromium) / Pillow | 1.64.0 / 12.3.0 |
+
+Playwright drives `scripts/screenshots.py` (never CI or tests); Pillow compresses its PNGs
+and is the version Streamlit already installs.
 
 ## Directory structure
 ```
-app.py              Entry point: settings check, DB init, sidebar student picker, page navigation
-views/              One file per page. Calls only piq.services, piq.formatter and piq.ui
-  onboard.py        Resume (upload or sample) -> onboard -> profile
-  plan.py           Weakness table, generate next week's plan, week-vs-week minutes chart
-  quiz.py           Suggested difficulty, generate quiz (critic loop), take it, review
-  interview.py      Chat mock interview, per-answer feedback, retry for a failed follow-up
-  dashboard.py      Score trends, plan minutes, agent_logs stats and rejections
+app.py              Entry point: theme CSS, logo, settings check, DB init, sidebar, grouped navigation
+views/              One file per page. Calls piq.services, piq.formatter, piq.charts and piq.ui
+  home.py           Default page: the loop explained, or readiness, streak and today's focus
+  onboard.py        Resume (upload or sample) -> profile; taken-USN confirmation; delete student
+  plan.py           Week pills, day-by-day plan with check-off and export, shift and weakness charts
+  quiz.py           Topic by weakness + suggested difficulty, critic trail, blank guard, review
+  interview.py      Chat mock interview, scored feedback, retry for a failed follow-up, summary
+  dashboard.py      Readiness, streak, topic mastery, plans, interviews; agents and critic apart
   results.py        Baseline vs PlacementIQ evaluation results (reads results/summary.json)
 piq/                Application package. Only ui.py imports Streamlit
   services.py       Controllers: every user operation; validates, runs agents, persists, typed state
@@ -42,8 +47,10 @@ piq/                Application package. Only ui.py imports Streamlit
   db.py             All SQL. One short-lived connection per call
   schema.sql        DDL (CREATE IF NOT EXISTS; there are no migrations)
   resume.py         PDF/DOCX/TXT -> text (no OCR)
-  formatter.py      Output layer: models/rows -> markdown and DataFrames (pure, testable)
-  ui.py             Streamlit helpers: student selector, live and persisted agent step log
+  formatter.py      Output layer: models/rows -> markdown, escaped HTML, DataFrames, files (pure)
+  charts.py         Altair chart builders (pure, tested) + cached Vega-Lite specs for the views
+  ui.py             Streamlit helpers: student selector, critic trail, design-system components
+static/             Served at app/static: app.css, brand/ (mark, wordmark), fonts/ (OFL woff2)
 data/
   role_skills.json  Role -> required skill -> syllabus topic (drives readiness and weakness)
   sample_resumes/   Three fictional resumes (TXT)
@@ -57,9 +64,12 @@ scripts/
   check_models.py   Are the configured Groq models served, JSON-capable, and within quota?
   export_graph.py   Mermaid of the compiled graph -> docs/critic_graph.mmd + .md
   test_report.py    Runs pytest and writes docs/test_report.md (test-case table)
-docs/               diagrams.md (use case, DFD, ER, sequence), critic graph, test report
-.github/workflows/  ci.yml: format check, lint and tests on every push
-.streamlit/         config.toml: 5 MB uploads, no usage telemetry
+  screenshots.py    Dev: every page and flow via Playwright, 3 widths x 2 schemes; fails on console errors
+  perf.py           Dev: render time and queries per page via AppTest (--mode fresh | rerun)
+docs/               diagrams.md (use case, DFD, ER, sequence), critic graph, test report, performance.md
+  design/           DESIGN.md (the design system), curated before/ and after/ screenshots, perf tables
+.github/workflows/  ci.yml: format check, lint and tests on push to main and on PRs (read-only token)
+.streamlit/         config.toml: theme (light/dark tokens, fonts), static serving, 5 MB uploads, no telemetry
 tests/              pytest, fully offline: one file per layer, services integration, headless UI
 ```
 
@@ -72,13 +82,15 @@ copy .env.example .env                  # then add GROQ_API_KEY; without .env th
 python -m scripts.check_models          # before a demo: models served, JSON mode, quota left
 python -m scripts.seed                  # demo student with 4 weeks of history
 streamlit run app.py                    # dev server, http://localhost:8501
-pytest                                  # all tests, offline, about 1 min
+pytest                                  # all tests, offline, about 2 min
 ruff format . ; ruff check .            # format + lint (must be clean)
 python -m evaluation.run_eval --consecutive 5 --interviews   # live; ~360k tokens = 2 days of quota
 python -m evaluation.run_eval --consecutive 5 --interviews --resume   # continue (same flags)
 python -m evaluation.report             # results/report.md + chart.svg
 python -m scripts.test_report           # docs/test_report.md from a real test run
 python -m scripts.export_graph          # refresh docs/critic_graph.mmd and .md
+python -m scripts.screenshots docs/design/after [--pages quiz] [--widths 1440,390]   # visual review
+python -m scripts.perf docs/design/perf.md [--mode rerun]   # render time per page
 ```
 There is no build step. `.env.example` already contains the verified model IDs. Live mode needs `GROQ_API_KEY` and `MOCK_MODE=false`.
 
@@ -94,7 +106,13 @@ There is no build step. `.env.example` already contains the verified model IDs. 
 - Put cheap deterministic checks in `checks.py` and run them before any LLM critic call.
 - All SQL lives in `piq/db.py` and uses `?` parameters. Never build SQL with f-strings. Agents never write domain tables; services do.
 - Prompts live only in `piq/prompts.py`. Constants and thresholds live only in `piq/config.py`.
-- Views stay thin: no business logic, and rendering goes through `formatter.py`.
+- Views stay thin: no business logic, and rendering goes through `formatter.py` and `charts.py`.
+- **Theme first, CSS last.** Colours, fonts and radii live in `.streamlit/config.toml` (light and dark), mirrored by `config.PALETTE`, `SEMANTIC_COLORS` and `TOPIC_COLORS`; `tests/test_theme.py` checks contrast and that both agree. `static/app.css` (under 150 lines and 8 KB) holds only what the theme cannot express: every selector includes a `data-testid` (own classes only beneath one, never `.st-emotion-cache-*`), every colour is a `PALETTE` token written `light-dark(light, dark)`, and each rule says why it exists.
+- **Topic colours mean topics.** Every topic chart, chip and legend uses `TOPIC_COLORS` (charts get them from the theme's categorical palette with a fixed `TOPICS` domain). Never use them for status; every status shows an icon and words, never colour alone.
+- **Escape every dynamic value.** Resume, LLM and user text go through `formatter.md_escape` in Markdown and `html.escape` in HTML builders (`st.html`); tests feed `<script>`, `*p`, `__init__` and image Markdown through each builder.
+- **Charts** are pure builders in `charts.py` returning `alt.Chart` (tests check encodings); views render the matching `*_spec` (plain Vega-Lite cached per distinct data) with `st.vega_lite_chart`. Titles state the takeaway as text above the chart; every mark has a tooltip.
+- Icons are Material Symbols (`:material/name:`), never emoji. Copy is sentence case, British spelling, no exclamation marks.
+- **Screenshot review loop** for any page change: `python -m scripts.screenshots docs/design/after --pages <page>`, open the PNGs at every width and in both schemes, fix, capture again. Zero browser console errors.
 - Code is synchronous only (no asyncio), because of Streamlit.
 - Each module starts with a docstring stating its job; add comments only for non-obvious reasons.
 - Every change ships with a test. Tests must pass offline in MOCK_MODE. Any new mock response must pass the same schema and checks as real output.
@@ -111,6 +129,7 @@ There is no build step. `.env.example` already contains the verified model IDs. 
 - `data/role_skills.json` changes readiness and weakness for every student. Edit it only on purpose, and keep its topics within `Aptitude, DBMS, OS, CN, DSA, OOP` (a test enforces this).
 - The `scripts/seed.py` trajectory (OS and DBMS start weak) is what the demo depends on. Do not change it casually.
 - `students.usn` is required (`NOT NULL UNIQUE`). Never drop it or make it optional.
-- `schema.sql` has no migrations. After a schema change, delete `data/placementiq.db` and reseed.
+- `schema.sql` has no migrations. A new table (`CREATE TABLE IF NOT EXISTS`, as `plan_progress`) is safe for existing databases; changing an existing table is not, so ask first, and afterwards delete `data/placementiq.db` and reseed.
+- Fonts in `static/fonts/` are OFL, self-hosted (no font CDN at runtime: the app must work offline) and keep their licence files next to them.
 - Groq's free tier is the only external service: each model allows 8,000 tokens/minute and 1,000 requests/day (from the response headers), and about 200,000 tokens/day (the full evaluation hit it after 15 of 20 cases). Batch questions into one call, use the small model for extraction, never re-judge questions that were already approved, and keep MOCK_MODE as the default in `.env.example`.
 - Out of scope: auth, voice/video, a code judge, scraping, a vector database or embeddings, async, a separate HTTP backend (services are the API surface).

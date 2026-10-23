@@ -15,6 +15,7 @@ from piq.config import settings
 from piq.schemas import AnswerEvaluation, QuizSet, StudentProfile, WeeklyPlan
 
 SCHEMA = Path(__file__).with_name("schema.sql")
+FAILED = "failed: "  # reject_reason prefix of an agent_logs row whose call or check failed
 
 
 @contextmanager
@@ -58,6 +59,14 @@ def save_profile(usn: str, profile: StudentProfile, at: str | None = None) -> st
             (sid, profile.model_dump_json(), profile.readiness_score, at),
         )
     return sid
+
+
+def student_by_usn(usn: str) -> sqlite3.Row | None:
+    """The student who owns `usn` (id, name, target_role), or None."""
+    with tx() as c:
+        return c.execute(
+            "SELECT id, name, target_role FROM students WHERE usn = ?", (usn.strip().upper(),)
+        ).fetchone()
 
 
 def delete_student(usn: str) -> None:
@@ -104,6 +113,51 @@ def save_plan(student_id: str, plan: WeeklyPlan, at: str | None = None) -> None:
         )
 
 
+def latest_plan(student_id: str) -> sqlite3.Row | None:
+    """The newest plan's week_no, created_at (UTC) and days_done, or None before week 1."""
+    with tx() as c:
+        return c.execute(
+            """SELECT week_no, created_at,
+                      (SELECT COUNT(*) FROM plan_progress pp
+                       WHERE pp.student_id = plans.student_id
+                         AND pp.week_no = plans.week_no) AS days_done
+               FROM plans WHERE student_id = ? ORDER BY week_no DESC LIMIT 1""",
+            (student_id,),
+        ).fetchone()
+
+
+def plans_with_progress(student_id: str) -> list[tuple[WeeklyPlan, set[int]]]:
+    """Every plan, oldest week first, with the days marked done, in one query."""
+    with tx() as c:
+        rows = c.execute(
+            """SELECT p.plan_json, GROUP_CONCAT(pp.day) AS done FROM plans p
+               LEFT JOIN plan_progress pp
+                 ON pp.student_id = p.student_id AND pp.week_no = p.week_no
+               WHERE p.student_id = ? GROUP BY p.id ORDER BY p.week_no""",
+            (student_id,),
+        ).fetchall()
+    return [
+        (
+            WeeklyPlan.model_validate_json(r["plan_json"]),
+            {int(d) for d in r["done"].split(",")} if r["done"] else set(),
+        )
+        for r in rows
+    ]
+
+
+def set_days_done(student_id: str, week_no: int, days: set[int]) -> None:
+    """Make exactly `days` (1-7) the done days of a week; a day already done keeps its time."""
+    with tx() as c:
+        c.executemany(
+            "DELETE FROM plan_progress WHERE student_id = ? AND week_no = ? AND day = ?",
+            [(student_id, week_no, d) for d in range(1, 8) if d not in days],
+        )
+        c.executemany(
+            "INSERT OR IGNORE INTO plan_progress (student_id, week_no, day) VALUES (?, ?, ?)",
+            [(student_id, week_no, d) for d in sorted(days)],
+        )
+
+
 def list_plans(student_id: str) -> list[WeeklyPlan]:
     with tx() as c:
         rows = c.execute(
@@ -140,18 +194,33 @@ def save_quiz_attempt(
     return pct
 
 
-def topic_performance(student_id: str) -> dict[str, float]:
-    """Average score_pct over each topic's three most recent attempts."""
+def topic_stats(student_id: str) -> dict[str, dict]:
+    """Per quizzed topic, in one query: avg_pct, the average score_pct over its three most
+    recent attempts, and the latest attempt's last_pct and last_difficulty."""
     with tx() as c:
         rows = c.execute(
-            """SELECT topic, AVG(score_pct) AS avg_pct FROM (
-                 SELECT topic, score_pct, ROW_NUMBER() OVER (
-                   PARTITION BY topic ORDER BY attempted_at DESC, id DESC) AS rn
-                 FROM quiz_attempts WHERE student_id = ?)
+            """SELECT topic, AVG(score_pct) AS avg_pct,
+                      MAX(CASE WHEN rn = 1 THEN score_pct END) AS last_pct,
+                      MAX(CASE WHEN rn = 1 THEN difficulty END) AS last_difficulty
+               FROM (SELECT topic, score_pct, difficulty, ROW_NUMBER() OVER (
+                       PARTITION BY topic ORDER BY attempted_at DESC, id DESC) AS rn
+                     FROM quiz_attempts WHERE student_id = ?)
                WHERE rn <= 3 GROUP BY topic""",
             (student_id,),
         ).fetchall()
-    return {r["topic"]: round(r["avg_pct"], 1) for r in rows}
+    return {
+        r["topic"]: {
+            "avg_pct": round(r["avg_pct"], 1),
+            "last_pct": r["last_pct"],
+            "last_difficulty": r["last_difficulty"],
+        }
+        for r in rows
+    }
+
+
+def topic_performance(student_id: str) -> dict[str, float]:
+    """Average score_pct over each topic's three most recent attempts."""
+    return {t: s["avg_pct"] for t, s in topic_stats(student_id).items()}
 
 
 def last_attempt(student_id: str, topic: str) -> sqlite3.Row | None:
@@ -247,15 +316,37 @@ def log_call(
     output_tokens: int,
     latency_ms: int,
     student_id: str | None = None,
+    failed: str | None = None,
 ) -> int:
+    """One LLM call. `failed`: why the call produced nothing usable; the row then carries
+    reject_reason "failed: ..." and no critic verdict (agent_logs has no status column,
+    and existing tables are not altered)."""
     with tx() as c:
         cur = c.execute(
-            """INSERT INTO agent_logs
-               (student_id, agent_name, model_used, input_tokens, output_tokens, latency_ms)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (student_id, agent, model, input_tokens, output_tokens, latency_ms),
+            """INSERT INTO agent_logs (student_id, agent_name, model_used, input_tokens,
+                                       output_tokens, latency_ms, reject_reason)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                student_id,
+                agent,
+                model,
+                input_tokens,
+                output_tokens,
+                latency_ms,
+                f"{FAILED}{failed}" if failed else None,
+            ),
         )
         return cur.lastrowid
+
+
+def mark_failed(log_id: int, retry_count: int, reason: str) -> None:
+    """A generated draft that could not be judged (verify raised): failed, not rejected."""
+    with tx() as c:
+        c.execute(
+            "UPDATE agent_logs SET critic_approved = NULL, retry_count = ?, reject_reason = ? "
+            "WHERE id = ?",
+            (retry_count, f"{FAILED}{reason}", log_id),
+        )
 
 
 def mark_log(log_id: int, approved: bool, retry_count: int, reject_reason: str | None) -> None:
@@ -274,6 +365,7 @@ def agent_stats() -> list[sqlite3.Row]:
                       ROUND(AVG(latency_ms)) AS avg_latency_ms,
                       ROUND(AVG(input_tokens + output_tokens)) AS avg_tokens,
                       COALESCE(SUM(critic_approved = 0), 0) AS rejections,
+                      COALESCE(SUM(reject_reason LIKE 'failed: %'), 0) AS failures,
                       ROUND(AVG(CASE WHEN critic_approved IS NOT NULL
                                      THEN critic_approved = 0 END), 2) AS rejection_rate
                FROM agent_logs GROUP BY agent_name ORDER BY agent_name"""

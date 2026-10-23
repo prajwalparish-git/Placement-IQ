@@ -14,6 +14,7 @@ from functools import cache
 from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 from pydantic import BaseModel
 
 from piq import db
@@ -50,18 +51,22 @@ class RunResult:
 
 
 class CriticRejected(RuntimeError):
-    def __init__(self, task: str, reasons: list[str]):
+    def __init__(self, task: str, reasons: list[str]) -> None:
         self.reasons = reasons
         super().__init__(f"{task}: rejected after retries: {'; '.join(reasons)}")
 
 
-def build(task: Task):
+def build(task: Task) -> CompiledStateGraph:
     def generate(s: CriticState) -> dict:
         out, log_id = task.generate(s["inputs"], s["reasons"], s["output"])
         return {"output": out, "log_id": log_id, "attempt": s["attempt"] + 1}
 
     def verify(s: CriticState) -> dict:
-        reasons = task.verify(s["inputs"], s["output"])
+        try:
+            reasons = task.verify(s["inputs"], s["output"])
+        except Exception as e:  # e.g. the critic's own call failed: the draft was never judged
+            db.mark_failed(s["log_id"], s["attempt"] - 1, f"verify raised {type(e).__name__}: {e}")
+            raise
         db.mark_log(s["log_id"], not reasons, s["attempt"] - 1, "; ".join(reasons) or None)
         return {"reasons": reasons}
 

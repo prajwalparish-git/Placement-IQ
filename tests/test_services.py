@@ -3,9 +3,10 @@
 import pytest
 
 from piq import agents, db, llm, services
-from piq.config import INTERVIEW_MAX_TURNS
+from piq.config import INTERVIEW_MAX_TURNS, TOPICS
 from piq.resume import ResumeError
 from piq.services import ServiceError
+from tests import factories as f
 
 ROLE = "Java Backend Developer"
 
@@ -22,7 +23,6 @@ def student() -> str:
 def test_onboard_creates_student_and_profile(student):
     [row] = services.list_students()
     assert (row["id"], row["usn"]) == (student, "TEST01")
-    assert services.usn_of(student) == "TEST01" and services.usn_of(None) == ""
     profile = services.current_profile(student)
     assert profile.target_role == ROLE and 0 <= profile.readiness_score <= 100
 
@@ -43,6 +43,21 @@ def test_onboard_rejects_unknown_role_and_empty_resume():
     with pytest.raises(ServiceError, match="empty"):
         services.onboard("TEST02", ROLE, "   ")
     assert services.list_students() == []
+
+
+def test_sample_list_is_read_once(monkeypatch):
+    from pathlib import PurePath
+
+    globs = []
+
+    class Folder:
+        def glob(self, pattern: str) -> list[PurePath]:
+            globs.append(pattern)
+            return [PurePath("b.txt"), PurePath("a.txt")]
+
+    monkeypatch.setattr(services, "SAMPLES_DIR", Folder())
+    assert services.sample_resumes() == services.sample_resumes() == ("a.txt", "b.txt")
+    assert globs == ["*.txt"]
 
 
 def test_samples_load_only_from_the_listed_files():
@@ -97,6 +112,30 @@ def test_quiz_round_trip_and_adaptive_difficulty(student):
     assert services.suggested_difficulty(student, "DBMS") == "hard"
     again = services.start_quiz(student, "DBMS", "hard")
     assert not {q.text for q in again.questions} & {q.text for q in quiz.questions}
+
+
+def test_quiz_setup_ranks_topics_and_suggests_from_the_latest_attempt(student):
+    profile = services.current_profile(student)
+    before = services.quiz_setup(student, profile)
+    assert before.last == {} and before.suggested("DBMS") == "medium"
+    assert sorted(before.weakness) == sorted(TOPICS)
+    assert before.weakness[before.topics[0]] == max(before.weakness.values())  # weakest first
+    quiz = services.start_quiz(student, "DBMS", "medium")
+    result = services.submit_quiz(student, quiz, [q.correct_index for q in quiz.questions])
+    assert result.correct == len(quiz.questions)
+    after = services.quiz_setup(student)
+    assert after.last == {"DBMS": (100.0, "medium")}
+    assert after.suggested("DBMS") == services.suggested_difficulty(student, "DBMS") == "hard"
+    assert after.weakness["DBMS"] == 0.0
+    assert after.topics[-1] == "DBMS"  # now the strongest, so last
+
+
+def test_quiz_result_counts_correct_answers_and_quiz_key_is_stable():
+    quiz = f.quiz(n=3)
+    result = services.QuizResult(quiz, [quiz.questions[0].correct_index, None, 3], 33.3, "easy")
+    assert result.correct == 1
+    assert services.quiz_key(quiz) == services.quiz_key(quiz.model_copy())
+    assert services.quiz_key(quiz) != services.quiz_key(f.quiz(n=3, prefix="other"))
 
 
 @pytest.mark.parametrize(("topic", "difficulty"), [("Maths", "easy"), ("OS", "extreme")])
@@ -198,3 +237,226 @@ def test_evaluation_summary(tmp_path, monkeypatch):
     assert services.evaluation_summary() is None
     (tmp_path / "summary.json").write_text(json.dumps(f.eval_summary()), encoding="utf-8")
     assert services.evaluation_summary()["placementiq"]["cases"] == 20
+
+
+# --- home: today's focus ---------------------------------------------------------
+
+NOW = __import__("datetime").datetime(2026, 10, 19, 12, 0, tzinfo=__import__("datetime").UTC)
+PLAN_OLD = {"week_no": 4, "created_at": "2026-10-10 09:00:00"}  # 9 days before NOW
+PLAN_NEW = {"week_no": 5, "created_at": "2026-10-18 09:00:00"}
+WEAK = {"Aptitude": 0.2, "DBMS": 0.7, "OS": 0.8, "CN": 0.3, "DSA": 0.2, "OOP": 0.1}
+CALM = {"Aptitude": 0.2, "DBMS": 0.4, "OS": 0.45, "CN": 0.3, "DSA": 0.2, "OOP": 0.1}
+
+
+def _attempt(topic: str, at: str, pct: float = 40.0, difficulty: str = "medium") -> dict:
+    return {"topic": topic, "attempted_at": at, "score_pct": pct, "difficulty": difficulty}
+
+
+def _decide(profile=..., plan=PLAN_OLD, weakness=CALM, attempts=(), sessions=1):
+    from tests import factories as f
+
+    profile = f.profile() if profile is ... else profile
+    return services.decide_next_action(profile, plan, weakness, list(attempts), sessions, NOW)
+
+
+def test_next_action_without_a_profile_is_onboarding():
+    a = _decide(profile=None)
+    assert (a.page, a.label, a.cta) == (
+        "views/onboard.py",
+        "Onboard with your resume",
+        "Open Onboard",
+    )
+
+
+def test_next_action_without_a_plan_is_week_1():
+    a = _decide(plan=None, weakness=WEAK)
+    assert (a.page, a.label) == ("views/plan.py", "Generate your week 1 plan")
+
+
+def test_next_action_quizzes_the_weakest_unpractised_topic_first():
+    a = _decide(weakness=WEAK)  # OS 0.8 and DBMS 0.7 are weak; neither has a quiz
+    assert (a.page, a.topic, a.difficulty) == ("views/quiz.py", "OS", "medium")
+    assert a.label == "Take a medium OS quiz" and "not taken a quiz on it yet" in a.reason
+    recent_os = [_attempt("OS", "2026-10-17 10:00:00")]
+    assert _decide(weakness=WEAK, attempts=recent_os).topic == "DBMS"  # OS was practised
+
+
+def test_next_action_returns_to_a_weak_topic_after_a_week_at_the_suggested_level():
+    stale = [_attempt("OS", "2026-10-01 10:00:00", pct=90.0, difficulty="medium")]
+    a = _decide(weakness={**CALM, "OS": 0.8}, attempts=stale)
+    assert (a.topic, a.difficulty) == ("OS", agents.suggest_difficulty(90.0, "medium"))
+    assert "no quiz in the last 7 days" in a.reason
+
+
+def test_next_action_suggests_an_interview_once_weak_topics_are_practised():
+    recent = [_attempt("OS", "2026-10-17 10:00:00")]
+    a = _decide(weakness={**CALM, "OS": 0.8}, attempts=recent, sessions=0)
+    assert (a.page, a.label) == ("views/interview.py", "Try a mock interview")
+
+
+def test_next_action_adapts_the_plan_when_it_is_a_week_old_with_new_scores():
+    since = [_attempt("OS", "2026-10-12 10:00:00"), _attempt("CN", "2026-10-13 10:00:00")]
+    a = _decide(plan=PLAN_OLD, attempts=since)
+    assert (a.page, a.label) == ("views/plan.py", "Generate your week 5 plan")
+    assert "9 days old and 2 quiz scores came in since" in a.reason
+
+
+def test_next_action_otherwise_practises_the_weakest_topic():
+    since = [_attempt("OS", "2026-10-18 10:00:00", pct=40.0)]  # low score: the level drops
+    a = _decide(plan=PLAN_NEW, attempts=since)  # fresh plan: nothing to adapt yet
+    assert (a.page, a.topic, a.difficulty) == ("views/quiz.py", "OS", "easy")
+    assert a.label == "Practise OS with an easy quiz"  # "an" before a vowel
+    old_plan_no_scores = _decide(plan=PLAN_OLD, attempts=[_attempt("OS", "2026-10-09 10:00:00")])
+    assert old_plan_no_scores.page == "views/quiz.py"
+
+
+def test_home_gathers_focus_checklist_and_recent_activity():
+    from scripts import seed
+
+    seed.main()
+    sid = next(s["id"] for s in db.list_students() if s["usn"] == seed.USN)
+    h = services.home(sid)
+    assert (
+        h.next_action.label == "Generate your week 5 plan"
+    )  # the seeded week 4 plan is 7 days old
+    assert [c.done for c in h.checklist] == [True, True, True, True]
+    assert len(h.recent) == 4 and h.recent == sorted(h.recent, key=lambda a: a.at, reverse=True)
+    assert services.next_action(sid) == h.next_action
+
+
+def test_home_for_a_new_student_starts_with_a_plan(student):
+    h = services.home(student)
+    assert h.next_action.label == "Generate your week 1 plan"
+    assert [c.done for c in h.checklist] == [True, False, False, False] and h.recent == []
+    assert services.next_action(None).page == "views/onboard.py"
+    assert services.next_action("nobody").page == "views/onboard.py"
+
+
+def test_home_reports_an_unreadable_database_safely(student, monkeypatch):
+    import sqlite3
+
+    def broken(*_):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(db, "quiz_history", broken)
+    with pytest.raises(ServiceError, match="could not be read"):
+        services.home(student)
+
+
+def test_usn_owner_finds_the_student_behind_a_usn(student):
+    owner = services.usn_owner(" " + db.list_students()[0]["usn"].lower() + " ")
+    assert owner["id"] == student and owner["name"]
+    assert services.usn_owner("NOBODY01") is None
+    with pytest.raises(ServiceError, match="USN is required"):
+        services.usn_owner("bad usn")
+
+
+def test_delete_student_needs_the_matching_usn(student):
+    usn = db.list_students()[0]["usn"]
+    with pytest.raises(ServiceError, match="nothing was deleted"):
+        services.delete_student(student, "WRONG001")
+    assert services.current_profile(student) is not None  # a wrong USN deletes nothing
+    services.delete_student(student, f" {usn.lower()} ")
+    assert db.list_students() == [] and services.current_profile(student) is None
+    with pytest.raises(ServiceError, match="no longer exists"):
+        services.delete_student(student, usn)
+
+
+def test_interview_summary_averages_each_criterion_and_tips_the_weak_ones():
+    from piq.config import INTERVIEW_TIPS
+
+    def turn(**scores):
+        return services.AnsweredTurn(question="q", answer="a", evaluation=f.evaluation(**scores))
+
+    session = services.InterviewSession(
+        session_id="s",
+        interview_type="HR",
+        past=[],
+        history=[turn(relevance=5, depth=1, clarity=4), turn(relevance=4, depth=2, clarity=1)],
+        done=True,
+    )
+    summary = services.interview_summary(session)
+    assert summary.averages == {"relevance": 4.5, "depth": 1.5, "structure": 3.0, "clarity": 2.5}
+    assert (summary.strongest, summary.weakest) == ("relevance", "depth")
+    assert summary.tips == {"depth": INTERVIEW_TIPS["depth"], "clarity": INTERVIEW_TIPS["clarity"]}
+    assert set(INTERVIEW_TIPS) == set(f.evaluation().scores)  # a tip for every criterion
+    with pytest.raises(ServiceError, match="no answers yet"):
+        services.interview_summary(session.model_copy(update={"history": []}))
+
+
+def _d(day: int):
+    from datetime import date
+
+    return date(2026, 10, day)
+
+
+@pytest.mark.parametrize(
+    ("active", "today", "expected"),
+    [
+        ([], 20, (0, 0)),  # no activity
+        ([20], 20, (1, 1)),  # a single day, today
+        ([19], 20, (1, 1)),  # yesterday still counts: today is not over
+        ([18], 20, (0, 1)),  # a whole day without study breaks it
+        ([10, 11, 12, 15, 16, 19, 20], 20, (2, 3)),  # gaps: current 19-20, longest 10-12
+        ([17, 18, 19], 20, (3, 3)),
+    ],
+)
+def test_streaks_count_consecutive_days(active, today, expected):
+    assert services.streaks([_d(a) for a in active], _d(today)) == expected
+
+
+def test_activity_days_use_the_students_calendar_not_utc():
+    # 18:00 UTC is 23:30 in India (same day); 19:00 UTC is 00:30 the next day.
+    days = services.activity_days(["2026-10-19 18:00:00", "2026-10-19 19:00:00"])
+    assert days == {_d(19): 1, _d(20): 1}
+
+
+def test_study_streak_combines_quizzes_and_interview_sessions():
+    attempts = [{"attempted_at": "2026-10-18 06:00:00"}, {"attempted_at": "2026-10-19 06:00:00"}]
+    sessions = [{"started": "2026-10-19 08:00:00"}, {"started": "2026-10-20 08:00:00"}]
+    streak = services.study_streak(attempts, sessions, today=_d(20))
+    assert (streak.current, streak.longest) == (3, 3)
+    assert streak.days == {_d(18): 1, _d(19): 2, _d(20): 1}
+
+
+@pytest.mark.parametrize(
+    ("scores", "trend"),
+    [
+        ([], "new"),
+        ([60.0], "new"),
+        ([40.0, 60.0], "improving"),
+        ([60.0, 60.0, 60.0, 65.0], "steady"),
+        ([80.0, 70.0, 75.0, 60.0], "slipping"),  # 60 against the mean of 80, 70, 75
+        ([10.0, 70.0, 70.0, 70.0, 75.0], "steady"),  # only the three before the latest count
+    ],
+)
+def test_score_trend_compares_the_latest_quiz_with_the_ones_before(scores, trend):
+    assert services.score_trend(scores) == trend
+
+
+def test_topic_mastery_matches_the_planners_weakness_and_ranks_weakest_first():
+    from scripts import seed
+
+    seed.main()
+    sid = next(s["id"] for s in db.list_students() if s["usn"] == seed.USN)
+    profile = services.current_profile(sid)
+    mastery = services.topic_mastery(profile, db.quiz_history(sid))
+    planned = services.plan_overview(sid, profile).weakness  # from db.topic_performance
+    assert {m.topic: m.weakness for m in mastery} == planned
+    assert [m.weakness for m in mastery] == sorted(planned.values(), reverse=True)
+    os_ = next(m for m in mastery if m.topic == "OS")
+    assert os_.scores == [30.0, 40.0, 60.0, 70.0] and os_.trend == "improving"
+
+
+def test_days_done_are_validated_and_reach_the_overviews(student):
+    services.generate_next_plan(student)
+    with pytest.raises(ServiceError, match="1 to 7"):
+        services.set_days_done(student, 1, [0, 8])
+    with pytest.raises(ServiceError, match="start at 1"):
+        services.set_days_done(student, 0, [1])
+    assert services.set_days_done(student, 1, [2, 5, 2]) == {2, 5}
+    assert services.plan_overview(student).done == {1: {2, 5}}
+    assert services.home(student).week_done == (1, 2)
+    assert [(p.week_no, done) for p, done in services.dashboard(student).plans_done] == [
+        (1, {2, 5})
+    ]

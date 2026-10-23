@@ -4,18 +4,20 @@ import logging
 
 import streamlit as st
 
-from piq import db
-from piq.config import ConfigError, settings
-from piq.ui import student_selector
+from piq import db, formatter
+from piq.config import BRAND_DIR, ConfigError, settings
+from piq.ui import load_css, sidebar_context, student_selector
 from scripts.seed import main as seed_demo
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
-st.set_page_config(page_title="PlacementIQ", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="PlacementIQ", page_icon=str(BRAND_DIR / "mark.svg"), layout="wide")
+st.logo(str(BRAND_DIR / "wordmark.svg"), icon_image=str(BRAND_DIR / "mark.svg"), size="large")
+load_css()
 
 try:
     cfg = settings()
 except ConfigError as e:
-    st.error(str(e))
+    st.error(formatter.md_escape(str(e)))
     st.stop()
 
 
@@ -35,18 +37,26 @@ def _startup() -> None:
 
 _startup()
 
-st.sidebar.title("🎯 PlacementIQ")
-if cfg.mock_mode:
-    st.sidebar.warning("MOCK_MODE: canned responses, no API calls.")
 student_selector()
+sidebar_context(mock_mode=cfg.mock_mode)
 
+# Sidebar navigation keeps every page visible with the student context beneath it; a top
+# bar would fold the sections into menus, which is worse on a projector (docs/design).
 st.navigation(
-    [
-        st.Page("views/onboard.py", title="Onboard", icon="📄", default=True),
-        st.Page("views/plan.py", title="Weekly plan", icon="🗓️"),
-        st.Page("views/quiz.py", title="Quiz", icon="📝"),
-        st.Page("views/interview.py", title="Mock interview", icon="🎤"),
-        st.Page("views/dashboard.py", title="Dashboard", icon="📈"),
-        st.Page("views/results.py", title="Results", icon="🧪"),
-    ]
+    {
+        "Prepare": [
+            st.Page("views/home.py", title="Home", icon=":material/home:", default=True),
+            st.Page("views/onboard.py", title="Onboard", icon=":material/upload_file:"),
+            st.Page("views/plan.py", title="Weekly plan", icon=":material/calendar_month:"),
+            st.Page("views/quiz.py", title="Quiz", icon=":material/quiz:"),
+            st.Page(
+                "views/interview.py", title="Mock interview", icon=":material/record_voice_over:"
+            ),
+        ],
+        "Insights": [
+            st.Page("views/dashboard.py", title="Dashboard", icon=":material/monitoring:"),
+            st.Page("views/results.py", title="Results", icon=":material/fact_check:"),
+        ],
+    },
+    position="sidebar",
 ).run()

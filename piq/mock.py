@@ -110,18 +110,21 @@ def _critic(ctx: dict) -> dict:
 def _interviewer(ctx: dict) -> dict:
     history = ctx["history"]
     final = len(history) + 1 >= ctx["max_turns"]
+    asked = {text_hash(q) for q in ctx["asked"]}
     if history:
         words = history[-1]["answer"].split()
         if len(words) < 25:
-            snippet = " ".join(words[:6])
-            q = f"You said '{snippet}...'. Can you give one specific example with the outcome?"
-            return {
-                "question": q,
-                "intent": "probe vague answer",
-                "is_followup": True,
-                "is_final": final,
-            }
-    asked = {text_hash(q) for q in ctx["asked"]}
+            quote = " ".join(words[:6]).rstrip(".,;:!?") + ("..." if len(words) > 6 else "")
+            q = f"You said '{quote}'. Can you give one specific example with the outcome?"
+            # Probe a given answer once: the critic rejects a repeated question, and the
+            # mock (unlike the LLM) ignores rejection reasons, so a repeat could never pass.
+            if text_hash(q) not in asked:
+                return {
+                    "question": q,
+                    "intent": "probe vague answer",
+                    "is_followup": True,
+                    "is_final": final,
+                }
     bank = _INTERVIEW_BANK[ctx["interview_type"]]
     q = next((q for q in bank if text_hash(q) not in asked), f"{bank[0]} (round {len(asked)})")
     return {"question": q, "intent": "new area", "is_followup": bool(history), "is_final": final}

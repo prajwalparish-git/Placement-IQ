@@ -95,6 +95,7 @@ flowchart TB
 erDiagram
     STUDENTS ||--o{ PROFILES : "is profiled in"
     STUDENTS ||--o{ PLANS : follows
+    STUDENTS ||--o{ PLAN_PROGRESS : "marks days done"
     STUDENTS ||--o{ QUIZ_ATTEMPTS : takes
     QUIZ_ATTEMPTS ||--|{ QUIZ_QUESTIONS : contains
     STUDENTS ||--o{ INTERVIEW_TURNS : answers
@@ -122,6 +123,12 @@ erDiagram
         TEXT plan_json
         TEXT rationale
         TIMESTAMP created_at
+    }
+    PLAN_PROGRESS {
+        TEXT student_id PK "FK, with week_no and day"
+        INTEGER week_no PK
+        INTEGER day PK "1 to 7"
+        TIMESTAMP done_at
     }
     QUIZ_ATTEMPTS {
         INTEGER id PK

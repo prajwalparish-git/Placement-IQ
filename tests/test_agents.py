@@ -120,6 +120,28 @@ def test_interview_follows_up_on_vague_answers(profile):
     assert second.is_followup and "I like coding" in second.question
 
 
+def test_mock_interview_never_repeats_a_follow_up(profile):
+    """Two vague answers with the same opening used to deadlock the critic (B5)."""
+    first = agents.next_question(profile, "HR", [], [])
+    history = [{"question": first.question, "answer": "I like coding."}]
+    second = agents.next_question(profile, "HR", history, [])
+    history.append({"question": second.question, "answer": "I like coding."})
+    third = agents.next_question(profile, "HR", history, [])
+    assert third.question not in (first.question, second.question)
+
+
+def test_mock_follow_up_quotes_answers_cleanly(profile):
+    first = agents.next_question(profile, "HR", [], [])
+    short = [{"question": first.question, "answer": "I like coding."}]
+    assert agents.next_question(profile, "HR", short, []).question.startswith(
+        "You said 'I like coding'. Can you"
+    )
+    long = [{"question": first.question, "answer": "I mostly worked on the backend of our app."}]
+    assert agents.next_question(profile, "HR", long, []).question.startswith(
+        "You said 'I mostly worked on the backend...'. Can you"
+    )
+
+
 def test_interview_memory_avoids_past_questions(profile):
     past = [{"question": "Tell me about yourself.", "answer": "A detailed answer " * 10}]
     q = agents.next_question(profile, "HR", [], past)
@@ -180,6 +202,32 @@ def test_critic_with_one_based_indices_is_understood(monkeypatch):
 
     monkeypatch.setitem(mock._HANDLERS, "critic", one_based)
     assert graph.run(agents.QUIZ_TASK, agents.quiz_inputs("OS", "easy", [])).approved
+
+
+@pytest.mark.parametrize(
+    ("indices", "cached"),
+    [
+        ([1, 2, 3, 4, 5], 5),  # 1-based and complete: understood
+        ([0, 1, 2, 3, 4], 5),  # 0-based and complete
+        ([1, 2, 4, 5], 0),  # 1-based with one missing
+        ([1, 2, 3, 4], 0),  # 0-based without 0 (or 1-based without 5): ambiguous
+        ([0, 1, 2, 3], 0),  # 0-based with one missing
+        ([0, 0, 1, 2, 3, 4], 0),  # a duplicate
+        ([0, 1, 2, 3, 9], 0),  # out of range
+    ],
+)
+def test_critic_verdicts_count_only_when_their_numbering_is_unambiguous(
+    monkeypatch, indices, cached
+):
+    r = graph.run(agents.QUIZ_TASK, agents.quiz_inputs("OS", "easy", []))
+    assert r.approved and len(r.output.questions) == 5
+    agents.clear_verdict_cache()
+    verdicts = [{"index": i, "valid": True, "reason": ""} for i in indices]
+    monkeypatch.setitem(mock._HANDLERS, "critic", lambda ctx: {"verdicts": verdicts})
+    reasons = agents.verify_quiz(agents.quiz_inputs("OS", "easy", []), r.output)
+    assert len(agents._VERDICTS) == cached  # a guessed mapping is never cached
+    assert len(reasons) == 5 - cached  # every unjudged question counts as rejected
+    assert all(reason.endswith("the critic gave no verdict") for reason in reasons)
 
 
 def test_missing_critic_verdict_counts_as_rejection(monkeypatch):

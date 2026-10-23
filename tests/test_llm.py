@@ -79,7 +79,10 @@ def test_mock_mode_raises_after_second_invalid_output(monkeypatch):
     monkeypatch.setattr(mock, "respond", lambda agent, ctx: {"question": "x"})
     with pytest.raises(llm.LLMError, match="failed validation twice"):
         _call()
-    assert _rows() == []  # failed calls are not logged as successful generations
+    # Was "no row at all"; a failed call is now logged, marked failed, never as a success.
+    [row] = _rows()
+    assert row["reject_reason"].startswith("failed: interviewer: output failed validation")
+    assert row["critic_approved"] is None and row["latency_ms"] >= 0
 
 
 def test_model_for_maps_sizes(live):
@@ -116,6 +119,18 @@ def test_live_json_validate_failed_is_repairable(live):
     fake = live(err, json.dumps(VALID))
     out, _ = _call()
     assert out.question == "Tell me more?" and len(fake.requests) == 2
+    repair = fake.requests[1]["messages"][-1]["content"]
+    assert "json_validate_failed: bad output" in repair  # Groq's own words reach the model
+
+
+def test_live_failed_call_is_logged_with_its_tokens_and_latency(live):
+    live("not json at all", _status_error(groq.InternalServerError, 500, "boom"))
+    with pytest.raises(llm.LLMError, match="Groq API error"):
+        _call()
+    [row] = _rows()
+    assert (row["input_tokens"], row["output_tokens"]) == (10, 5)  # the first reply's
+    assert row["reject_reason"].startswith("failed: Groq API error")
+    assert row["critic_approved"] is None and row["latency_ms"] >= 0
 
 
 def test_live_other_bad_request_raises(live):
