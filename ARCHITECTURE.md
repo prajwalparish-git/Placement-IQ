@@ -103,7 +103,7 @@ Free-tier limits per model: **8,000 tokens/minute and 1,000 requests/day** (read
 | Interview follow-up relevance (`--interviews`) | after a deliberately vague answer, a judge (small model) checks the next question |
 | Cost per agent | `agent_logs` in the evaluation's own `eval.db` |
 
-The run saves its state after every case, so a run cut short by the daily quota or killed continues with `--resume`. `evaluation/report.py` turns the summary into `report.md` and an SVG chart. The Results page shows the same data.
+The run saves its state after every case, and after every quiz of the duplicate-rate measurement, so a run cut short by the daily quota or killed continues with `--resume` without paying for finished work again. `evaluation/report.py` turns the summary into `report.md` and an SVG chart. The Results page shows the same data.
 
 ## 6. Data model
 ```

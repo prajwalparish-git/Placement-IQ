@@ -155,6 +155,33 @@ def test_consecutive_quizzes_resume_per_topic(tmp_path, monkeypatch):
     assert second["stopped_early"] is None
 
 
+def test_consecutive_quizzes_resume_mid_topic_without_redoing_quizzes(tmp_path, monkeypatch):
+    from piq import llm
+
+    real, calls = run_eval._baseline_quiz, []
+
+    def limited_on_third_quiz(topic):
+        calls.append(topic)
+        if len(calls) == 3:
+            raise llm.RateLimited(5)
+        return real(topic)
+
+    monkeypatch.setattr(run_eval, "_baseline_quiz", limited_on_third_quiz)
+    args = ["--limit", "1", "--consecutive", "3", "--allow-mock", "--results", str(tmp_path)]
+    first = run_eval.main(args)
+    assert first["stopped_early"].startswith("consecutive quizzes")
+    saved = json.loads((tmp_path / "state.json").read_text(encoding="utf-8"))
+    assert len(saved["consecutive"]["partial"]["OS"]["baseline"]) == 2  # both kept
+    second = run_eval.main([*args, "--resume"])
+    assert calls == ["OS"] * 4  # quiz 3 again after the limit; quizzes 1 and 2 not redone
+    c = second["consecutive"]
+    assert c["topics"] == ["OS"] and second["stopped_early"] is None
+    assert c["baseline_duplicate_rate"] == 0.667  # as in an unbroken run
+    assert c["placementiq_duplicate_rate"] == 0.0  # memory rebuilt from the saved quizzes
+    saved = json.loads((tmp_path / "state.json").read_text(encoding="utf-8"))
+    assert saved["consecutive"]["partial"] == {}
+
+
 def test_every_case_is_checkpointed(tmp_path, monkeypatch):
     saves: list[int] = []
     real = run_eval._save
