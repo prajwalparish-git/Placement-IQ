@@ -1,8 +1,8 @@
 # Test report
 
-Generated 2026-10-26 01:57 UTC by `python -m scripts.test_report` from a real run of the suite (offline: MOCK_MODE, temporary databases, fake Groq clients for live code paths).
+Generated 2026-10-26 02:23 UTC by `python -m scripts.test_report` from a real run of the suite (offline: MOCK_MODE, temporary databases, fake Groq clients for live code paths).
 
-**402 tests: 402 passed, 0 failed, 0 skipped** (179 s of test time).
+**415 tests: 415 passed, 0 failed, 0 skipped** (182 s of test time).
 
 ## By module
 
@@ -30,6 +30,7 @@ Generated 2026-10-26 01:57 UTC by `python -m scripts.test_report` from a real ru
 | Unit | Chart builders: encodings and theme | `test_charts` | 13 | 13 |
 | Unit | CI workflow settings | `test_ci` | 1 | 1 |
 | Unit | Demo tunnel settings | `test_tunnel` | 3 | 3 |
+| Unit | Summary PDF builder | `test_summary_pdf` | 13 | 13 |
 | System (UI) | Streamlit pages, headless | `test_ui` | 59 | 59 |
 
 ## Test cases
@@ -379,62 +380,75 @@ Generated 2026-10-26 01:57 UTC by `python -m scripts.test_report` from a real ru
 | TC-341 | Unit | Demo tunnel settings | Config toml keeps cors and xsrf protection on | Pass |
 | TC-342 | Unit | Demo tunnel settings | Tunnel script lifts the checks on the command line | Pass |
 | TC-343 | Unit | Demo tunnel settings | Tunnel bat runs the powershell script | Pass |
-| TC-344 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/onboard.py] | Pass |
-| TC-345 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/plan.py] | Pass |
-| TC-346 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/quiz.py] | Pass |
-| TC-347 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/interview.py] | Pass |
-| TC-348 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/dashboard.py] | Pass |
-| TC-349 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/results.py] | Pass |
-| TC-350 | System (UI) | Streamlit pages, headless | Onboard prefills the selected students usn | Pass |
-| TC-351 | System (UI) | Streamlit pages, headless | Design system components render | Pass |
-| TC-352 | System (UI) | Streamlit pages, headless | Navigation groups pages with material icons | Pass |
-| TC-353 | System (UI) | Streamlit pages, headless | Sidebar shows readiness and a quiet mock badge | Pass |
-| TC-354 | System (UI) | Streamlit pages, headless | Onboard with sample resume | Pass |
-| TC-355 | System (UI) | Streamlit pages, headless | Onboard without a student explains what happens next | Pass |
-| TC-356 | System (UI) | Streamlit pages, headless | Onboard profile shows readiness skills and fixes | Pass |
-| TC-357 | System (UI) | Streamlit pages, headless | Onboard reprofile without a resume shows the error | Pass |
-| TC-358 | System (UI) | Streamlit pages, headless | Onboarding a usn that is taken asks before replacing that student | Pass |
-| TC-359 | System (UI) | Streamlit pages, headless | Reprofiling the selected student closes their open quiz and interview | Pass |
-| TC-360 | System (UI) | Streamlit pages, headless | Reprofiling the selected student needs no confirmation | Pass |
-| TC-361 | System (UI) | Streamlit pages, headless | Deleting a student needs their usn then returns home | Pass |
-| TC-362 | System (UI) | Streamlit pages, headless | Onboard rejects missing usn | Pass |
-| TC-363 | System (UI) | Streamlit pages, headless | Pages require a student [views/plan.py] | Pass |
-| TC-364 | System (UI) | Streamlit pages, headless | Pages require a student [views/quiz.py] | Pass |
-| TC-365 | System (UI) | Streamlit pages, headless | Pages require a student [views/interview.py] | Pass |
-| TC-366 | System (UI) | Streamlit pages, headless | Pages require a student [views/dashboard.py] | Pass |
-| TC-367 | System (UI) | Streamlit pages, headless | The empty state points to the sidebar when students exist | Pass |
-| TC-368 | System (UI) | Streamlit pages, headless | Plan generates next week and compares | Pass |
-| TC-369 | System (UI) | Streamlit pages, headless | Plan shows the latest week day by day with why and the shift | Pass |
-| TC-370 | System (UI) | Streamlit pages, headless | Plan week one has no shift and table view shows the table | Pass |
-| TC-371 | System (UI) | Streamlit pages, headless | Plan days marked done are saved and counted on home and dashboard | Pass |
-| TC-372 | System (UI) | Streamlit pages, headless | Plan week exports as calendar and table | Pass |
-| TC-373 | System (UI) | Streamlit pages, headless | Plan export files are built only when downloaded | Pass |
-| TC-374 | System (UI) | Streamlit pages, headless | Plan without a plan yet invites week one | Pass |
-| TC-375 | System (UI) | Streamlit pages, headless | Quiz generate answer and review | Pass |
-| TC-376 | System (UI) | Streamlit pages, headless | Quiz setup hints weakness and explains the suggestion | Pass |
-| TC-377 | System (UI) | Streamlit pages, headless | Quiz review shows a score card marks and next steps | Pass |
-| TC-378 | System (UI) | Streamlit pages, headless | Quiz with blank answers asks before submitting | Pass |
-| TC-379 | System (UI) | Streamlit pages, headless | Critic log numbers questions like the quiz | Pass |
-| TC-380 | System (UI) | Streamlit pages, headless | Quiz text and options are shown literally | Pass |
-| TC-381 | System (UI) | Streamlit pages, headless | Interview answer is shown literally | Pass |
-| TC-382 | System (UI) | Streamlit pages, headless | Interview session runs to completion | Pass |
-| TC-383 | System (UI) | Streamlit pages, headless | Interview setup describes each type | Pass |
-| TC-384 | System (UI) | Streamlit pages, headless | Interview shows progress scored feedback and the critic trail | Pass |
-| TC-385 | System (UI) | Streamlit pages, headless | Dashboard renders | Pass |
-| TC-386 | System (UI) | Streamlit pages, headless | Dashboard readiness shows a delta and trend only after a second profile | Pass |
-| TC-387 | System (UI) | Streamlit pages, headless | Dashboard keeps system telemetry in its own section | Pass |
-| TC-388 | System (UI) | Streamlit pages, headless | Dashboard for a new student explains each empty section | Pass |
-| TC-389 | System (UI) | Streamlit pages, headless | Dashboard error state offers a retry | Pass |
-| TC-390 | System (UI) | Streamlit pages, headless | Onboard requires a resume or sample | Pass |
-| TC-391 | System (UI) | Streamlit pages, headless | Onboarding another student drops the previous students session | Pass |
-| TC-392 | System (UI) | Streamlit pages, headless | Failed follow up offers retry without reanswering | Pass |
-| TC-393 | System (UI) | Streamlit pages, headless | Failed quiz generation stays visible | Pass |
-| TC-394 | System (UI) | Streamlit pages, headless | Results page without and with results | Pass |
-| TC-395 | System (UI) | Streamlit pages, headless | Results note mentions the duplicate rate only when it is shown | Pass |
-| TC-396 | System (UI) | Streamlit pages, headless | Seed demo fills an empty database on start | Pass |
-| TC-397 | System (UI) | Streamlit pages, headless | Home without a student explains the loop | Pass |
-| TC-398 | System (UI) | Streamlit pages, headless | Home quick start opens onboard with a sample | Pass |
-| TC-399 | System (UI) | Streamlit pages, headless | Home shows todays focus for the demo student | Pass |
-| TC-400 | System (UI) | Streamlit pages, headless | Todays focus opens the page it names | Pass |
-| TC-401 | System (UI) | Streamlit pages, headless | Todays focus preselects the quiz topic | Pass |
-| TC-402 | System (UI) | Streamlit pages, headless | Home error state offers a retry | Pass |
+| TC-344 | Unit | Summary PDF builder | Quotes the evaluation numbers | Pass |
+| TC-345 | Unit | Summary PDF builder | Facts come from the code | Pass |
+| TC-346 | Unit | Summary PDF builder | Names the topics when the duplicate run stopped early | Pass |
+| TC-347 | Unit | Summary PDF builder | Leaves out what was not measured | Pass |
+| TC-348 | Unit | Summary PDF builder | Refuses a mock or incomplete summary [changes0-mock run] | Pass |
+| TC-349 | Unit | Summary PDF builder | Refuses a mock or incomplete summary [changes1-both systems] | Pass |
+| TC-350 | Unit | Summary PDF builder | Topic names are escaped | Pass |
+| TC-351 | Unit | Summary PDF builder | Fonts and mark are embedded so nothing is fetched | Pass |
+| TC-352 | Unit | Summary PDF builder | Percentages drop trailing zeros [0.65-0-65%] | Pass |
+| TC-353 | Unit | Summary PDF builder | Percentages drop trailing zeros [1.0-0-100%] | Pass |
+| TC-354 | Unit | Summary PDF builder | Percentages drop trailing zeros [0.053-1-5.3%] | Pass |
+| TC-355 | Unit | Summary PDF builder | Percentages drop trailing zeros [0.0-1-0%] | Pass |
+| TC-356 | Unit | Summary PDF builder | Percentages drop trailing zeros [0.25-1-25%] | Pass |
+| TC-357 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/onboard.py] | Pass |
+| TC-358 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/plan.py] | Pass |
+| TC-359 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/quiz.py] | Pass |
+| TC-360 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/interview.py] | Pass |
+| TC-361 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/dashboard.py] | Pass |
+| TC-362 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/results.py] | Pass |
+| TC-363 | System (UI) | Streamlit pages, headless | Onboard prefills the selected students usn | Pass |
+| TC-364 | System (UI) | Streamlit pages, headless | Design system components render | Pass |
+| TC-365 | System (UI) | Streamlit pages, headless | Navigation groups pages with material icons | Pass |
+| TC-366 | System (UI) | Streamlit pages, headless | Sidebar shows readiness and a quiet mock badge | Pass |
+| TC-367 | System (UI) | Streamlit pages, headless | Onboard with sample resume | Pass |
+| TC-368 | System (UI) | Streamlit pages, headless | Onboard without a student explains what happens next | Pass |
+| TC-369 | System (UI) | Streamlit pages, headless | Onboard profile shows readiness skills and fixes | Pass |
+| TC-370 | System (UI) | Streamlit pages, headless | Onboard reprofile without a resume shows the error | Pass |
+| TC-371 | System (UI) | Streamlit pages, headless | Onboarding a usn that is taken asks before replacing that student | Pass |
+| TC-372 | System (UI) | Streamlit pages, headless | Reprofiling the selected student closes their open quiz and interview | Pass |
+| TC-373 | System (UI) | Streamlit pages, headless | Reprofiling the selected student needs no confirmation | Pass |
+| TC-374 | System (UI) | Streamlit pages, headless | Deleting a student needs their usn then returns home | Pass |
+| TC-375 | System (UI) | Streamlit pages, headless | Onboard rejects missing usn | Pass |
+| TC-376 | System (UI) | Streamlit pages, headless | Pages require a student [views/plan.py] | Pass |
+| TC-377 | System (UI) | Streamlit pages, headless | Pages require a student [views/quiz.py] | Pass |
+| TC-378 | System (UI) | Streamlit pages, headless | Pages require a student [views/interview.py] | Pass |
+| TC-379 | System (UI) | Streamlit pages, headless | Pages require a student [views/dashboard.py] | Pass |
+| TC-380 | System (UI) | Streamlit pages, headless | The empty state points to the sidebar when students exist | Pass |
+| TC-381 | System (UI) | Streamlit pages, headless | Plan generates next week and compares | Pass |
+| TC-382 | System (UI) | Streamlit pages, headless | Plan shows the latest week day by day with why and the shift | Pass |
+| TC-383 | System (UI) | Streamlit pages, headless | Plan week one has no shift and table view shows the table | Pass |
+| TC-384 | System (UI) | Streamlit pages, headless | Plan days marked done are saved and counted on home and dashboard | Pass |
+| TC-385 | System (UI) | Streamlit pages, headless | Plan week exports as calendar and table | Pass |
+| TC-386 | System (UI) | Streamlit pages, headless | Plan export files are built only when downloaded | Pass |
+| TC-387 | System (UI) | Streamlit pages, headless | Plan without a plan yet invites week one | Pass |
+| TC-388 | System (UI) | Streamlit pages, headless | Quiz generate answer and review | Pass |
+| TC-389 | System (UI) | Streamlit pages, headless | Quiz setup hints weakness and explains the suggestion | Pass |
+| TC-390 | System (UI) | Streamlit pages, headless | Quiz review shows a score card marks and next steps | Pass |
+| TC-391 | System (UI) | Streamlit pages, headless | Quiz with blank answers asks before submitting | Pass |
+| TC-392 | System (UI) | Streamlit pages, headless | Critic log numbers questions like the quiz | Pass |
+| TC-393 | System (UI) | Streamlit pages, headless | Quiz text and options are shown literally | Pass |
+| TC-394 | System (UI) | Streamlit pages, headless | Interview answer is shown literally | Pass |
+| TC-395 | System (UI) | Streamlit pages, headless | Interview session runs to completion | Pass |
+| TC-396 | System (UI) | Streamlit pages, headless | Interview setup describes each type | Pass |
+| TC-397 | System (UI) | Streamlit pages, headless | Interview shows progress scored feedback and the critic trail | Pass |
+| TC-398 | System (UI) | Streamlit pages, headless | Dashboard renders | Pass |
+| TC-399 | System (UI) | Streamlit pages, headless | Dashboard readiness shows a delta and trend only after a second profile | Pass |
+| TC-400 | System (UI) | Streamlit pages, headless | Dashboard keeps system telemetry in its own section | Pass |
+| TC-401 | System (UI) | Streamlit pages, headless | Dashboard for a new student explains each empty section | Pass |
+| TC-402 | System (UI) | Streamlit pages, headless | Dashboard error state offers a retry | Pass |
+| TC-403 | System (UI) | Streamlit pages, headless | Onboard requires a resume or sample | Pass |
+| TC-404 | System (UI) | Streamlit pages, headless | Onboarding another student drops the previous students session | Pass |
+| TC-405 | System (UI) | Streamlit pages, headless | Failed follow up offers retry without reanswering | Pass |
+| TC-406 | System (UI) | Streamlit pages, headless | Failed quiz generation stays visible | Pass |
+| TC-407 | System (UI) | Streamlit pages, headless | Results page without and with results | Pass |
+| TC-408 | System (UI) | Streamlit pages, headless | Results note mentions the duplicate rate only when it is shown | Pass |
+| TC-409 | System (UI) | Streamlit pages, headless | Seed demo fills an empty database on start | Pass |
+| TC-410 | System (UI) | Streamlit pages, headless | Home without a student explains the loop | Pass |
+| TC-411 | System (UI) | Streamlit pages, headless | Home quick start opens onboard with a sample | Pass |
+| TC-412 | System (UI) | Streamlit pages, headless | Home shows todays focus for the demo student | Pass |
+| TC-413 | System (UI) | Streamlit pages, headless | Todays focus opens the page it names | Pass |
+| TC-414 | System (UI) | Streamlit pages, headless | Todays focus preselects the quiz topic | Pass |
+| TC-415 | System (UI) | Streamlit pages, headless | Home error state offers a retry | Pass |

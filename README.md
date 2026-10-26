@@ -91,6 +91,7 @@ pytest                                   # offline, includes headless UI tests (
 python -m evaluation.run_eval --consecutive 5 --interviews   # live, 20 frozen cases; needs 2 days of free quota
 python -m evaluation.run_eval --consecutive 5 --interviews --resume   # continue the next day
 python -m evaluation.report              # results/report.md + chart.svg for the report
+python -m scripts.summary_pdf            # docs/PlacementIQ_Summary.pdf with the latest numbers
 ```
 
 ## Visual QA and performance (dev tools)
@@ -107,7 +108,7 @@ design system and the review loop are in [docs/design/DESIGN.md](docs/design/DES
 and the before/after numbers in [docs/performance.md](docs/performance.md).
 
 ## Documentation
-- [docs/PlacementIQ_Summary.pdf](docs/PlacementIQ_Summary.pdf): two-page abstract, key features and the problems it solves
+- [docs/PlacementIQ_Summary.pdf](docs/PlacementIQ_Summary.pdf): two-page abstract, key features and the problems it solves (`python -m scripts.summary_pdf`)
 - [ARCHITECTURE.md](ARCHITECTURE.md): design, data flow, decisions, limitations
 - [CLAUDE.md](CLAUDE.md): code map, commands and conventions
 - [docs/diagrams.md](docs/diagrams.md): use case, components, DFD level 0/1, ER and sequence diagrams
