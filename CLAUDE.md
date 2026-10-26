@@ -18,10 +18,10 @@ College mini-project scope: one Streamlit process and one SQLite file. Keep it t
 | Resume parsing | pypdf / python-docx | 6.21.1 / 1.2.0 |
 | Config | python-dotenv | 1.2.4 |
 | Dev | pytest / ruff | 9.1.1 / 0.17.1 |
-| Dev, visual QA only | Playwright (+ Chromium) / Pillow | 1.64.0 / 12.3.0 |
+| Dev, visual QA and docs only | Playwright (+ Chromium) / Pillow | 1.64.0 / 12.3.0 |
 
-Playwright drives `scripts/screenshots.py` (never CI or tests); Pillow compresses its PNGs
-and is the version Streamlit already installs.
+Playwright drives `scripts/screenshots.py` and prints `scripts/summary_pdf.py` (never CI or
+tests); Pillow compresses its PNGs and is the version Streamlit already installs.
 
 ## Directory structure
 ```
@@ -67,7 +67,9 @@ scripts/
   screenshots.py    Dev: every page and flow via Playwright, 3 widths x 2 schemes; fails on console errors
   perf.py           Dev: render time and queries per page via AppTest (--mode fresh | rerun)
   tunnel.ps1 / .bat Demo: the app on a temporary public URL (Cloudflare quick tunnel; Windows)
-docs/               diagrams.md (use case, DFD, ER, sequence), critic graph, test report, performance.md
+  summary_pdf.py    Docs: results/summary.json -> docs/PlacementIQ_Summary.pdf (Playwright)
+docs/               diagrams.md (use case, DFD, ER, sequence), critic graph, test report, performance.md,
+                    PlacementIQ_Summary.pdf (abstract, key features, problems it solves)
   design/           DESIGN.md (the design system), curated before/ and after/ screenshots, perf tables
 .github/workflows/  ci.yml: format check, lint and tests on push to main and on PRs (read-only token)
 .streamlit/         config.toml: theme (light/dark tokens, fonts), static serving, 5 MB uploads, no telemetry
@@ -88,6 +90,7 @@ ruff format . ; ruff check .            # format + lint (must be clean)
 python -m evaluation.run_eval --consecutive 5 --interviews   # live; ~360k tokens = 2 days of quota
 python -m evaluation.run_eval --consecutive 5 --interviews --resume   # continue (same flags)
 python -m evaluation.report             # results/report.md + chart.svg
+python -m scripts.summary_pdf           # docs/PlacementIQ_Summary.pdf with the latest numbers
 python -m scripts.test_report           # docs/test_report.md from a real test run
 python -m scripts.export_graph          # refresh docs/critic_graph.mmd and .md
 python -m scripts.screenshots docs/design/after [--pages quiz] [--widths 1440,390]   # visual review
@@ -119,7 +122,7 @@ There is no build step. `.env.example` already contains the verified model IDs. 
 - Every change ships with a test. Tests must pass offline in MOCK_MODE. Any new mock response must pass the same schema and checks as real output.
 - Tests never read the real `.env`: `tests/conftest.py` points `PIQ_DOTENV` at a missing file, clears caches and gives each test a fresh database. Live code paths are tested with fake Groq clients (`tests/test_llm.py`, `tests/test_check_models.py`).
 - Commits follow Conventional Commits (`feat(scope): …`, `fix(scope): …`), one logical unit per commit, and every commit passes the full suite. CI on GitHub must stay green.
-- Generated docs are regenerated, never hand-edited: `docs/critic_graph.*` (a test fails on drift) and `docs/test_report.md`.
+- Generated docs are regenerated, never hand-edited: `docs/critic_graph.*` (a test fails on drift), `docs/test_report.md` and `docs/PlacementIQ_Summary.pdf` (after every evaluation run).
 - A new dependency needs a one-line justification in `requirements.txt` and an exact version pin. The default answer is no.
 
 ## Constraints and do-not-touch
