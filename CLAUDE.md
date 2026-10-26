@@ -66,6 +66,7 @@ scripts/
   test_report.py    Runs pytest and writes docs/test_report.md (test-case table)
   screenshots.py    Dev: every page and flow via Playwright, 3 widths x 2 schemes; fails on console errors
   perf.py           Dev: render time and queries per page via AppTest (--mode fresh | rerun)
+  tunnel.ps1 / .bat Demo: the app on a temporary public URL (Cloudflare quick tunnel; Windows)
 docs/               diagrams.md (use case, DFD, ER, sequence), critic graph, test report, performance.md
   design/           DESIGN.md (the design system), curated before/ and after/ screenshots, perf tables
 .github/workflows/  ci.yml: format check, lint and tests on push to main and on PRs (read-only token)

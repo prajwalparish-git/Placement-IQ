@@ -149,6 +149,7 @@ agent_logs                   (agent, model, tokens, latency, critic_approved, re
 
 ## 8. Known limitations
 - No authentication: anyone using the app can select any student. This is out of scope.
+- The demo tunnel (`scripts/tunnel.ps1`) puts the app on a public URL with no login, and turns Streamlit's CORS and XSRF checks off for the process it starts (never in `config.toml`). Use it only for the length of a demo.
 - SQLite allows one writer at a time. That's fine for a lab demo, not for a whole batch using the app at once.
 - 8,000 tokens/minute per model allows roughly two quiz generations a minute. A class using the app together will hit 429s; the SDK backs off and then the UI says how long to wait.
 - The critic is the same model as the generator, so their errors are correlated. Deterministic checks and manual labels (`questions.csv`) offset this.

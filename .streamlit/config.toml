@@ -6,6 +6,8 @@ maxUploadSize = 5
 # Serves static/ (self-hosted fonts, brand mark) at app/static/: the app works offline in a
 # college lab and never calls a font CDN.
 enableStaticServing = true
+# CORS and XSRF protection stay on (the defaults). scripts/tunnel.ps1 lifts them only for the
+# Streamlit process it starts behind a public tunnel.
 
 [browser]
 # The app handles student resumes: send no usage telemetry.
