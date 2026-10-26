@@ -82,7 +82,7 @@ START ─▶ generate ─▶ verify ──approved, or out of retries──▶ E
 | Large: planner, quiz, critic, interviewer, evaluator | `openai/gpt-oss-120b` | Strictest critic in a probe of every chat model Groq serves; it caught real multi-answer questions. It also produced the best plans and evaluations. |
 | Small: profile extraction | `openai/gpt-oss-20b` | Fastest correct extraction, about 2 s. Quotas are per model, so it keeps profile calls out of the large model's token budget. |
 
-Free-tier limits per model: **8,000 tokens/minute and 1,000 requests/day** (read from the response headers), plus a daily token cap of about **200,000 tokens**, which the full evaluation hit after 15 of 20 cases. Typical cost measured live:
+Free-tier limits per model: **8,000 tokens/minute and 1,000 requests/day** (read from the response headers), plus a daily token cap of about **200,000 tokens**, which the full evaluation hit after 15 of 20 cases (`--resume` finished the other five on a later day). Typical cost measured live:
 
 | Action | LLM calls | Time |
 |---|---|---|
