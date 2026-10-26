@@ -82,7 +82,7 @@ START ─▶ generate ─▶ verify ──approved, or out of retries──▶ E
 | Large: planner, quiz, critic, interviewer, evaluator | `openai/gpt-oss-120b` | Strictest critic in a probe of every chat model Groq serves; it caught real multi-answer questions. It also produced the best plans and evaluations. |
 | Small: profile extraction | `openai/gpt-oss-20b` | Fastest correct extraction, about 2 s. Quotas are per model, so it keeps profile calls out of the large model's token budget. |
 
-Free-tier limits per model: **8,000 tokens/minute and 1,000 requests/day** (read from the response headers), plus a daily token cap of about **200,000 tokens**, which the full evaluation hit after 15 of 20 cases. Typical cost measured live:
+Free-tier limits per model: **8,000 tokens/minute and 1,000 requests/day** (read from the response headers), plus a daily token cap of about **200,000 tokens**, which the full evaluation hit after 15 of 20 cases (`--resume` finished the other five on a later day). Typical cost measured live:
 
 | Action | LLM calls | Time |
 |---|---|---|
@@ -149,6 +149,7 @@ agent_logs                   (agent, model, tokens, latency, critic_approved, re
 
 ## 8. Known limitations
 - No authentication: anyone using the app can select any student. This is out of scope.
+- The demo tunnel (`scripts/tunnel.ps1`) puts the app on a public URL with no login, and turns Streamlit's CORS and XSRF checks off for the process it starts (never in `config.toml`). Use it only for the length of a demo.
 - SQLite allows one writer at a time. That's fine for a lab demo, not for a whole batch using the app at once.
 - 8,000 tokens/minute per model allows roughly two quiz generations a minute. A class using the app together will hit 429s; the SDK backs off and then the UI says how long to wait.
 - The critic is the same model as the generator, so their errors are correlated. Deterministic checks and manual labels (`questions.csv`) offset this.

@@ -30,6 +30,14 @@ Without a `.env` file the app runs in **MOCK_MODE**: canned responses and no net
    Streamlit exposes top-level secrets as environment variables, so no code change is needed.
 3. The hosted disk is not persistent: the SQLite file resets when the app restarts. With `SEED_DEMO=true` the demo student is recreated on start, so the demo always opens with history.
 
+## Share a live demo (optional): Cloudflare quick tunnel
+On Windows with [cloudflared](https://github.com/cloudflare/cloudflared/releases) installed,
+double-click `scripts\tunnel.bat` (or run `powershell -ExecutionPolicy Bypass -File scripts\tunnel.ps1`).
+It starts Streamlit if nothing is running on port 8501 and prints a temporary public
+`https://…trycloudflare.com` URL for a phone or another laptop. There is no login: anyone
+with the URL can use the app and, in live mode, spend the Groq quota, so close the window
+when the demo ends.
+
 ## Features
 - **Home**: what PlacementIQ does, or for a returning student their readiness, study
   streak, this week's progress and **today's focus**, the next step chosen by rules.
@@ -99,6 +107,7 @@ design system and the review loop are in [docs/design/DESIGN.md](docs/design/DES
 and the before/after numbers in [docs/performance.md](docs/performance.md).
 
 ## Documentation
+- [docs/PlacementIQ_Summary.pdf](docs/PlacementIQ_Summary.pdf): two-page abstract, key features and the problems it solves
 - [ARCHITECTURE.md](ARCHITECTURE.md): design, data flow, decisions, limitations
 - [CLAUDE.md](CLAUDE.md): code map, commands and conventions
 - [docs/diagrams.md](docs/diagrams.md): use case, components, DFD level 0/1, ER and sequence diagrams
