@@ -68,6 +68,150 @@
       "Logical Reasoning": "Aptitude",
       "Quantitative Aptitude": "Aptitude",
       "Git": null
+    },
+    "Frontend Engineer": {
+      "JavaScript": "OOP",
+      "TypeScript": "OOP",
+      "React": "OOP",
+      "HTML5": null,
+      "CSS3": null,
+      "REST APIs": "CN",
+      "Web Performance": "CN",
+      "Git": null,
+      "Jest": "OOP"
+    },
+    "Backend Developer": {
+      "Java": "OOP",
+      "Python": "OOP",
+      "SQL": "DBMS",
+      "Database Design": "DBMS",
+      "Operating Systems": "OS",
+      "Computer Networks": "CN",
+      "REST APIs": "CN",
+      "Microservices": "CN",
+      "Git": null
+    },
+    "DevOps & Cloud Engineer": {
+      "Linux": "OS",
+      "Docker": "OS",
+      "Kubernetes": "OS",
+      "Computer Networks": "CN",
+      "CI/CD": null,
+      "Terraform": null,
+      "AWS": "CN",
+      "Python": "OOP",
+      "Git": null
+    },
+    "Data Analyst & BI Specialist": {
+      "SQL": "DBMS",
+      "Database Design": "DBMS",
+      "Python": "OOP",
+      "Statistics": "Aptitude",
+      "Probability": "Aptitude",
+      "Power BI": null,
+      "Excel": null,
+      "Data Visualization": null
+    },
+    "Machine Learning / AI Engineer": {
+      "Python": "OOP",
+      "Mathematics": "Aptitude",
+      "Statistics": "Aptitude",
+      "Data Structures": "DSA",
+      "Algorithms": "DSA",
+      "SQL": "DBMS",
+      "PyTorch": null,
+      "Machine Learning": null,
+      "Git": null
+    },
+    "VLSI & Chip Design Engineer": {
+      "Digital Electronics": "OS",
+      "Verilog": "OOP",
+      "Static Timing Analysis": null,
+      "CMOS": null,
+      "FPGA": null,
+      "Logical Reasoning": "Aptitude"
+    },
+    "Embedded Systems & Firmware Engineer": {
+      "Embedded C": "OS",
+      "Microcontrollers": "OS",
+      "I2C": "CN",
+      "SPI": "CN",
+      "UART": "CN",
+      "RTOS": "OS",
+      "Git": null
+    },
+    "Automotive & EV Systems Engineer": {
+      "Thermodynamics": "Aptitude",
+      "SolidWorks": null,
+      "CAD": null,
+      "Battery Management": null,
+      "Logical Reasoning": "Aptitude"
+    },
+    "CAD/CAM & Product Design Engineer": {
+      "CAD": null,
+      "SolidWorks": null,
+      "FEA": null,
+      "GD&T": null,
+      "Engineering Drawing": "Aptitude"
+    },
+    "Structural Design Engineer": {
+      "Structural Analysis": "Aptitude",
+      "RCC Design": null,
+      "Steel Design": null,
+      "STAAD Pro": null,
+      "AutoCAD": null
+    },
+    "Industrial Automation & PLC Engineer": {
+      "PLC Programming": null,
+      "SCADA": null,
+      "Sensors": null,
+      "Control Systems": "OS",
+      "Electrical Machines": null
+    },
+    "Bioinformatics Analyst": {
+      "Python": "OOP",
+      "Bioinformatics": null,
+      "Algorithms": "DSA",
+      "Genomics": null,
+      "Statistics": "Aptitude"
+    },
+    "Hospital Operations Administrator": {
+      "Healthcare Management": "Aptitude",
+      "Hospital Administration": null,
+      "Quality Assurance": null,
+      "Communication": "Aptitude"
+    },
+    "Corporate Legal Counsel": {
+      "Contract Law": "Aptitude",
+      "Corporate Law": null,
+      "Legal Drafting": null,
+      "Communication": "Aptitude"
+    },
+    "Financial Analyst": {
+      "Financial Modeling": "Aptitude",
+      "Excel": "Aptitude",
+      "Accounting": "Aptitude",
+      "SQL": "DBMS",
+      "Statistics": "Aptitude"
+    },
+    "UPSC Civil Services Aspirant": {
+      "Indian Polity": "Aptitude",
+      "Modern History": "Aptitude",
+      "Geography": "Aptitude",
+      "Economics": "Aptitude",
+      "Logical Reasoning": "Aptitude"
+    },
+    "Public Sector Bank PO (SBI / IBPS)": {
+      "Quantitative Aptitude": "Aptitude",
+      "Logical Reasoning": "Aptitude",
+      "Banking Awareness": "Aptitude",
+      "Data Interpretation": "Aptitude"
+    },
+    "State Administrative Officer (KAS / PCS)": {
+      "State Administration": "Aptitude",
+      "Indian Polity": "Aptitude",
+      "Rural Development": "Aptitude",
+      "Logical Reasoning": "Aptitude"
     }
   }
 }

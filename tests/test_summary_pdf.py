@@ -38,8 +38,10 @@ def test_quotes_the_evaluation_numbers():
 
 
 def test_facts_come_from_the_code():
+    from piq.agents import roles
+
     page = _page()
-    assert "one of five roles" in page
+    assert f"one of {summary_pdf._words(len(roles()))} roles" in page
     assert "five questions never repeated" in page
     assert "HR, technical and project rounds" in page
     assert "scored on relevance, depth, structure and clarity" in page

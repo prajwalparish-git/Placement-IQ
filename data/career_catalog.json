@@ -1,0 +1,504 @@
+{
+  "domains": [
+    {
+      "id": "cs",
+      "name": "Computer Science & IT",
+      "icon": "computer",
+      "description": "Software architecture, full stack web development, cloud computing, AI, and cybersecurity systems.",
+      "roles": [
+        {
+          "name": "Software Engineer",
+          "category": "Computer Science",
+          "description": "Designs, develops, tests, and deploys high-scale software applications and robust distributed systems.",
+          "recommended_degree": "B.E / B.Tech in CS/IT/ECE or MCA",
+          "ats_keywords": [
+            "Python", "Java", "C++", "Data Structures", "Algorithms", "System Design", "SQL",
+            "Git", "Docker", "REST APIs", "Unit Testing", "CI/CD", "Object-Oriented Programming", "Linux", "Microservices"
+          ],
+          "sample_projects": [
+            {
+              "title": "Distributed Task Scheduler & Queue Manager",
+              "tech": "Python, Redis, Docker, PostgreSQL",
+              "bullets": [
+                "Engineered asynchronous job queuing system with exponential backoff handling 20,000 tasks/min.",
+                "Optimized database query throughput by 40% using connection pooling and indexing strategies."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Data Scientist",
+          "category": "Computer Science",
+          "description": "Applies statistical modeling, machine learning, and deep predictive analytics to solve complex industry problems.",
+          "recommended_degree": "B.E / B.Tech / M.Tech in CS/Data Science/Maths/Stats",
+          "ats_keywords": [
+            "Python", "Machine Learning", "Pandas", "NumPy", "Scikit-Learn", "SQL", "Deep Learning",
+            "TensorFlow", "PyTorch", "Data Visualization", "Statistics", "Model Deployment", "Git"
+          ],
+          "sample_projects": [
+            {
+              "title": "Predictive Customer Churn Analysis Pipeline",
+              "tech": "Python, Scikit-Learn, Pandas, FastAPI, Docker",
+              "bullets": [
+                "Architected end-to-end ML prediction pipeline achieving 91% ROC-AUC on 500k customer records.",
+                "Deployed real-time inference microservice with automated drift detection and sub-100ms response times."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Frontend Engineer",
+          "category": "Computer Science",
+          "description": "Architects responsive, accessible, and high-performance user interfaces using modern web frameworks.",
+          "recommended_degree": "B.E / B.Tech in CS/IT or BCA/MCA",
+          "ats_keywords": [
+            "React", "TypeScript", "JavaScript", "HTML5", "CSS3", "Next.js", "Redux Toolkit",
+            "Tailwind CSS", "REST APIs", "Webpack", "Vite", "Responsive Design", "Jest", "Git", "Web Vitals", "CI/CD"
+          ],
+          "sample_projects": [
+            {
+              "title": "Real-Time Collaborative Workspace",
+              "tech": "React, TypeScript, WebSocket, Tailwind CSS",
+              "bullets": [
+                "Engineered responsive multi-user collaboration platform supporting real-time canvas updates with sub-50ms latency.",
+                "Optimized client-side rendering with memoization and virtualized lists, improving Lighthouse performance score from 68 to 96."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Backend Developer",
+          "category": "Computer Science",
+          "description": "Develops resilient microservices, business logic, scalable APIs, and database transactions.",
+          "recommended_degree": "B.E / B.Tech in CS/IT",
+          "ats_keywords": [
+            "Java", "Python", "Spring Boot", "Django", "SQL", "PostgreSQL", "MongoDB", "Redis",
+            "Microservices", "RESTful APIs", "Docker", "Apache Kafka", "System Design", "Unit Testing", "Git"
+          ],
+          "sample_projects": [
+            {
+              "title": "High-Throughput Order Processing Service",
+              "tech": "Java, Spring Boot, PostgreSQL, Redis, Docker",
+              "bullets": [
+                "Architected distributed REST API handling 15,000 requests/sec with Redis caching layer reducing database load by 45%.",
+                "Implemented secure JWT-based authentication and role-based access control (RBAC) across 8 microservice endpoints."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Full Stack Developer",
+          "category": "Computer Science",
+          "description": "Bridges frontend client interfaces and backend distributed cloud architectures.",
+          "recommended_degree": "B.E / B.Tech in CS/IT",
+          "ats_keywords": [
+            "JavaScript", "TypeScript", "React", "Node.js", "Express.js", "PostgreSQL", "MongoDB",
+            "REST APIs", "GraphQL", "Docker", "AWS", "Git", "Agile", "Tailwind CSS", "Jest"
+          ],
+          "sample_projects": [
+            {
+              "title": "Enterprise Resource & Asset Management Portal",
+              "tech": "React, Node.js, Express, PostgreSQL, Prisma",
+              "bullets": [
+                "Built full-stack inventory management application tracking 10,000+ assets with automated low-stock webhook notifications.",
+                "Implemented full automated CI/CD pipeline using GitHub Actions reducing deployment turnaround time by 60%."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "DevOps & Cloud Engineer",
+          "category": "Computer Science",
+          "description": "Automates cloud infrastructure, continuous delivery pipelines, and container orchestration.",
+          "recommended_degree": "B.E / B.Tech in CS/IT/ECE",
+          "ats_keywords": [
+            "AWS", "Docker", "Kubernetes", "Terraform", "CI/CD", "Linux", "Bash", "GitHub Actions",
+            "Prometheus", "Grafana", "Ansible", "CloudFormation", "Networking", "IAM", "Helm"
+          ],
+          "sample_projects": [
+            {
+              "title": "Automated Cloud Infrastructure & GitOps Pipeline",
+              "tech": "AWS, Terraform, Kubernetes, Docker, GitHub Actions",
+              "bullets": [
+                "Authored modular Terraform templates provisioning multi-AZ VPC, EKS cluster, and RDS instances with zero manual touchpoints.",
+                "Configured Prometheus and Grafana alerting suites achieving 99.95% system uptime across production microservices."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Data Analyst & BI Specialist",
+          "category": "Computer Science",
+          "description": "Extracts actionable business intelligence through statistical modeling, SQL transformations, and BI dashboards.",
+          "recommended_degree": "B.E / B.Tech in CS/IT/Stats or B.Sc/B.Com",
+          "ats_keywords": [
+            "SQL", "Python", "Pandas", "Power BI", "Tableau", "Excel", "Data Modeling", "ETL",
+            "Statistics", "Hypothesis Testing", "Data Visualization", "DAX", "BigQuery", "Git"
+          ],
+          "sample_projects": [
+            {
+              "title": "Customer Churn Prediction & Retention Dashboard",
+              "tech": "Python, SQL, Power BI, Scikit-Learn",
+              "bullets": [
+                "Analyzed 200,000+ subscriber activity logs using advanced SQL window functions to isolate leading churn indicators.",
+                "Designed executive Power BI dashboard enabling marketing leadership to enact targeted retention campaigns reducing churn by 18%."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Machine Learning / AI Engineer",
+          "category": "Computer Science",
+          "description": "Trains predictive models, deep neural networks, and integrates AI inference endpoints into products.",
+          "recommended_degree": "B.E / B.Tech in CS/AI/DS",
+          "ats_keywords": [
+            "Python", "PyTorch", "TensorFlow", "Scikit-Learn", "Machine Learning", "Deep Learning", "NLP",
+            "Computer Vision", "Transformers", "Data Preprocessing", "Feature Engineering", "MLOps", "Docker", "Git"
+          ],
+          "sample_projects": [
+            {
+              "title": "Automated Document Classification & Information Extraction",
+              "tech": "Python, PyTorch, Hugging Face Transformers, FastAPI",
+              "bullets": [
+                "Fine-tuned transformer model for financial document categorization, attaining 94.2% F1-score across 15 document classes.",
+                "Deployed asynchronous inference microservice with FastAPI and Docker processing 250 requests/sec."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ece",
+      "name": "Electronics & Communication",
+      "icon": "memory",
+      "description": "Semiconductor VLSI design, embedded firmware, IoT edge hardware, and telecommunications.",
+      "roles": [
+        {
+          "name": "VLSI & Chip Design Engineer",
+          "category": "Electronics & Communication Engineering",
+          "description": "Designs digital logic, synthesizes RTL code, and performs Static Timing Analysis (STA) on silicon chips.",
+          "recommended_degree": "B.E / B.Tech in ECE/EEE",
+          "ats_keywords": [
+            "Verilog", "VHDL", "Digital Electronics", "Static Timing Analysis (STA)", "CMOS", "RTL Design",
+            "ASIC Design Flow", "FPGA", "Xilinx Vivado", "ModelSim", "Logic Synthesis", "Clock Domain Crossing", "Low Power Design"
+          ],
+          "sample_projects": [
+            {
+              "title": "32-Bit Pipelined RISC-V Microprocessor Core",
+              "tech": "Verilog, ModelSim, Xilinx Vivado, FPGA",
+              "bullets": [
+                "Designed 5-stage pipelined RISC-V processor implementing integer instruction subset with forwarding logic to eliminate data hazards.",
+                "Performed timing simulation and static timing analysis verifying zero setup/hold slack violations at 100 MHz target frequency."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Embedded Systems & Firmware Engineer",
+          "category": "Electronics & Communication Engineering",
+          "description": "Programs bare-metal and RTOS microcontrollers, writes hardware drivers, and debugs serial protocols.",
+          "recommended_degree": "B.E / B.Tech in ECE/EEE/CS",
+          "ats_keywords": [
+            "Embedded C", "ARM Cortex-M", "RTOS", "Microcontrollers", "I2C", "SPI", "UART", "CAN Bus",
+            "Device Drivers", "Oscilloscope", "FreeRTOS", "Memory Management", "Firmware Debugging", "Hardware Interfacing"
+          ],
+          "sample_projects": [
+            {
+              "title": "Industrial CAN-Bus Telemetry Logger with FreeRTOS",
+              "tech": "Embedded C, STM32, FreeRTOS, CAN Bus, SPI",
+              "bullets": [
+                "Developed deterministic firmware logging vehicle telemetry packets over high-speed CAN bus to onboard SPI flash memory.",
+                "Implemented priority-preemptive tasks in FreeRTOS ensuring sensor acquisition loop bounded under 5ms jitter."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mech",
+      "name": "Mechanical Engineering",
+      "icon": "precision_manufacturing",
+      "description": "Automotive systems, thermal design, FEA stress analysis, CAD product engineering, and mechatronics.",
+      "roles": [
+        {
+          "name": "Automotive & EV Systems Engineer",
+          "category": "Mechanical Engineering",
+          "description": "Engineers vehicle dynamics, electric vehicle battery pack cooling, and chassis structural components.",
+          "recommended_degree": "B.E / B.Tech in Mechanical / Automobile",
+          "ats_keywords": [
+            "Automotive Dynamics", "Battery Management Systems", "Powertrain Design", "Thermal Management", "SolidWorks",
+            "ANSYS FEA", "GD&T", "Matlab Simulink", "Chassis Design", "DFM/DFA", "Braking Systems", "Vehicle Safety"
+          ],
+          "sample_projects": [
+            {
+              "title": "Thermal Management Optimization for EV Lithium Battery Pack",
+              "tech": "SolidWorks, ANSYS Fluent, MATLAB",
+              "bullets": [
+                "Designed liquid cooling jacket for 48V electric scooter battery pack maintaining cell temperatures below 40C during rapid 2C discharge.",
+                "Performed conjugate heat transfer (CHT) CFD simulations reducing thermal variation across cells by 28%."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "CAD/CAM & Product Design Engineer",
+          "category": "Mechanical Engineering",
+          "description": "Creates 3D parametric components, drafts production drawings with GD&T, and conducts finite element analysis.",
+          "recommended_degree": "B.E / B.Tech in Mechanical Engineering",
+          "ats_keywords": [
+            "SolidWorks", "CATIA", "AutoCAD", "GD&T", "FEA Stress Analysis", "ANSYS", "Injection Molding",
+            "Sheet Metal Design", "Design for Manufacturing (DFM)", "Tolerance Stackup", "Prototyping", "3D Printing"
+          ],
+          "sample_projects": [
+            {
+              "title": "Lightweight Structural Robotic Arm Linkage",
+              "tech": "CATIA V5, ANSYS Structural, 3D Printing",
+              "bullets": [
+                "Redesigned aluminum structural linkage achieving 35% mass reduction while withstanding 1.5 kN dynamic bending load.",
+                "Applied ASME Y14.5 GD&T standards across engineering drawings ensuring zero tooling rework during CNC prototyping."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "civil",
+      "name": "Civil Engineering",
+      "icon": "apartment",
+      "description": "Reinforced concrete design, geotechnical foundations, highway transport, and construction management.",
+      "roles": [
+        {
+          "name": "Structural Design Engineer",
+          "category": "Civil Engineering",
+          "description": "Performs load calculations, structural framing analysis, and designs RCC and steel structures adhering to IS codes.",
+          "recommended_degree": "B.E / B.Tech in Civil Engineering",
+          "ats_keywords": [
+            "RCC Design", "Steel Structures", "STAAD.Pro", "ETABS", "AutoCAD", "IS 456", "IS 800",
+            "Structural Analysis", "Foundation Design", "Seismic Engineering", "Bending Moment Calculations", "Rebar Detailing"
+          ],
+          "sample_projects": [
+            {
+              "title": "Seismic Analysis & RCC Design of G+8 Residential Tower",
+              "tech": "ETABS, AutoCAD, IS 456:2000, IS 1893",
+              "bullets": [
+                "Modeled and simulated lateral seismic and wind loads for 9-story reinforced concrete building using response spectrum method in ETABS.",
+                "Generated detailed rebar schedules and structural framing drawings reducing total structural steel requirement by 8%."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "eee",
+      "name": "Electrical Engineering",
+      "icon": "bolt",
+      "description": "Grid power systems, industrial PLC automation, motor drives, and solar/wind renewable integrations.",
+      "roles": [
+        {
+          "name": "Industrial Automation & PLC Engineer",
+          "category": "Electrical & Electronics Engineering",
+          "description": "Programs PLCs, configures SCADA interfaces, and synchronizes industrial VFD motor drives.",
+          "recommended_degree": "B.E / B.Tech in EEE/ECE",
+          "ats_keywords": [
+            "PLC Programming", "Ladder Logic", "SCADA", "HMI", "Variable Frequency Drives (VFD)", "Siemens TIA Portal",
+            "Modbus", "Industrial Sensors", "Relay Control", "Panel Wiring", "Instrumentation", "Safety Circuits"
+          ],
+          "sample_projects": [
+            {
+              "title": "Automated Bottle Filling & Capping SCADA System",
+              "tech": "Siemens S7-1200 PLC, TIA Portal, WinCC SCADA",
+              "bullets": [
+                "Programmed ladder logic control routine synchronizing conveyor timing, pneumatic filling valves, and optical inspection sensors.",
+                "Designed HMI operator screen featuring real-time batch logging, fault diagnostic alarms, and throughput counters."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "biotech",
+      "name": "Biotech & Biomedical",
+      "icon": "biotech",
+      "description": "Genomics bioinformatics, biosensor instrumentation, bioprocess scale-up, and clinical research.",
+      "roles": [
+        {
+          "name": "Bioinformatics Analyst",
+          "category": "Biotechnology & Biomedical Engineering",
+          "description": "Analyzes genomic sequencing data, performs molecular docking simulations, and develops biological pipelines.",
+          "recommended_degree": "B.E / B.Tech in Biotechnology or Bioinformatics",
+          "ats_keywords": [
+            "Bioinformatics", "Python", "R", "BLAST", "Sequence Alignment", "Genomics", "Molecular Docking",
+            "AutoDock", "PyMOL", "Biopython", "NGS Data Analysis", "Biostatistics", "Drug Discovery"
+          ],
+          "sample_projects": [
+            {
+              "title": "In-Silico Virtual Screening of Novel Kinase Inhibitors",
+              "tech": "AutoDock Vina, PyMOL, Python, PubChem API",
+              "bullets": [
+                "Screened 1,200 small-molecule chemical ligands against cancer target kinase active site identifying top 5 high-affinity lead candidates.",
+                "Constructed automated Python pipeline parsing PDB coordinate files and calculating binding free energies."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "health",
+      "name": "Healthcare & Medicine",
+      "icon": "medical_services",
+      "description": "Hospital operations management, clinical pharmacy, medical records, and public health policy.",
+      "roles": [
+        {
+          "name": "Hospital Operations Administrator",
+          "category": "Healthcare & Medical Sciences",
+          "description": "Optimizes patient workflows, clinical accreditations, biomedical inventory, and emergency department throughput.",
+          "recommended_degree": "MHA / MBA Healthcare / MBBS / B.Sc Nursing",
+          "ats_keywords": [
+            "Hospital Administration", "NABH Accreditation", "Patient Flow Optimization", "Healthcare Quality", "HIS Systems",
+            "Biomedical Waste Management", "Bed Turnover Rate", "Clinical Governance", "Inventory Control", "Patient Safety"
+          ],
+          "sample_projects": [
+            {
+              "title": "Outpatient Department (OPD) Waiting Time Reduction Protocol",
+              "tech": "Hospital Information System (HIS), Six Sigma, Excel",
+              "bullets": [
+                "Analyzed patient queue bottleneck data across 6 specialty clinics implementing staggered appointment scheduling.",
+                "Decreased average patient wait time from 75 minutes to 38 minutes while improving overall clinic patient satisfaction score to 92%."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "corp",
+      "name": "Corporate, Finance & Law",
+      "icon": "gavel",
+      "description": "Corporate legal counsel, financial valuation modeling, human resources, and product management.",
+      "roles": [
+        {
+          "name": "Corporate Legal Counsel",
+          "category": "Corporate Management, Finance & Law",
+          "description": "Drafts commercial contracts, assesses corporate regulatory compliance, and advises on intellectual property.",
+          "recommended_degree": "LL.B / B.A. LL.B / LL.M",
+          "ats_keywords": [
+            "Contract Drafting", "Indian Contract Act", "Companies Act 2013", "Intellectual Property Rights", "Due Diligence",
+            "Commercial Agreements", "Non-Disclosure Agreements (NDA)", "Legal Research", "Dispute Resolution", "Regulatory Compliance"
+          ],
+          "sample_projects": [
+            {
+              "title": "Master Services Agreement (MSA) Standardization Audit",
+              "tech": "Contract Review, Companies Act 2013, Legal Writing",
+              "bullets": [
+                "Reviewed and structured standard vendor contracts and NDAs, establishing airtight indemnity and limitation of liability clauses.",
+                "Conducted legal compliance audit mitigating corporate regulatory liability across multi-vendor service contracts."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Financial Analyst",
+          "category": "Corporate Management, Finance & Law",
+          "description": "Builds financial models, analyzes three-statement balance sheets, and conducts DCF investment valuations.",
+          "recommended_degree": "B.Com / BBA / MBA Finance",
+          "ats_keywords": [
+            "Financial Modeling", "DCF Valuation", "Excel Financial Functions", "Three Statement Modeling", "Ratio Analysis",
+            "Capital Budgeting", "Working Capital Management", "Variance Analysis", "Corporate Finance", "PowerPoint Pitch Deck"
+          ],
+          "sample_projects": [
+            {
+              "title": "Discounted Cash Flow (DCF) Valuation for Retail Expansion",
+              "tech": "Advanced Excel, Financial Modeling, Sensitivity Analysis",
+              "bullets": [
+                "Constructed 5-year dynamic financial model projecting free cash flows and calculating WACC of 11.2% for expansion initiative.",
+                "Conducted scenario and sensitivity analysis demonstrating 18.5% projected IRR under conservative growth assumptions."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "govt_central",
+      "name": "Central Government",
+      "icon": "account_balance",
+      "description": "UPSC Civil Services, SSC CGL administration, Public Sector Banking, defense and railways careers.",
+      "roles": [
+        {
+          "name": "UPSC Civil Services Aspirant",
+          "category": "Indian Central Government Services",
+          "description": "Prepares for administrative leadership, constitutional governance, policy analysis, and public delivery systems.",
+          "recommended_degree": "Any Graduate Degree",
+          "ats_keywords": [
+            "Indian Polity", "Constitution of India", "Governance & Public Policy", "Modern Indian History", "Indian Economy",
+            "Physical Geography", "Ethics & Integrity", "Administrative Decision Making", "Analytical Writing", "General Studies"
+          ],
+          "sample_projects": [
+            {
+              "title": "District Level Public Distribution System (PDS) Governance Analysis",
+              "tech": "Policy Research, Qualitative Analysis, Case Study",
+              "bullets": [
+                "Researched end-to-end subsidized grain distribution logistics identifying leakage points and proposing biometric tracking mechanisms.",
+                "Authored 25-page comprehensive policy briefing on welfare scheme delivery in tribal development blocks."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Public Sector Bank PO (SBI / IBPS)",
+          "category": "Indian Central Government Services",
+          "description": "Handles retail banking operations, credit appraisal, financial compliance, and commercial customer services.",
+          "recommended_degree": "Any Graduate Degree",
+          "ats_keywords": [
+            "Banking Awareness", "RBI Regulations", "Credit Risk Appraisal", "Quantitative Aptitude", "Data Interpretation",
+            "Financial Inclusion", "KYC / AML Compliance", "Retail Lending", "Priority Sector Lending", "Logical Reasoning"
+          ],
+          "sample_projects": [
+            {
+              "title": "Retail Micro-Credit Loan Underwriting & Risk Assessment Simulation",
+              "tech": "Banking Norms, Financial Risk Ratios, Excel",
+              "bullets": [
+                "Evaluated borrower cash flow statements and credit bureau metrics according to RBI prudential lending guidelines.",
+                "Analyzed non-performing asset (NPA) recovery strategies across retail agricultural lending portfolios."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "govt_state",
+      "name": "State Government",
+      "icon": "shield",
+      "description": "State administrative civil service (KAS/PCS), police law & order, public works, and rural development.",
+      "roles": [
+        {
+          "name": "State Administrative Officer (KAS / PCS)",
+          "category": "Indian State Government Services",
+          "description": "Directs taluk/sub-division civil administration, revenue collection, land records, and welfare implementation.",
+          "recommended_degree": "Any Graduate Degree",
+          "ats_keywords": [
+            "State Administration", "Land Revenue Codes", "Panchayati Raj Act", "State History & Geography", "Public Grievance Redressal",
+            "Rural Development Schemes", "Disaster Management", "Magisterial Duties", "Executive Governance", "Citizen Charters"
+          ],
+          "sample_projects": [
+            {
+              "title": "Gram Panchayat Digital Citizen Service Delivery Study",
+              "tech": "Governance Framework, Field Survey, Qualitative Analysis",
+              "bullets": [
+                "Surveyed 12 village administrative centers evaluating turnaround times for caste and income certificate issuances.",
+                "Drafted administrative recommendations reducing citizen processing delays from 14 days to under 48 hours."
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

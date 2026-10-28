@@ -1,7 +1,14 @@
 # Planning documents and local working briefs — never tracked
 PlacementIQ_Project_Spec*
+docs/PlacementIQ_Project_Spec*
 REDESIGN_BRIEF.md
+docs/REDESIGN_BRIEF.md
 REDESIGN_PROGRESS.md
+docs/REDESIGN_PROGRESS.md
+
+# Question bank datasets (personal / local only)
+MCQ.csv*
+data/questions/
 
 # Secrets
 .env

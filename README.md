@@ -1,6 +1,6 @@
-# PlacementIQ
+# CareerMatrix AI (PlacementIQ: Omni)
 
-An adaptive multi-agent placement-readiness coach. It profiles a resume against a target role, writes a weekly study plan, sets adaptive quizzes and runs mock interviews. A critic agent checks every generated output and forces a regeneration when the output fails. Quiz scores feed back into the next week's plan.
+An adaptive multi-agent placement-readiness and career preparation coach spanning Engineering (CS, ECE, Mech, Civil, EEE, Biotech), Healthcare, Corporate Management & Law, and Indian Central & State Government Services. It profiles a resume against target roles, plans weekly study, sets adaptive quizzes from local curated question banks, and conducts mock interviews. A critic agent checks generated outputs. Quiz scores feed back into subsequent study plans.
 
 ## Quick start (offline, no API key)
 ```
@@ -109,8 +109,9 @@ and the before/after numbers in [docs/performance.md](docs/performance.md).
 
 ## Documentation
 - [docs/PlacementIQ_Summary.pdf](docs/PlacementIQ_Summary.pdf): two-page abstract, key features and the problems it solves (`python -m scripts.summary_pdf`)
-- [ARCHITECTURE.md](ARCHITECTURE.md): design, data flow, decisions, limitations
-- [CLAUDE.md](CLAUDE.md): code map, commands and conventions
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): design, data flow, decisions, limitations
+- [docs/CLAUDE.md](docs/CLAUDE.md): code map, commands and conventions
+- [docs/CATEGORIES_AND_DATASETS.md](docs/CATEGORIES_AND_DATASETS.md): multi-disciplinary roles (58 roles across 10 domains) and question dataset specs
 - [docs/diagrams.md](docs/diagrams.md): use case, components, DFD level 0/1, ER and sequence diagrams
 - [docs/critic_graph.md](docs/critic_graph.md): the LangGraph critic loop, generated from the code
 - [docs/test_report.md](docs/test_report.md): every test case and its result (`python -m scripts.test_report`)

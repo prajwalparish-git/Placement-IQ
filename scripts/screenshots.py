@@ -50,6 +50,7 @@ class AppPage:
 
 PAGES = (
     AppPage("home", "Home", "views/home.py"),
+    AppPage("resume_builder", "Resume builder", "views/resume_builder.py"),
     AppPage("onboard", "Onboard", "views/onboard.py"),
     AppPage("plan", "Weekly plan", "views/plan.py"),
     AppPage("quiz", "Quiz", "views/quiz.py"),
@@ -72,6 +73,8 @@ FLOWS = (
 MARKERS = {
     ("home", "nostudent"): "Start with your resume",
     ("home", "demo"): "Today's focus",
+    ("resume_builder", "nostudent"): "ATS Resume Builder",
+    ("resume_builder", "demo"): "ATS Resume Builder",
     ("onboard", "nostudent"): "Analyse resume",
     ("plan", "nostudent"): "No student selected",
     ("quiz", "nostudent"): "No student selected",

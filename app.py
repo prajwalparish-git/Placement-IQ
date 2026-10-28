@@ -46,6 +46,7 @@ st.navigation(
     {
         "Prepare": [
             st.Page("views/home.py", title="Home", icon=":material/home:", default=True),
+            st.Page("views/resume_builder.py", title="Resume builder", icon=":material/badge:"),
             st.Page("views/onboard.py", title="Onboard", icon=":material/upload_file:"),
             st.Page("views/plan.py", title="Weekly plan", icon=":material/calendar_month:"),
             st.Page("views/quiz.py", title="Quiz", icon=":material/quiz:"),
