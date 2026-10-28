@@ -42,6 +42,7 @@ LAYERS = {
     "test_ci": ("Unit", "CI workflow settings"),
     "test_tunnel": ("Unit", "Demo tunnel settings"),
     "test_summary_pdf": ("Unit", "Summary PDF builder"),
+    "test_resume_builder": ("Unit", "ATS resume builder and PDF compilation"),
     "test_ui": ("System (UI)", "Streamlit pages, headless"),
 }
 ORDER = list(LAYERS)

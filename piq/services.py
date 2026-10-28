@@ -108,6 +108,12 @@ def read_resume(filename: str, data: bytes) -> str:
     return extract_text(filename, data)
 
 
+def generate_candidate_id(name: str = "") -> str:
+    """Generate an open, unique candidate identifier when a user doesn't have a USN."""
+    slug = re.sub(r"[^A-Z0-9]", "", (name or "").upper())[:4] or "CAND"
+    return f"{slug}{uuid.uuid4().hex[:6].upper()}"
+
+
 def onboard(
     usn: str, target_role: str, resume_text: str, on_event: OnEvent | None = None
 ) -> tuple[str, StudentProfile]:
@@ -118,6 +124,22 @@ def onboard(
         raise ServiceError("The resume is empty.")
     profile = agents.create_profile(resume_text, target_role, on_event)
     return db.save_profile(usn, profile), profile
+
+
+def onboard_candidate(
+    name: str,
+    target_role: str,
+    resume_text: str,
+    candidate_id: str | None = None,
+    on_event: OnEvent | None = None,
+) -> tuple[str, StudentProfile]:
+    """Onboard any individual without requiring a university USN."""
+    cid = (
+        candidate_id.strip()
+        if candidate_id and candidate_id.strip()
+        else generate_candidate_id(name)
+    )
+    return onboard(cid, target_role, resume_text, on_event)
 
 
 # --- weekly plan ---------------------------------------------------------------

@@ -28,10 +28,16 @@ if student is None:
         "before you see it.",
     )
     with st.container(horizontal=True):
-        start = st.button(
-            "Start with your resume", type="primary", icon=":material/upload_file:", key="start"
+        build_resume = st.button(
+            "Build ATS resume from scratch",
+            type="primary",
+            icon=":material/badge:",
+            key="home_build_resume",
         )
+        start = st.button("Start with your resume", icon=":material/upload_file:", key="start")
         sample = st.button("Try it with a sample resume", icon=":material/description:")
+    if build_resume:
+        _go("views/resume_builder.py")
     if start:
         _go("views/onboard.py")
     if sample:
@@ -43,6 +49,29 @@ if student is None:
         st.columns(4, gap="medium"), enumerate(HOW_IT_WORKS, 1), strict=True
     ):
         column.markdown(f":primary[:material/{icon}:] **{n}. {title}**  \n{text}")
+
+    st.divider()
+    st.subheader("Explore Career Pathways & Disciplines", anchor=False)
+    st.caption(
+        "Open to all disciplines: Engineering, Healthcare, Corporate, and Government sectors."
+    )
+    from piq import resume_builder
+
+    domains = resume_builder.list_domains()
+    for row_start in range(0, len(domains), 2):
+        row_domains = domains[row_start : row_start + 2]
+        cols = st.columns(2, gap="medium")
+        for col, d in zip(cols, row_domains, strict=False):
+            with col, st.container(border=True):
+                st.markdown(f":primary[:material/{d.get('icon', 'work')}:] **{d['name']}**")
+                st.caption(d.get("description", ""))
+                role_names = [r["name"] for r in d.get("roles", [])]
+                if role_names:
+                    st.write(", ".join(f"`{r}`" for r in role_names[:3]))
+                if st.button(
+                    f"Build Resume: {d['name']}", key=f"btn_dom_{d['id']}", icon=":material/badge:"
+                ):
+                    _go("views/resume_builder.py")
     st.stop()
 
 sid = student["id"]
@@ -104,6 +133,12 @@ with side:
         st.markdown(formatter.streak_md(overview.streak.current, overview.streak.longest))
         if overview.week_done:
             st.markdown(formatter.days_done_md(*overview.week_done))
+    with st.container(border=True):
+        st.markdown(f"**ATS Resume:** `{profile.target_role}`")
+        if st.button(
+            "Build / Export ATS Resume", icon=":material/badge:", key="home_update_resume"
+        ):
+            _go("views/resume_builder.py")
     with st.container(border=True):
         st.markdown("**Getting started**")
         st.markdown(

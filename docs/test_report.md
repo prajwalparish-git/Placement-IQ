@@ -1,8 +1,8 @@
 # Test report
 
-Generated 2026-10-26 02:23 UTC by `python -m scripts.test_report` from a real run of the suite (offline: MOCK_MODE, temporary databases, fake Groq clients for live code paths).
+Generated 2026-10-26 03:16 UTC by `python -m scripts.test_report` from a real run of the suite (offline: MOCK_MODE, temporary databases, fake Groq clients for live code paths).
 
-**415 tests: 415 passed, 0 failed, 0 skipped** (182 s of test time).
+**416 tests: 416 passed, 0 failed, 0 skipped** (181 s of test time).
 
 ## By module
 
@@ -19,7 +19,7 @@ Generated 2026-10-26 02:23 UTC by `python -m scripts.test_report` from a real ru
 | Integration | Agents through the critic loop | `test_agents` | 34 | 34 |
 | Integration | User flows through the service layer | `test_services` | 57 | 57 |
 | Integration | Demo seed data | `test_seed` | 3 | 3 |
-| Integration | Evaluation harness | `test_eval` | 12 | 12 |
+| Integration | Evaluation harness | `test_eval` | 13 | 13 |
 | Integration | Results report | `test_report` | 3 | 3 |
 | Integration | Model availability check | `test_check_models` | 5 | 5 |
 | Integration | Graph export | `test_export_graph` | 2 | 2 |
@@ -307,148 +307,149 @@ Generated 2026-10-26 02:23 UTC by `python -m scripts.test_report` from a real ru
 | TC-268 | Integration | Evaluation harness | Interview probe measures follow up relevance | Pass |
 | TC-269 | Integration | Evaluation harness | Progress is saved even when a case crashes | Pass |
 | TC-270 | Integration | Evaluation harness | Consecutive quizzes resume per topic | Pass |
-| TC-271 | Integration | Evaluation harness | Every case is checkpointed | Pass |
-| TC-272 | Integration | Results report | Report writes markdown and svg | Pass |
-| TC-273 | Integration | Results report | Report requires a summary | Pass |
-| TC-274 | Integration | Results report | Report from a real mock run | Pass |
-| TC-275 | Integration | Model availability check | Mock mode has nothing to check | Pass |
-| TC-276 | Integration | Model availability check | Missing configuration exits 2 | Pass |
-| TC-277 | Integration | Model availability check | Served models pass and report quota | Pass |
-| TC-278 | Integration | Model availability check | Retired model fails | Pass |
-| TC-279 | Integration | Model availability check | Non json reply fails | Pass |
-| TC-280 | Integration | Graph export | Export writes raw and github renderable mermaid | Pass |
-| TC-281 | Integration | Graph export | Docs copy is up to date | Pass |
-| TC-282 | Integration | Test report generator | Table is built from junit results | Pass |
-| TC-283 | Integration | Test report generator | Every test module has a layer | Pass |
-| TC-284 | Unit | Screenshot tool helpers | Page list matches the app navigation | Pass |
-| TC-285 | Unit | Screenshot tool helpers | Every capture is checked by a marker | Pass |
-| TC-286 | Unit | Screenshot tool helpers | Interview answers are detailed and distinct | Pass |
-| TC-287 | Unit | Screenshot tool helpers | Shot names follow the convention | Pass |
-| TC-288 | Unit | Screenshot tool helpers | Planned shots cover pages states flows widths and schemes | Pass |
-| TC-289 | Unit | Screenshot tool helpers | Unknown widths are rejected [] | Pass |
-| TC-290 | Unit | Screenshot tool helpers | Unknown widths are rejected [1440,800] | Pass |
-| TC-291 | Unit | Screenshot tool helpers | Unknown widths are rejected [1024] | Pass |
-| TC-292 | Unit | Screenshot tool helpers | Widths and schemes parse | Pass |
-| TC-293 | Unit | Screenshot tool helpers | Isolated env never reaches groq or the real env | Pass |
-| TC-294 | Unit | Screenshot tool helpers | Compress png shrinks and keeps the size | Pass |
-| TC-295 | Unit | Screenshot tool helpers | Pages filter parses known slugs only | Pass |
-| TC-296 | Unit | Performance tool helpers | Percentile is nearest rank [values0-50-3] | Pass |
-| TC-297 | Unit | Performance tool helpers | Percentile is nearest rank [values1-90-7] | Pass |
-| TC-298 | Unit | Performance tool helpers | Percentile is nearest rank [values2-90-10] | Pass |
-| TC-299 | Unit | Performance tool helpers | Percentile is nearest rank [values3-50-4] | Pass |
-| TC-300 | Unit | Performance tool helpers | Dir size | Pass |
-| TC-301 | Unit | Performance tool helpers | Query counter counts calls and statements and restores tx | Pass |
-| TC-302 | Unit | Performance tool helpers | Markdown table | Pass |
-| TC-303 | Unit | Performance tool helpers | Modes default to fresh and rerun is available | Pass |
-| TC-304 | Unit | Design tokens: contrast and distinctness | Config toml mirrors the tokens [light] | Pass |
-| TC-305 | Unit | Design tokens: contrast and distinctness | Config toml mirrors the tokens [dark] | Pass |
-| TC-306 | Unit | Design tokens: contrast and distinctness | Text reaches 4 5 to 1 on every layer [light] | Pass |
-| TC-307 | Unit | Design tokens: contrast and distinctness | Text reaches 4 5 to 1 on every layer [dark] | Pass |
-| TC-308 | Unit | Design tokens: contrast and distinctness | Alert text reaches 4 5 to 1 on its tint [light] | Pass |
-| TC-309 | Unit | Design tokens: contrast and distinctness | Alert text reaches 4 5 to 1 on its tint [dark] | Pass |
-| TC-310 | Unit | Design tokens: contrast and distinctness | Buttons edges and chart marks reach 3 to 1 [light] | Pass |
-| TC-311 | Unit | Design tokens: contrast and distinctness | Buttons edges and chart marks reach 3 to 1 [dark] | Pass |
-| TC-312 | Unit | Design tokens: contrast and distinctness | Every topic has its own colour [light] | Pass |
-| TC-313 | Unit | Design tokens: contrast and distinctness | Every topic has its own colour [dark] | Pass |
-| TC-314 | Unit | Design tokens: contrast and distinctness | Status and primary colours stay away from topic colours [light] | Pass |
-| TC-315 | Unit | Design tokens: contrast and distinctness | Status and primary colours stay away from topic colours [dark] | Pass |
-| TC-316 | Unit | Design tokens: contrast and distinctness | Neutral chart marks read in both schemes | Pass |
-| TC-317 | Unit | Design tokens: contrast and distinctness | The threshold rejects the old amber accent | Pass |
-| TC-318 | Unit | Design tokens: contrast and distinctness | Fonts are self hosted woff2 files with their licences | Pass |
-| TC-319 | Unit | Design tokens: contrast and distinctness | Type scale keeps text legible at a distance | Pass |
-| TC-320 | Unit | Design tokens: contrast and distinctness | Sequential ramp runs away from the background [light] | Pass |
-| TC-321 | Unit | Design tokens: contrast and distinctness | Sequential ramp runs away from the background [dark] | Pass |
-| TC-322 | Unit | Design tokens: contrast and distinctness | Stylesheet is small and targets only data testids | Pass |
-| TC-323 | Unit | Design tokens: contrast and distinctness | Brand svgs are self contained and on palette [mark.svg] | Pass |
-| TC-324 | Unit | Design tokens: contrast and distinctness | Brand svgs are self contained and on palette [wordmark.svg] | Pass |
-| TC-325 | Unit | Design tokens: contrast and distinctness | Brand colour reads on every background | Pass |
-| TC-326 | Unit | Design tokens: contrast and distinctness | A selected pill uses the readable teal text | Pass |
-| TC-327 | Unit | Chart builders: encodings and theme | Weakness bars run weakest first in topic colours | Pass |
-| TC-328 | Unit | Chart builders: encodings and theme | Weakness bars take an optional takeaway title | Pass |
-| TC-329 | Unit | Chart builders: encodings and theme | Minutes shift is a dumbbell from grey to topic colour | Pass |
-| TC-330 | Unit | Chart builders: encodings and theme | Readiness ring fills the score in the brand teal | Pass |
-| TC-331 | Unit | Chart builders: encodings and theme | Shared theme sets fonts and drops the frame | Pass |
-| TC-332 | Unit | Chart builders: encodings and theme | View specs are the charts as plain vega lite without altairs size default | Pass |
-| TC-333 | Unit | Chart builders: encodings and theme | Cached specs hand out fresh copies | Pass |
-| TC-334 | Unit | Chart builders: encodings and theme | Score spark draws one topic in its colour without axes | Pass |
-| TC-335 | Unit | Chart builders: encodings and theme | Week mix stacks topics in order per week | Pass |
-| TC-336 | Unit | Chart builders: encodings and theme | Interview trend is a 0 to 5 line in the brand teal | Pass |
-| TC-337 | Unit | Chart builders: encodings and theme | Readiness trend is a 0 to 100 line per profile | Pass |
-| TC-338 | Unit | Chart builders: encodings and theme | Dashboard specs match their charts | Pass |
-| TC-339 | Unit | Chart builders: encodings and theme | Activity heatmap is a 12 week calendar with neutral empty days | Pass |
-| TC-340 | Unit | CI workflow settings | Ci token can only read the repository | Pass |
-| TC-341 | Unit | Demo tunnel settings | Config toml keeps cors and xsrf protection on | Pass |
-| TC-342 | Unit | Demo tunnel settings | Tunnel script lifts the checks on the command line | Pass |
-| TC-343 | Unit | Demo tunnel settings | Tunnel bat runs the powershell script | Pass |
-| TC-344 | Unit | Summary PDF builder | Quotes the evaluation numbers | Pass |
-| TC-345 | Unit | Summary PDF builder | Facts come from the code | Pass |
-| TC-346 | Unit | Summary PDF builder | Names the topics when the duplicate run stopped early | Pass |
-| TC-347 | Unit | Summary PDF builder | Leaves out what was not measured | Pass |
-| TC-348 | Unit | Summary PDF builder | Refuses a mock or incomplete summary [changes0-mock run] | Pass |
-| TC-349 | Unit | Summary PDF builder | Refuses a mock or incomplete summary [changes1-both systems] | Pass |
-| TC-350 | Unit | Summary PDF builder | Topic names are escaped | Pass |
-| TC-351 | Unit | Summary PDF builder | Fonts and mark are embedded so nothing is fetched | Pass |
-| TC-352 | Unit | Summary PDF builder | Percentages drop trailing zeros [0.65-0-65%] | Pass |
-| TC-353 | Unit | Summary PDF builder | Percentages drop trailing zeros [1.0-0-100%] | Pass |
-| TC-354 | Unit | Summary PDF builder | Percentages drop trailing zeros [0.053-1-5.3%] | Pass |
-| TC-355 | Unit | Summary PDF builder | Percentages drop trailing zeros [0.0-1-0%] | Pass |
-| TC-356 | Unit | Summary PDF builder | Percentages drop trailing zeros [0.25-1-25%] | Pass |
-| TC-357 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/onboard.py] | Pass |
-| TC-358 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/plan.py] | Pass |
-| TC-359 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/quiz.py] | Pass |
-| TC-360 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/interview.py] | Pass |
-| TC-361 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/dashboard.py] | Pass |
-| TC-362 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/results.py] | Pass |
-| TC-363 | System (UI) | Streamlit pages, headless | Onboard prefills the selected students usn | Pass |
-| TC-364 | System (UI) | Streamlit pages, headless | Design system components render | Pass |
-| TC-365 | System (UI) | Streamlit pages, headless | Navigation groups pages with material icons | Pass |
-| TC-366 | System (UI) | Streamlit pages, headless | Sidebar shows readiness and a quiet mock badge | Pass |
-| TC-367 | System (UI) | Streamlit pages, headless | Onboard with sample resume | Pass |
-| TC-368 | System (UI) | Streamlit pages, headless | Onboard without a student explains what happens next | Pass |
-| TC-369 | System (UI) | Streamlit pages, headless | Onboard profile shows readiness skills and fixes | Pass |
-| TC-370 | System (UI) | Streamlit pages, headless | Onboard reprofile without a resume shows the error | Pass |
-| TC-371 | System (UI) | Streamlit pages, headless | Onboarding a usn that is taken asks before replacing that student | Pass |
-| TC-372 | System (UI) | Streamlit pages, headless | Reprofiling the selected student closes their open quiz and interview | Pass |
-| TC-373 | System (UI) | Streamlit pages, headless | Reprofiling the selected student needs no confirmation | Pass |
-| TC-374 | System (UI) | Streamlit pages, headless | Deleting a student needs their usn then returns home | Pass |
-| TC-375 | System (UI) | Streamlit pages, headless | Onboard rejects missing usn | Pass |
-| TC-376 | System (UI) | Streamlit pages, headless | Pages require a student [views/plan.py] | Pass |
-| TC-377 | System (UI) | Streamlit pages, headless | Pages require a student [views/quiz.py] | Pass |
-| TC-378 | System (UI) | Streamlit pages, headless | Pages require a student [views/interview.py] | Pass |
-| TC-379 | System (UI) | Streamlit pages, headless | Pages require a student [views/dashboard.py] | Pass |
-| TC-380 | System (UI) | Streamlit pages, headless | The empty state points to the sidebar when students exist | Pass |
-| TC-381 | System (UI) | Streamlit pages, headless | Plan generates next week and compares | Pass |
-| TC-382 | System (UI) | Streamlit pages, headless | Plan shows the latest week day by day with why and the shift | Pass |
-| TC-383 | System (UI) | Streamlit pages, headless | Plan week one has no shift and table view shows the table | Pass |
-| TC-384 | System (UI) | Streamlit pages, headless | Plan days marked done are saved and counted on home and dashboard | Pass |
-| TC-385 | System (UI) | Streamlit pages, headless | Plan week exports as calendar and table | Pass |
-| TC-386 | System (UI) | Streamlit pages, headless | Plan export files are built only when downloaded | Pass |
-| TC-387 | System (UI) | Streamlit pages, headless | Plan without a plan yet invites week one | Pass |
-| TC-388 | System (UI) | Streamlit pages, headless | Quiz generate answer and review | Pass |
-| TC-389 | System (UI) | Streamlit pages, headless | Quiz setup hints weakness and explains the suggestion | Pass |
-| TC-390 | System (UI) | Streamlit pages, headless | Quiz review shows a score card marks and next steps | Pass |
-| TC-391 | System (UI) | Streamlit pages, headless | Quiz with blank answers asks before submitting | Pass |
-| TC-392 | System (UI) | Streamlit pages, headless | Critic log numbers questions like the quiz | Pass |
-| TC-393 | System (UI) | Streamlit pages, headless | Quiz text and options are shown literally | Pass |
-| TC-394 | System (UI) | Streamlit pages, headless | Interview answer is shown literally | Pass |
-| TC-395 | System (UI) | Streamlit pages, headless | Interview session runs to completion | Pass |
-| TC-396 | System (UI) | Streamlit pages, headless | Interview setup describes each type | Pass |
-| TC-397 | System (UI) | Streamlit pages, headless | Interview shows progress scored feedback and the critic trail | Pass |
-| TC-398 | System (UI) | Streamlit pages, headless | Dashboard renders | Pass |
-| TC-399 | System (UI) | Streamlit pages, headless | Dashboard readiness shows a delta and trend only after a second profile | Pass |
-| TC-400 | System (UI) | Streamlit pages, headless | Dashboard keeps system telemetry in its own section | Pass |
-| TC-401 | System (UI) | Streamlit pages, headless | Dashboard for a new student explains each empty section | Pass |
-| TC-402 | System (UI) | Streamlit pages, headless | Dashboard error state offers a retry | Pass |
-| TC-403 | System (UI) | Streamlit pages, headless | Onboard requires a resume or sample | Pass |
-| TC-404 | System (UI) | Streamlit pages, headless | Onboarding another student drops the previous students session | Pass |
-| TC-405 | System (UI) | Streamlit pages, headless | Failed follow up offers retry without reanswering | Pass |
-| TC-406 | System (UI) | Streamlit pages, headless | Failed quiz generation stays visible | Pass |
-| TC-407 | System (UI) | Streamlit pages, headless | Results page without and with results | Pass |
-| TC-408 | System (UI) | Streamlit pages, headless | Results note mentions the duplicate rate only when it is shown | Pass |
-| TC-409 | System (UI) | Streamlit pages, headless | Seed demo fills an empty database on start | Pass |
-| TC-410 | System (UI) | Streamlit pages, headless | Home without a student explains the loop | Pass |
-| TC-411 | System (UI) | Streamlit pages, headless | Home quick start opens onboard with a sample | Pass |
-| TC-412 | System (UI) | Streamlit pages, headless | Home shows todays focus for the demo student | Pass |
-| TC-413 | System (UI) | Streamlit pages, headless | Todays focus opens the page it names | Pass |
-| TC-414 | System (UI) | Streamlit pages, headless | Todays focus preselects the quiz topic | Pass |
-| TC-415 | System (UI) | Streamlit pages, headless | Home error state offers a retry | Pass |
+| TC-271 | Integration | Evaluation harness | Consecutive quizzes resume mid topic without redoing quizzes | Pass |
+| TC-272 | Integration | Evaluation harness | Every case is checkpointed | Pass |
+| TC-273 | Integration | Results report | Report writes markdown and svg | Pass |
+| TC-274 | Integration | Results report | Report requires a summary | Pass |
+| TC-275 | Integration | Results report | Report from a real mock run | Pass |
+| TC-276 | Integration | Model availability check | Mock mode has nothing to check | Pass |
+| TC-277 | Integration | Model availability check | Missing configuration exits 2 | Pass |
+| TC-278 | Integration | Model availability check | Served models pass and report quota | Pass |
+| TC-279 | Integration | Model availability check | Retired model fails | Pass |
+| TC-280 | Integration | Model availability check | Non json reply fails | Pass |
+| TC-281 | Integration | Graph export | Export writes raw and github renderable mermaid | Pass |
+| TC-282 | Integration | Graph export | Docs copy is up to date | Pass |
+| TC-283 | Integration | Test report generator | Table is built from junit results | Pass |
+| TC-284 | Integration | Test report generator | Every test module has a layer | Pass |
+| TC-285 | Unit | Screenshot tool helpers | Page list matches the app navigation | Pass |
+| TC-286 | Unit | Screenshot tool helpers | Every capture is checked by a marker | Pass |
+| TC-287 | Unit | Screenshot tool helpers | Interview answers are detailed and distinct | Pass |
+| TC-288 | Unit | Screenshot tool helpers | Shot names follow the convention | Pass |
+| TC-289 | Unit | Screenshot tool helpers | Planned shots cover pages states flows widths and schemes | Pass |
+| TC-290 | Unit | Screenshot tool helpers | Unknown widths are rejected [] | Pass |
+| TC-291 | Unit | Screenshot tool helpers | Unknown widths are rejected [1440,800] | Pass |
+| TC-292 | Unit | Screenshot tool helpers | Unknown widths are rejected [1024] | Pass |
+| TC-293 | Unit | Screenshot tool helpers | Widths and schemes parse | Pass |
+| TC-294 | Unit | Screenshot tool helpers | Isolated env never reaches groq or the real env | Pass |
+| TC-295 | Unit | Screenshot tool helpers | Compress png shrinks and keeps the size | Pass |
+| TC-296 | Unit | Screenshot tool helpers | Pages filter parses known slugs only | Pass |
+| TC-297 | Unit | Performance tool helpers | Percentile is nearest rank [values0-50-3] | Pass |
+| TC-298 | Unit | Performance tool helpers | Percentile is nearest rank [values1-90-7] | Pass |
+| TC-299 | Unit | Performance tool helpers | Percentile is nearest rank [values2-90-10] | Pass |
+| TC-300 | Unit | Performance tool helpers | Percentile is nearest rank [values3-50-4] | Pass |
+| TC-301 | Unit | Performance tool helpers | Dir size | Pass |
+| TC-302 | Unit | Performance tool helpers | Query counter counts calls and statements and restores tx | Pass |
+| TC-303 | Unit | Performance tool helpers | Markdown table | Pass |
+| TC-304 | Unit | Performance tool helpers | Modes default to fresh and rerun is available | Pass |
+| TC-305 | Unit | Design tokens: contrast and distinctness | Config toml mirrors the tokens [light] | Pass |
+| TC-306 | Unit | Design tokens: contrast and distinctness | Config toml mirrors the tokens [dark] | Pass |
+| TC-307 | Unit | Design tokens: contrast and distinctness | Text reaches 4 5 to 1 on every layer [light] | Pass |
+| TC-308 | Unit | Design tokens: contrast and distinctness | Text reaches 4 5 to 1 on every layer [dark] | Pass |
+| TC-309 | Unit | Design tokens: contrast and distinctness | Alert text reaches 4 5 to 1 on its tint [light] | Pass |
+| TC-310 | Unit | Design tokens: contrast and distinctness | Alert text reaches 4 5 to 1 on its tint [dark] | Pass |
+| TC-311 | Unit | Design tokens: contrast and distinctness | Buttons edges and chart marks reach 3 to 1 [light] | Pass |
+| TC-312 | Unit | Design tokens: contrast and distinctness | Buttons edges and chart marks reach 3 to 1 [dark] | Pass |
+| TC-313 | Unit | Design tokens: contrast and distinctness | Every topic has its own colour [light] | Pass |
+| TC-314 | Unit | Design tokens: contrast and distinctness | Every topic has its own colour [dark] | Pass |
+| TC-315 | Unit | Design tokens: contrast and distinctness | Status and primary colours stay away from topic colours [light] | Pass |
+| TC-316 | Unit | Design tokens: contrast and distinctness | Status and primary colours stay away from topic colours [dark] | Pass |
+| TC-317 | Unit | Design tokens: contrast and distinctness | Neutral chart marks read in both schemes | Pass |
+| TC-318 | Unit | Design tokens: contrast and distinctness | The threshold rejects the old amber accent | Pass |
+| TC-319 | Unit | Design tokens: contrast and distinctness | Fonts are self hosted woff2 files with their licences | Pass |
+| TC-320 | Unit | Design tokens: contrast and distinctness | Type scale keeps text legible at a distance | Pass |
+| TC-321 | Unit | Design tokens: contrast and distinctness | Sequential ramp runs away from the background [light] | Pass |
+| TC-322 | Unit | Design tokens: contrast and distinctness | Sequential ramp runs away from the background [dark] | Pass |
+| TC-323 | Unit | Design tokens: contrast and distinctness | Stylesheet is small and targets only data testids | Pass |
+| TC-324 | Unit | Design tokens: contrast and distinctness | Brand svgs are self contained and on palette [mark.svg] | Pass |
+| TC-325 | Unit | Design tokens: contrast and distinctness | Brand svgs are self contained and on palette [wordmark.svg] | Pass |
+| TC-326 | Unit | Design tokens: contrast and distinctness | Brand colour reads on every background | Pass |
+| TC-327 | Unit | Design tokens: contrast and distinctness | A selected pill uses the readable teal text | Pass |
+| TC-328 | Unit | Chart builders: encodings and theme | Weakness bars run weakest first in topic colours | Pass |
+| TC-329 | Unit | Chart builders: encodings and theme | Weakness bars take an optional takeaway title | Pass |
+| TC-330 | Unit | Chart builders: encodings and theme | Minutes shift is a dumbbell from grey to topic colour | Pass |
+| TC-331 | Unit | Chart builders: encodings and theme | Readiness ring fills the score in the brand teal | Pass |
+| TC-332 | Unit | Chart builders: encodings and theme | Shared theme sets fonts and drops the frame | Pass |
+| TC-333 | Unit | Chart builders: encodings and theme | View specs are the charts as plain vega lite without altairs size default | Pass |
+| TC-334 | Unit | Chart builders: encodings and theme | Cached specs hand out fresh copies | Pass |
+| TC-335 | Unit | Chart builders: encodings and theme | Score spark draws one topic in its colour without axes | Pass |
+| TC-336 | Unit | Chart builders: encodings and theme | Week mix stacks topics in order per week | Pass |
+| TC-337 | Unit | Chart builders: encodings and theme | Interview trend is a 0 to 5 line in the brand teal | Pass |
+| TC-338 | Unit | Chart builders: encodings and theme | Readiness trend is a 0 to 100 line per profile | Pass |
+| TC-339 | Unit | Chart builders: encodings and theme | Dashboard specs match their charts | Pass |
+| TC-340 | Unit | Chart builders: encodings and theme | Activity heatmap is a 12 week calendar with neutral empty days | Pass |
+| TC-341 | Unit | CI workflow settings | Ci token can only read the repository | Pass |
+| TC-342 | Unit | Demo tunnel settings | Config toml keeps cors and xsrf protection on | Pass |
+| TC-343 | Unit | Demo tunnel settings | Tunnel script lifts the checks on the command line | Pass |
+| TC-344 | Unit | Demo tunnel settings | Tunnel bat runs the powershell script | Pass |
+| TC-345 | Unit | Summary PDF builder | Quotes the evaluation numbers | Pass |
+| TC-346 | Unit | Summary PDF builder | Facts come from the code | Pass |
+| TC-347 | Unit | Summary PDF builder | Names the topics when the duplicate run stopped early | Pass |
+| TC-348 | Unit | Summary PDF builder | Leaves out what was not measured | Pass |
+| TC-349 | Unit | Summary PDF builder | Refuses a mock or incomplete summary [changes0-mock run] | Pass |
+| TC-350 | Unit | Summary PDF builder | Refuses a mock or incomplete summary [changes1-both systems] | Pass |
+| TC-351 | Unit | Summary PDF builder | Topic names are escaped | Pass |
+| TC-352 | Unit | Summary PDF builder | Fonts and mark are embedded so nothing is fetched | Pass |
+| TC-353 | Unit | Summary PDF builder | Percentages drop trailing zeros [0.65-0-65%] | Pass |
+| TC-354 | Unit | Summary PDF builder | Percentages drop trailing zeros [1.0-0-100%] | Pass |
+| TC-355 | Unit | Summary PDF builder | Percentages drop trailing zeros [0.053-1-5.3%] | Pass |
+| TC-356 | Unit | Summary PDF builder | Percentages drop trailing zeros [0.0-1-0%] | Pass |
+| TC-357 | Unit | Summary PDF builder | Percentages drop trailing zeros [0.25-1-25%] | Pass |
+| TC-358 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/onboard.py] | Pass |
+| TC-359 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/plan.py] | Pass |
+| TC-360 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/quiz.py] | Pass |
+| TC-361 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/interview.py] | Pass |
+| TC-362 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/dashboard.py] | Pass |
+| TC-363 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/results.py] | Pass |
+| TC-364 | System (UI) | Streamlit pages, headless | Onboard prefills the selected students usn | Pass |
+| TC-365 | System (UI) | Streamlit pages, headless | Design system components render | Pass |
+| TC-366 | System (UI) | Streamlit pages, headless | Navigation groups pages with material icons | Pass |
+| TC-367 | System (UI) | Streamlit pages, headless | Sidebar shows readiness and a quiet mock badge | Pass |
+| TC-368 | System (UI) | Streamlit pages, headless | Onboard with sample resume | Pass |
+| TC-369 | System (UI) | Streamlit pages, headless | Onboard without a student explains what happens next | Pass |
+| TC-370 | System (UI) | Streamlit pages, headless | Onboard profile shows readiness skills and fixes | Pass |
+| TC-371 | System (UI) | Streamlit pages, headless | Onboard reprofile without a resume shows the error | Pass |
+| TC-372 | System (UI) | Streamlit pages, headless | Onboarding a usn that is taken asks before replacing that student | Pass |
+| TC-373 | System (UI) | Streamlit pages, headless | Reprofiling the selected student closes their open quiz and interview | Pass |
+| TC-374 | System (UI) | Streamlit pages, headless | Reprofiling the selected student needs no confirmation | Pass |
+| TC-375 | System (UI) | Streamlit pages, headless | Deleting a student needs their usn then returns home | Pass |
+| TC-376 | System (UI) | Streamlit pages, headless | Onboard rejects missing usn | Pass |
+| TC-377 | System (UI) | Streamlit pages, headless | Pages require a student [views/plan.py] | Pass |
+| TC-378 | System (UI) | Streamlit pages, headless | Pages require a student [views/quiz.py] | Pass |
+| TC-379 | System (UI) | Streamlit pages, headless | Pages require a student [views/interview.py] | Pass |
+| TC-380 | System (UI) | Streamlit pages, headless | Pages require a student [views/dashboard.py] | Pass |
+| TC-381 | System (UI) | Streamlit pages, headless | The empty state points to the sidebar when students exist | Pass |
+| TC-382 | System (UI) | Streamlit pages, headless | Plan generates next week and compares | Pass |
+| TC-383 | System (UI) | Streamlit pages, headless | Plan shows the latest week day by day with why and the shift | Pass |
+| TC-384 | System (UI) | Streamlit pages, headless | Plan week one has no shift and table view shows the table | Pass |
+| TC-385 | System (UI) | Streamlit pages, headless | Plan days marked done are saved and counted on home and dashboard | Pass |
+| TC-386 | System (UI) | Streamlit pages, headless | Plan week exports as calendar and table | Pass |
+| TC-387 | System (UI) | Streamlit pages, headless | Plan export files are built only when downloaded | Pass |
+| TC-388 | System (UI) | Streamlit pages, headless | Plan without a plan yet invites week one | Pass |
+| TC-389 | System (UI) | Streamlit pages, headless | Quiz generate answer and review | Pass |
+| TC-390 | System (UI) | Streamlit pages, headless | Quiz setup hints weakness and explains the suggestion | Pass |
+| TC-391 | System (UI) | Streamlit pages, headless | Quiz review shows a score card marks and next steps | Pass |
+| TC-392 | System (UI) | Streamlit pages, headless | Quiz with blank answers asks before submitting | Pass |
+| TC-393 | System (UI) | Streamlit pages, headless | Critic log numbers questions like the quiz | Pass |
+| TC-394 | System (UI) | Streamlit pages, headless | Quiz text and options are shown literally | Pass |
+| TC-395 | System (UI) | Streamlit pages, headless | Interview answer is shown literally | Pass |
+| TC-396 | System (UI) | Streamlit pages, headless | Interview session runs to completion | Pass |
+| TC-397 | System (UI) | Streamlit pages, headless | Interview setup describes each type | Pass |
+| TC-398 | System (UI) | Streamlit pages, headless | Interview shows progress scored feedback and the critic trail | Pass |
+| TC-399 | System (UI) | Streamlit pages, headless | Dashboard renders | Pass |
+| TC-400 | System (UI) | Streamlit pages, headless | Dashboard readiness shows a delta and trend only after a second profile | Pass |
+| TC-401 | System (UI) | Streamlit pages, headless | Dashboard keeps system telemetry in its own section | Pass |
+| TC-402 | System (UI) | Streamlit pages, headless | Dashboard for a new student explains each empty section | Pass |
+| TC-403 | System (UI) | Streamlit pages, headless | Dashboard error state offers a retry | Pass |
+| TC-404 | System (UI) | Streamlit pages, headless | Onboard requires a resume or sample | Pass |
+| TC-405 | System (UI) | Streamlit pages, headless | Onboarding another student drops the previous students session | Pass |
+| TC-406 | System (UI) | Streamlit pages, headless | Failed follow up offers retry without reanswering | Pass |
+| TC-407 | System (UI) | Streamlit pages, headless | Failed quiz generation stays visible | Pass |
+| TC-408 | System (UI) | Streamlit pages, headless | Results page without and with results | Pass |
+| TC-409 | System (UI) | Streamlit pages, headless | Results note mentions the duplicate rate only when it is shown | Pass |
+| TC-410 | System (UI) | Streamlit pages, headless | Seed demo fills an empty database on start | Pass |
+| TC-411 | System (UI) | Streamlit pages, headless | Home without a student explains the loop | Pass |
+| TC-412 | System (UI) | Streamlit pages, headless | Home quick start opens onboard with a sample | Pass |
+| TC-413 | System (UI) | Streamlit pages, headless | Home shows todays focus for the demo student | Pass |
+| TC-414 | System (UI) | Streamlit pages, headless | Todays focus opens the page it names | Pass |
+| TC-415 | System (UI) | Streamlit pages, headless | Todays focus preselects the quiz topic | Pass |
+| TC-416 | System (UI) | Streamlit pages, headless | Home error state offers a retry | Pass |

@@ -10,7 +10,8 @@ same LLM critic.
                    no memory, PlacementIQ excludes everything it asked before
   --interviews     follow-up relevance: after a deliberately vague answer, does the next
                    question follow up on it? Judged by the small model
-  --resume         keep finished cases from the last run and continue (quota limits)
+  --resume         keep finished cases (and finished consecutive quizzes) from the last
+                   run and continue (quota limits)
 
 Writes evaluation/results/: state.json (resumable), cases.csv, questions.csv (for manual
 labelling), interviews.csv, summary.json and eval.db (agent_logs of this evaluation).
@@ -166,38 +167,55 @@ def _duplicates(quizzes: list[QuizSet]) -> list[int]:
     return [dups, total]
 
 
+def _baseline_quiz(topic: str) -> QuizSet:
+    """One baseline quiz: the quiz prompt alone, with no memory of earlier quizzes."""
+    return llm.call(
+        QuizSet,
+        agent="baseline_quiz",
+        system=prompts.QUIZ,
+        user=f"Topic: {topic}\nDifficulty: {CONSECUTIVE_DIFFICULTY}\n"
+        f"Number of questions: {QUIZ_SIZE}",
+        context={
+            "topic": topic,
+            "difficulty": CONSECUTIVE_DIFFICULTY,
+            "count": QUIZ_SIZE,
+            "previous": [],
+        },
+        temperature=0.8,
+    )[0]
+
+
 def _consecutive(topics: list[str], n: int, state: dict, checkpoint: Callable[[], None]) -> None:
-    """Fill state["consecutive"] topic by topic (checkpointed, so a resume skips done ones)."""
+    """Fill state["consecutive"] quiz by quiz.
+
+    Every finished quiz is checkpointed under "partial", so a resume after a rate limit
+    continues mid-topic instead of paying for that topic's quizzes again; a topic moves to
+    "topics" once both systems have all n quizzes.
+    """
     out = state["consecutive"]
     if not out or out["quizzes_per_topic"] != n:
         out = state["consecutive"] = {"quizzes_per_topic": n, "topics": {}}
+    partial = out.setdefault("partial", {})
+    _duplicate_rates(out)  # None until a topic is done, so a stop in the first topic summarises
     for topic in topics:
         if topic in out["topics"]:
             continue
         print(f"consecutive quizzes: {topic} x{n} per system ...", flush=True)
-        baseline = [
-            llm.call(
-                QuizSet,
-                agent="baseline_quiz",
-                system=prompts.QUIZ,
-                user=f"Topic: {topic}\nDifficulty: {CONSECUTIVE_DIFFICULTY}\n"
-                f"Number of questions: {QUIZ_SIZE}",
-                context={
-                    "topic": topic,
-                    "difficulty": CONSECUTIVE_DIFFICULTY,
-                    "count": QUIZ_SIZE,
-                    "previous": [],
-                },
-                temperature=0.8,
-            )[0]
-            for _ in range(n)
-        ]
-        ours: list[QuizSet] = []
-        for _ in range(n):
-            asked = [q.text for quiz in ours for q in quiz.questions]
+        done = partial.setdefault(topic, {"baseline": [], "placementiq": []})
+        while len(done["baseline"]) < n:
+            done["baseline"].append(_baseline_quiz(topic).model_dump())
+            checkpoint()
+        while len(done["placementiq"]) < n:
+            asked = [q["text"] for quiz in done["placementiq"] for q in quiz["questions"]]
             inp = agents.quiz_inputs(topic, CONSECUTIVE_DIFFICULTY, asked)
-            ours.append(graph.run(agents.QUIZ_TASK, inp).output)  # judged as produced
-        out["topics"][topic] = {"baseline": _duplicates(baseline), "placementiq": _duplicates(ours)}
+            quiz = graph.run(agents.QUIZ_TASK, inp).output  # judged as produced
+            done["placementiq"].append(quiz.model_dump())
+            checkpoint()
+        out["topics"][topic] = {
+            system: _duplicates([QuizSet.model_validate(q) for q in done[system]])
+            for system in ("baseline", "placementiq")
+        }
+        del partial[topic]
         _duplicate_rates(out)
         checkpoint()
     _duplicate_rates(out)
