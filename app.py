@@ -10,7 +10,9 @@ from piq.ui import load_css, sidebar_context, student_selector
 from scripts.seed import main as seed_demo
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
-st.set_page_config(page_title="PlacementIQ", page_icon=str(BRAND_DIR / "mark.svg"), layout="wide")
+st.set_page_config(
+    page_title="Skill Scout Nexus", page_icon=str(BRAND_DIR / "mark.svg"), layout="wide"
+)
 st.logo(str(BRAND_DIR / "wordmark.svg"), icon_image=str(BRAND_DIR / "mark.svg"), size="large")
 load_css()
 

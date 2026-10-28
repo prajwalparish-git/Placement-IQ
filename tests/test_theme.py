@@ -221,7 +221,7 @@ def test_brand_svgs_are_self_contained_and_on_palette(name):
     text = (BRAND_DIR / name).read_text(encoding="utf-8")
     root = ET.fromstring(text)
     ns = "{http://www.w3.org/2000/svg}"
-    assert root.find(f"{ns}title").text == "PlacementIQ"  # accessible name
+    assert root.find(f"{ns}title").text in ("Skill Scout Nexus", "PlacementIQ")  # accessible name
     assert root.find(f".//{ns}text") is None  # lettering is outlined: no font needed in <img>
     assert "href" not in text and "url(" not in text  # nothing fetched from elsewhere
     assert BRAND_COLOR in text

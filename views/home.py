@@ -23,7 +23,7 @@ student = ui.current_student()
 if student is None:
     ui.page_header(
         "Placement prep that adapts to you",
-        "PlacementIQ reads your resume, plans a week of study, quizzes you and rewrites next "
+        "Skill Scout Nexus reads your resume, plans a week of study, quizzes you and rewrites next "
         "week's plan from your scores. A critic checks every plan, quiz and interview question "
         "before you see it.",
     )
