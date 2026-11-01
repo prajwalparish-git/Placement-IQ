@@ -127,11 +127,17 @@ def test_navigation_groups_pages_with_material_icons():
         if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "navigation"
     )
     sections = {
-        k.value: [ast.literal_eval(p.args[0]) for p in v.elts]
+        k.value: [ast.literal_eval(p.args[0]) for p in v.elts if isinstance(p, ast.Call)]
         for k, v in zip(nav.args[0].keys, nav.args[0].values, strict=True)
     }
     assert list(sections) == ["Prepare", "Insights"]
     assert sections["Insights"] == ["views/dashboard.py", "views/results.py"]
+    pages = [
+        ast.literal_eval(n.args[0])
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "Page"
+    ]
+    assert "views/projects.py" in pages  # in the navigation for computing domains only
     icons = [
         k.value.value
         for n in ast.walk(tree)
@@ -228,7 +234,7 @@ def test_reprofiling_the_selected_student_closes_their_open_quiz_and_interview(s
     _button(at, "Generate quiz").click().run()
     at.switch_page("views/interview.py").run()
     _button(at, "Start session").click().run()
-    assert at.session_state["quiz"] and at.session_state["interview"]
+    assert at.session_state["quiz_run"] and at.session_state["interview"]
     at.switch_page("views/onboard.py").run()
     next(s for s in at.selectbox if s.label.startswith("…or use")).select(
         "java_backend_fresher.txt"
@@ -237,7 +243,7 @@ def test_reprofiling_the_selected_student_closes_their_open_quiz_and_interview(s
     assert not at.exception
     assert at.session_state["student_id"] == seeded  # the same student, a new profile
     # Both were built from the old profile, so they close.
-    assert "quiz" not in at.session_state and "interview" not in at.session_state
+    assert "quiz_run" not in at.session_state and "interview" not in at.session_state
     assert any(s.label.startswith("Profile agent — last run") for s in at.status)
 
 
@@ -381,54 +387,102 @@ def test_plan_without_a_plan_yet_invites_week_one():
     assert at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")  # weakness still shown
 
 
+def _topics(at: AppTest):
+    [pills] = [b for b in at.get("button_group") if str(b.key).startswith("quiz_topics_")]
+    return pills
+
+
 def test_quiz_generate_answer_and_review(seeded):
     at = _app(seeded, "views/quiz.py")
     _button(at, "Generate quiz").click().run()
-    assert not at.exception and at.session_state["quiz"]
-    # The loop is visible to the user, step by step, with the critic's reason.
-    assert [s.label for s in at.status][1:] == [
+    run = at.session_state["quiz_run"]
+    # 5 OS questions at the default medium mix (20/60/20): 1 easy, 3 medium, 1 hard.
+    assert not at.exception and [(p.difficulty, len(p.questions)) for p in run.parts] == [
+        ("easy", 1),
+        ("medium", 3),
+        ("hard", 1),
+    ]
+    # The loop is visible to the user, batch by batch, with the critic's reason.
+    labels = [s.label for s in at.status][1:]
+    assert labels[:5] == [
+        "**Batch 1 of 3: 1 easy OS questions**",
         "**Generated the quiz**",
         "**Critic rejected the quiz**",
         "**Regenerated the quiz**",
         "**Critic approved the quiz**",
     ]
+    assert labels.count("**Critic approved the quiz**") == 3
     assert ":small[Q1: options are not distinct]" in _md(at)
     assert db.recent_rejections()[0]["agent_name"] == "quiz"
     for r in at.radio:
         r.set_value(0)
     _button(at, "Submit").click().run()
     assert not at.exception
-    assert "next suggested difficulty" in _md(at)
-    assert len(db.quiz_history(seeded)) == 25
+    assert "Where the marks went" in [s.value for s in at.subheader]
+    assert len(db.quiz_history(seeded)) == 24 + 3  # one attempt per part
+    assert len(db.quiz_runs(seeded)) == 1
 
 
-def test_quiz_setup_hints_weakness_and_explains_the_suggestion(seeded):
+def test_quiz_setup_offers_the_syllabus_counts_and_a_mix_that_adds_to_100(seeded):
     at = _app(seeded, "views/quiz.py")
-    topic, difficulty = at.get("button_group")
-    assert topic.key == "quiz_topic" and topic.value == "OS"  # the weakest topic leads
-    assert topic.options[0] == "OS · 43% weak" and len(topic.options) == 6
-    assert difficulty.value == "medium"
+    topics = _topics(at)
+    assert topics.value == ["OS"]  # the weakest topic leads
+    assert topics.options[0] == "OS \u00b7 43% weak"
+    # The role's six topics, then the rest of the CS syllabus to choose from.
+    assert len(topics.options) == 10 and topics.options[-1] == "ML & Data Science \u00b7 new"
+    [count] = at.number_input
+    assert (count.label, count.value, count.max) == ("OS", 5, 50)
+    [mix] = at.slider
+    assert mix.value == (20, 80)  # OS is suggested at medium
+    assert "Easy 20% \u00b7 Medium 60% \u00b7 Hard 20%" in _md(at)
     assert ":gray-badge[:material/recommend: Suggested: medium] Your last OS quiz: 70%" in _md(at)
     assert not at.radio  # the setup has no radios: every radio on the next screen is an answer
-    topic.set_value("OOP").run()  # 90% on medium last time: the suggestion moves up
-    assert at.get("button_group")[1].value == "hard"
+    topics.set_value(["OOP"]).run()  # 90% on medium last time: the mix moves up to hard
+    assert at.slider[0].value == (10, 40)
     assert "Suggested: hard] Your last OOP quiz: 90% on medium" in _md(at)
 
 
-def test_quiz_review_shows_a_score_card_marks_and_next_steps(seeded):
+def test_quiz_over_several_topics_caps_the_total(seeded):
+    at = _app(seeded, "views/quiz.py")
+    _topics(at).set_value(["OS", "DBMS", "System Design"]).run()
+    assert [n.label for n in at.number_input] == ["OS", "DBMS", "System Design"]
+    for n in at.number_input:
+        n.set_value(40)
+    at.run()
+    assert any("one quiz holds at most 100" in e.value for e in at.error)
+    assert not [b for b in at.button if b.label == "Generate quiz"]
+    at.number_input[2].set_value(20).run()  # 100 in all: allowed
+    assert not at.error and _button(at, "Generate quiz")
+
+
+def test_quiz_review_shows_a_score_card_breakdowns_and_mistakes(seeded):
     at = _app(seeded, "views/quiz.py")
     _button(at, "Generate quiz").click().run()
-    quiz = at.session_state["quiz"]
-    for r, q in zip(at.radio, quiz.questions, strict=True):
+    run = at.session_state["quiz_run"]
+    questions = [q for _, q in run.questions]
+    for r, q in zip(at.radio, questions, strict=True):
         r.set_value(q.correct_index)
-    at.radio[0].set_value((quiz.questions[0].correct_index + 1) % 4)  # one wrong answer
+    at.radio[0].set_value((questions[0].correct_index + 1) % 4)  # one wrong answer
     _button(at, "Submit").click().run()
     assert not at.exception
-    assert {m.label: m.value for m in at.metric} == {"Score": "80%", "Correct": "4/5"}
+    assert {m.label: m.value for m in at.metric} == {
+        "Score": "80%",
+        "Correct": "4/5",
+        "Wrong": "1",
+        "Left blank": "0",
+    }
     md = _md(at)
+    assert "**4** of 5 correct, 1 wrong" in md
+    assert "Your mistakes (1)" in [s.value for s in at.subheader]
+    # The mistake once in "Your mistakes", every question once in "All 5 questions".
+    assert md.count(":red-badge[:material/error: Wrong]") == 2
     assert md.count(":green-badge[:material/check_circle: Correct]") == 4
-    assert md.count(":red-badge[:material/error: Wrong]") == 1
-    assert "4 of 5 correct, so the next suggested difficulty is **hard**" in md
+    assert [t.label for t in at.tabs] == [
+        "By topic",
+        "By difficulty",
+        "By thinking level",
+        "Topic \u00d7 difficulty",
+    ]
     links = [(p.proto.page, p.proto.label) for p in at.get("page_link")]
     assert links == [("plan", "Open Weekly plan")]
     [notes] = at.get("download_button")
@@ -440,20 +494,20 @@ def test_quiz_review_shows_a_score_card_marks_and_next_steps(seeded):
 def test_quiz_with_blank_answers_asks_before_submitting(seeded):
     at = _app(seeded, "views/quiz.py")
     _button(at, "Generate quiz").click().run()
-    quiz = at.session_state["quiz"]
-    at.radio[0].set_value(quiz.questions[0].correct_index)  # only Q1 answered
+    run = at.session_state["quiz_run"]
+    at.radio[0].set_value(run.questions[0][1].correct_index)  # only Q1 answered
     _button(at, "Submit").click().run()
     assert not at.exception
     [warning] = at.warning
     assert warning.value.startswith("Q2, Q3, Q4 and Q5 have no answer.")
-    assert at.session_state["quiz"] == quiz and "quiz_result" not in at.session_state
+    assert at.session_state["quiz_run"] == run and "quiz_run_result" not in at.session_state
     assert len(db.quiz_history(seeded)) == 24  # nothing saved yet
     _button(at, "Submit anyway").click().run()
     assert not at.exception
-    result = at.session_state["quiz_result"]
-    assert result.chosen[1:] == [None] * 4 and result.correct == 1
-    assert _md(at).count(":gray-badge[:material/radio_button_unchecked: Not answered]") == 4
-    assert len(db.quiz_history(seeded)) == 25
+    result = at.session_state["quiz_run_result"]
+    assert result.chosen[1:] == [None] * 4 and result.correct == 1 and result.skipped == 4
+    assert {m.label: m.value for m in at.metric}["Left blank"] == "4"
+    assert len(db.quiz_history(seeded)) == 24 + 3
 
 
 def test_critic_log_numbers_questions_like_the_quiz(seeded):
@@ -472,10 +526,11 @@ def test_quiz_text_and_options_are_shown_literally(seeded, monkeypatch):
     quiz = f.quiz(n=1).model_copy(
         update={"questions": [f.question(text="What does *p hold?", options=options)]}
     )
-    monkeypatch.setattr(services, "start_quiz", lambda *args, **kwargs: quiz)
+    run = services.QuizRun(parts=[quiz])
+    monkeypatch.setattr(services, "start_quiz_run", lambda *args, **kwargs: run)
     at = _app(seeded, "views/quiz.py")
     _button(at, "Generate quiz").click().run()
-    assert at.radio[0].label == r"**Q1.** What does \*p hold?"
+    assert at.radio[0].label == r"**Q1.** :gray[easy] What does \*p hold?"
     assert at.radio[0].options[:3] == [
         r"\_\_init\_\_",
         r"\!\[x\]\(http://example\.com/a\.png\)",
@@ -544,9 +599,12 @@ def test_dashboard_renders(seeded):
     metrics = {m.label: m.value for m in at.metric}
     assert metrics["Quizzes taken"] == "24"  # seeded quizzes
     assert metrics["Readiness"] == "42/100" and metrics["Interview sessions"] == "2"
+    assert metrics["Questions answered"] == "240"  # 24 seeded quizzes of 10
     charts = at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")
-    # A sparkline per topic, readiness (one point), interviews, plan minutes, activity.
-    assert len(charts) == 6 + 4
+    # A sparkline per topic, accuracy grid, readiness (one point), interviews, plan minutes,
+    # activity.
+    assert len(charts) == 6 + 5
+    assert "Your syllabus" in [s.value for s in at.subheader]
     assert {m.label for m in at.metric} >= {"Study streak"}
     # Topic mastery: weakest first, each with its weakness and a trend in icon and words.
     lines = [m.value for m in at.markdown if m.value.startswith("**") and " weak" in m.value]
@@ -577,7 +635,7 @@ def test_dashboard_readiness_shows_a_delta_and_trend_only_after_a_second_profile
         s.value.startswith("Readiness ") and "over 2 profiles" in s.value for s in at.subheader
     )
     charts = at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")
-    assert len(charts) == 6 + 4  # sparklines, readiness, interviews, plan minutes, activity
+    assert len(charts) == 6 + 5  # sparklines, accuracy, readiness, interviews, minutes, days
 
 
 def test_dashboard_keeps_system_telemetry_in_its_own_section(seeded):
@@ -680,13 +738,13 @@ def test_failed_quiz_generation_stays_visible(seeded, monkeypatch):
     def rejected(*args, **kwargs):
         raise graph.CriticRejected("quiz", ["question 0: two answers correct"])
 
-    monkeypatch.setattr(services, "start_quiz", rejected)
+    monkeypatch.setattr(services, "start_quiz_run", rejected)
     at = _app(seeded, "views/quiz.py")
     _button(at, "Generate quiz").click().run()
     assert any("two answers correct" in e.value for e in at.error)
     at.run()  # any rerun keeps the failure visible
     assert any(s.label == "Quiz agent — last run failed" for s in at.status)
-    assert "quiz" not in at.session_state
+    assert "quiz_run" not in at.session_state
 
 
 def test_results_page_without_and_with_results(tmp_path, monkeypatch):
@@ -703,14 +761,19 @@ def test_results_page_without_and_with_results(tmp_path, monkeypatch):
     (tmp_path / "summary.json").write_text(json.dumps(f.eval_summary(mode="mock")))
     at = _app(page="views/results.py")
     assert any("MOCK_MODE" in w.value for w in at.warning)
-    assert len(at.dataframe) == 2  # metrics table + agent cost
+    assert len(at.dataframe) == 2  # every parameter + agent cost
     md = _md(at)
-    assert "**Plan valid rate** :gray-badge[:material/arrow_upward: Higher is better]" in md
-    assert "**Repeated questions over 5 quizzes** :gray-badge[:material/arrow_downward:" in md
+    assert "**Plan validity** :gray-badge[:material/arrow_upward: Higher is better]" in md
+    assert "**Longest-answer cue**" not in md  # needs questions.csv, which this run lacks
+    card = services.evaluation_scorecard()
     bars = [h for h in at.get("html") if '<div class="piq-criteria">' in h.proto.body]
-    assert len(bars) == 5 and "Not measured" in bars[-1].proto.body
-    assert {m.label: m.value for m in at.metric} == {"Baseline": "1.00", "PlacementIQ": "1.80"}
-    assert at.expander[0].label == "All numbers as a table"
+    assert len(bars) == len(card.parameters)
+    assert any("Not measured" in b.proto.body for b in bars)  # the baseline has no interviewer
+    overall = {m.label: m.value for m in at.metric}
+    assert set(overall) == {"PlacementIQ", "Baseline"}
+    assert overall["PlacementIQ"].endswith("/10")
+    assert "Overall rating" in [s.value for s in at.subheader]
+    assert at.expander[-1].label == "Every parameter as a table"
 
 
 def test_results_note_mentions_the_duplicate_rate_only_when_it_is_shown(tmp_path, monkeypatch):
@@ -726,7 +789,7 @@ def test_results_note_mentions_the_duplicate_rate_only_when_it_is_shown(tmp_path
         at = _app(page="views/results.py")
         rows = " ".join(at.dataframe[0].value.index)
         captions = " ".join(c.value for c in at.caption)
-        assert ("Duplicate rate" in rows) == shown
+        assert ("Question novelty" in rows) == shown
         assert ("duplicate rate" in captions) == shown
 
 
@@ -800,9 +863,8 @@ def test_todays_focus_preselects_the_quiz_topic():
     at = _app(sid)
     _button(at, "Set up this quiz").click().run()
     assert not at.exception
-    # The topic picker is now pills (was a selectbox) under the same session key.
-    [topic] = [b for b in at.get("button_group") if b.key == "quiz_topic"]
-    assert topic.value == focus.topic
+    # The topic picker is multi-select pills; Home's topic arrives as the only choice.
+    assert _topics(at).value == [focus.topic]
     assert f"Suggested: {focus.difficulty}" in _md(at)
 
 
@@ -816,3 +878,101 @@ def test_home_error_state_offers_a_retry(seeded, monkeypatch):
     at = _app(seeded)
     assert [s.value for s in at.subheader] == ["Your overview did not load"]
     assert _button(at, "Try again")
+
+
+# --- domain syllabus, Resume builder and Project space ----------------------------------
+
+ECE_RESUME = "Asha Rao\nB.E in Electronics\nSkills: Embedded C, I2C\nProject: STM32 logger"
+
+
+def _ece_student() -> str:
+    from piq import services
+
+    sid, _ = services.onboard("ECE001", "Embedded Systems & Firmware Engineer", ECE_RESUME)
+    return sid
+
+
+def test_an_ece_students_home_and_quiz_show_electronics_topics():
+    sid = _ece_student()
+    at = _app(sid)
+    assert r"Electronics \& Communication" in _md(at)  # escaped, as all dynamic text
+    chart = (at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart"))[0]
+    assert "DBMS" not in str(chart.proto) and "Embedded C" in str(chart.proto)
+    at = _app(sid, "views/quiz.py")
+    options = _topics(at).options
+    assert not any(o.split(" \u00b7 ")[0] in {"DBMS", "DSA", "OOP"} for o in options)
+    assert options[-1] == "Signals & Systems \u00b7 new"
+
+
+def test_project_space_is_in_the_navigation_for_computing_domains_only(seeded):
+    from piq import services
+
+    at = _app(seeded, "views/projects.py")  # the demo student targets a CS role
+    assert [t.value for t in at.title] == ["Project space"]
+    mech, _ = services.onboard("MECH01", "CAD/CAM & Product Design Engineer", "Ravi\nCAD, FEA")
+    at = AppTest.from_file("../app.py", default_timeout=60)
+    at.session_state["student_id"] = mech
+    at.switch_page("views/projects.py")
+    at.run()
+    # Not registered for this student, so the URL falls back to Home.
+    assert [t.value for t in at.title] != ["Project space"]
+
+
+def test_project_space_creates_a_repository_and_logs_work(seeded):
+    at = _app(seeded, "views/projects.py")
+    assert {m.label: m.value for m in at.metric}["Repositories"] == "0"
+    next(t for t in at.text_input if t.key == "new_name").set_value("Chat server")
+    next(t for t in at.text_input if t.key == "new_repo").set_value("https://github.com/x/chat")
+    next(t for t in at.text_area if t.key == "new_summary").set_value("Rooms over sockets")
+    _button(at, "Create repository").click().run()
+    assert not at.exception
+    assert {m.label: m.value for m in at.metric}["Repositories"] == "1"
+    assert "[**Chat server**](https://github.com/x/chat)" in _md(at)
+    pid = db.projects(seeded)[0]["id"]
+    next(t for t in at.text_input if t.key == f"note_{pid}").set_value("Added rooms")
+    _button(at, "Log update").click().run()
+    assert not at.exception and len(db.project_updates(seeded)) == 1
+    assert "1 update in the last 12 weeks" in [s.value for s in at.subheader]
+
+
+def test_project_space_shows_a_bad_link_as_an_error(seeded):
+    at = _app(seeded, "views/projects.py")
+    next(t for t in at.text_input if t.key == "new_name").set_value("X")
+    next(t for t in at.text_input if t.key == "new_repo").set_value("javascript:alert(1)")
+    _button(at, "Create repository").click().run()
+    assert any("web address" in e.value for e in at.error)
+    assert db.projects(seeded) == []
+
+
+def test_resume_builder_starts_empty_for_a_new_student():
+    at = _app(page="views/resume_builder.py")
+    values = {t.label: t.value for t in at.text_input}
+    # No one's name, college or contact details are prefilled.
+    assert values["Full name *"] == "" and values["College or university *"] == ""
+    assert values["Email *"] == "" and values["Degree and branch *"] == ""
+    [skills] = at.multiselect
+    assert skills.value == []  # no keyword is claimed on the student's behalf
+
+
+def test_resume_builder_saves_versions_and_locks_the_domain():
+    sid = _ece_student()
+    at = _app(sid, "views/resume_builder.py")
+    values = {t.label: t for t in at.text_input}
+    assert values["Full name *"].value == "Asha Rao"  # from the profile
+    assert "What to add next" in [s.value for s in at.subheader]
+    values["Email *"].set_value("asha@example.com")
+    values["Project title"].set_value("STM32 logger")
+    _button(at, "Build resume").click().run()
+    assert not at.exception and "ATS check" in [s.value for s in at.subheader]
+    _button(at, "Save as version 1").click().run()
+    assert not at.exception
+    assert any(v.value.startswith("Saved version 1.") for v in at.success)
+    assert any(s.label.startswith("Profile agent") for s in at.status)
+    from piq import services
+
+    assert services.locked_domain(sid).domain.id == "ece"
+    at = _app(sid, "views/resume_builder.py")
+    [domain] = [s for s in at.selectbox if s.label == "Career domain"]
+    assert domain.disabled and domain.value == "Electronics & Communication"
+    assert any(":material/lock:" in m for m in [m.value for m in at.markdown])
+    assert "Your versions" in [s.value for s in at.subheader]

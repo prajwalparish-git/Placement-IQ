@@ -1,7 +1,7 @@
 """Chart builders: marks, encodings, colour scale, number formats and titles (no rendering)."""
 
-from piq import charts
-from piq.config import TOPICS, WEAK_THRESHOLD
+from piq import charts, syllabus
+from piq.config import MAX_DOMAIN_TOPICS, TOPICS, WEAK_THRESHOLD
 
 WEAKNESS = {"Aptitude": 0.37, "DBMS": 0.4, "OS": 0.43, "CN": 0.4, "DSA": 0.23, "OOP": 0.13}
 
@@ -25,8 +25,12 @@ def test_weakness_bars_run_weakest_first_in_topic_colours():
         "OOP  13%",
     ]
     color = bars["encoding"]["color"]
-    # The domain pins the order; the range is left to the theme's per-scheme topic palette.
-    assert color["field"] == "topic" and color["scale"] == {"domain": list(TOPICS)}
+    # The domain pins each topic to its colour slot; the range is left to the theme's
+    # per-scheme topic palette. The CS core keeps the first six slots (its old colours).
+    assert color["field"] == "topic"
+    assert color["scale"] == {"domain": syllabus.color_domain(list(WEAKNESS))}
+    assert color["scale"]["domain"][:6] == list(TOPICS)
+    assert len(color["scale"]["domain"]) == MAX_DOMAIN_TOPICS
     assert color["legend"] is None
     x_axis = bars["encoding"]["x"]["axis"]
     assert x_axis["format"] == "%" and x_axis["values"] == [0, WEAK_THRESHOLD, 1]
@@ -50,18 +54,19 @@ def test_minutes_shift_is_a_dumbbell_from_grey_to_topic_colour():
     # The weeks differ by shape (hollow vs filled), not colour alone.
     assert earlier["mark"]["filled"] is False and earlier["mark"]["color"] == charts.NEUTRAL
     assert later["encoding"]["x"]["field"] == "after"
-    assert later["encoding"]["color"]["scale"] == {"domain": list(TOPICS)}
+    scale = later["encoding"]["color"]["scale"]["domain"]
+    assert (scale[1], scale[2]) == ("DBMS", "OS")  # each topic at its own slot
     y = later["encoding"]["y"]
     assert all(layer["encoding"]["y"] == y for layer in spec["layer"])
     assert y["sort"][:2] == ["OS  600 → 840", "DBMS  360 → 0"]  # busiest first
     assert y["axis"]["labelLimit"] == 0  # numbers in labels are never cut off
     assert later["encoding"]["x"]["axis"]["values"] == [0, 420, 840]  # whole hours
-    assert len(y["sort"]) == len(TOPICS)
+    assert len(y["sort"]) == 2  # only topics planned in either week
     rows = spec["datasets"][spec["data"]["name"]]
     assert {r["topic"]: r["change"] for r in rows}["DBMS"] == -360
     titles = [t["title"] for t in later["encoding"]["tooltip"]]
     assert titles == ["Topic", "Week 3 (min)", "Week 4 (min)", "Change (min)"]
-    assert spec["height"] == charts.ROW_PX * len(TOPICS)
+    assert spec["height"] == charts.ROW_PX * 2
 
 
 def test_readiness_ring_fills_the_score_in_the_brand_teal():
@@ -110,7 +115,7 @@ def test_score_spark_draws_one_topic_in_its_colour_without_axes():
     enc = line["encoding"]
     assert enc["x"]["axis"] is None and enc["y"]["axis"] is None
     assert enc["y"]["scale"]["domain"] == [0, 100]
-    assert enc["color"]["scale"] == {"domain": list(TOPICS)}
+    assert enc["color"]["scale"]["domain"][2] == "OS"  # OS keeps its colour slot
     rows = spec["datasets"][spec["data"]["name"]]
     assert [(r["topic"], r["attempt"], r["score"]) for r in rows] == [
         ("OS", 1, 30.0),
@@ -127,10 +132,12 @@ def test_week_mix_stacks_topics_in_order_per_week():
     enc = spec["encoding"]
     assert spec["mark"]["type"] == "bar"
     assert enc["y"]["sort"] == ["Week 1", "Week 2"]
-    assert enc["color"]["scale"] == {"domain": list(TOPICS)} and enc["order"]["field"] == "rank"
+    assert enc["color"]["scale"] == {"domain": syllabus.color_domain(["DBMS", "OS"])}
+    assert enc["order"]["field"] == "rank"
+    assert enc["color"]["legend"]["values"] == ["DBMS", "OS"]  # no empty colour slots listed
     rows = spec["datasets"][spec["data"]["name"]]
     assert ("Week 2", "CN") not in {(r["week"], r["topic"]) for r in rows}  # no empty segment
-    assert {r["topic"]: r["rank"] for r in rows} == {"OS": 2, "DBMS": 1}
+    assert {r["topic"]: r["rank"] for r in rows} == {"OS": 1, "DBMS": 0}  # syllabus order
     assert spec["height"] == charts.ROW_PX * 2 + charts.LEGEND_PX  # axis and legend fit inside
     assert enc["color"]["legend"]["columns"] == 3  # wraps on a phone
 
@@ -191,4 +198,41 @@ def test_activity_heatmap_is_a_12_week_calendar_with_neutral_empty_days():
     assert [t["title"] for t in enc["tooltip"]] == ["Day", "Quizzes and interviews"]
     assert charts.activity_heatmap_spec({date(2026, 10, 19): 2}, today) == charts.to_spec(
         charts.activity_heatmap({date(2026, 10, 19): 2}, today)
+    )
+
+
+def test_outcome_bars_stack_correct_wrong_and_skipped_in_fixed_colours():
+    from piq.config import OUTCOME_COLORS
+
+    spec = charts.outcome_bars([("OS", 3, 1, 1), ("Dbms", 2, 0, 0)]).to_dict()
+    enc = spec["encoding"]
+    assert enc["y"]["sort"] == ["OS  3/5", "Dbms  2/2"]  # the score is on the label
+    assert enc["color"]["scale"] == {
+        "domain": list(OUTCOME_COLORS),
+        "range": list(OUTCOME_COLORS.values()),
+    }
+    assert enc["color"]["legend"]["orient"] == "bottom"  # outcomes named in words
+    rows = spec["datasets"][spec["data"]["name"]]
+    assert ("Dbms  2/2", "Wrong") not in {(r["slice"], r["outcome"]) for r in rows}  # no 0s
+    assert "tooltip" in enc
+
+
+def test_accuracy_grid_is_a_topic_by_difficulty_heatmap():
+    spec = charts.accuracy_grid(
+        [("DBMS", "hard", 1, 4), ("OS", "easy", 3, 4), ("OS", "medium", 0, 0)]
+    ).to_dict()
+    enc = spec["encoding"]
+    assert spec["mark"]["type"] == "rect"
+    assert enc["x"]["sort"] == ["Easy", "Medium", "Hard"] and enc["y"]["sort"] == ["DBMS", "OS"]
+    rows = spec["datasets"][spec["data"]["name"]]
+    assert {(r["topic"], r["difficulty"]) for r in rows} == {("DBMS", "Hard"), ("OS", "Easy")}
+    assert enc["opacity"]["scale"]["domain"] == [0, 1]
+
+
+def test_ats_trend_is_a_0_to_100_line_per_version():
+    spec = charts.ats_trend([40, 62], ["1 Nov", "9 Nov"]).to_dict()
+    line, _ = spec["layer"]
+    assert line["encoding"]["y"]["scale"]["domain"] == [0, 100]
+    assert charts.ats_trend_spec([40, 62], ["1 Nov", "9 Nov"]) == charts.to_spec(
+        charts.ats_trend([40, 62], ["1 Nov", "9 Nov"])
     )

@@ -20,6 +20,7 @@ from piq.config import ROOT
 # test module -> (test type, what it covers)
 LAYERS = {
     "test_config": ("Unit", "Settings and environment"),
+    "test_syllabus": ("Unit", "Domain syllabi, role topics and colour slots"),
     "test_schemas": ("Unit", "Pydantic output schemas"),
     "test_checks": ("Unit", "Deterministic critic rules"),
     "test_db": ("Unit", "SQLite repository"),
@@ -29,6 +30,10 @@ LAYERS = {
     "test_formatter": ("Unit", "Output layer"),
     "test_agents": ("Integration", "Agents through the critic loop"),
     "test_services": ("Integration", "User flows through the service layer"),
+    "test_services_syllabus": (
+        "Integration",
+        "Domain topics, multi-topic quizzes, resume versions, Project space",
+    ),
     "test_seed": ("Integration", "Demo seed data"),
     "test_eval": ("Integration", "Evaluation harness"),
     "test_report": ("Integration", "Results report"),
@@ -43,6 +48,7 @@ LAYERS = {
     "test_tunnel": ("Unit", "Demo tunnel settings"),
     "test_summary_pdf": ("Unit", "Summary PDF builder"),
     "test_resume_builder": ("Unit", "ATS resume builder and PDF compilation"),
+    "test_scorecard": ("Unit", "Evaluation scorecard parameters and ratings"),
     "test_ui": ("System (UI)", "Streamlit pages, headless"),
 }
 ORDER = list(LAYERS)

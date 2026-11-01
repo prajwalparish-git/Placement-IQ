@@ -52,6 +52,7 @@ PAGES = (
     AppPage("home", "Home", "views/home.py"),
     AppPage("resume_builder", "Resume builder", "views/resume_builder.py"),
     AppPage("onboard", "Onboard", "views/onboard.py"),
+    AppPage("projects", "Project space", "views/projects.py"),  # computing domains only
     AppPage("plan", "Weekly plan", "views/plan.py"),
     AppPage("quiz", "Quiz", "views/quiz.py"),
     AppPage("interview", "Mock interview", "views/interview.py"),
@@ -59,6 +60,7 @@ PAGES = (
     AppPage("results", "Results", "views/results.py"),
 )
 STATES = ("nostudent", "demo")
+STUDENT_ONLY = {"projects"}  # in the navigation only once a (computing) student is chosen
 FLOWS = (
     ("onboard", "error"),
     ("plan", "newweek"),
@@ -73,8 +75,11 @@ FLOWS = (
 MARKERS = {
     ("home", "nostudent"): "Start with your resume",
     ("home", "demo"): "Today's focus",
-    ("resume_builder", "nostudent"): "ATS Resume Builder",
-    ("resume_builder", "demo"): "ATS Resume Builder",
+    ("resume_builder", "nostudent"): "Resume builder",
+    ("resume_builder", "demo"): "What to add next",
+    # Without a student the page is not in the navigation, so its URL lands on Home.
+    ("projects", "nostudent"): "Start with your resume",
+    ("projects", "demo"): "Project space",
     ("onboard", "nostudent"): "Analyse resume",
     ("plan", "nostudent"): "No student selected",
     ("quiz", "nostudent"): "No student selected",
@@ -91,7 +96,7 @@ MARKERS = {
     ("plan", "newweek"): "Generate week 6 plan",
     ("quiz", "critic"): "Critic rejected the quiz",
     ("quiz", "taking"): "Submit",
-    ("quiz", "review"): "next suggested difficulty",
+    ("quiz", "review"): "Where the marks went",
     ("interview", "mid"): "You said 'I like coding",
     ("interview", "complete"): "Session complete",
 }
@@ -370,7 +375,9 @@ def capture_scheme(
                 _select_student(page, DEMO_OPTION)
             for p in (p for p in PAGES if p.slug in only):
                 where["step"] = f"{p.slug} ({state})"
-                _goto(page, p.title)
+                # A page only some students get has no link before one is chosen: what a
+                # visitor sees then is Home.
+                _goto(page, "Home" if state == "nostudent" and p.slug in STUDENT_ONLY else p.title)
                 _capture_widths(page, out, p.slug, state, widths, scheme, written)
 
         if "onboard" in only:

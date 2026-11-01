@@ -97,9 +97,11 @@ except services.ServiceError as e:
         st.rerun()
     st.stop()
 
+domain = services.domain_of_role(profile.target_role)
 ui.page_header(
     f"Hello, {formatter.md_escape(profile.name)}",
-    f"Here is where you stand for {formatter.md_escape(profile.target_role)}, and what to do next.",
+    f"Here is where you stand for {formatter.md_escape(profile.target_role)} "
+    f"({formatter.md_escape(domain.name)}), and what to do next.",
 )
 
 action = overview.next_action
@@ -119,7 +121,10 @@ with main:
         width="stretch",
         alt=formatter.weakness_alt(overview.weakness),
     )
-    st.caption(formatter.weakness_caption())
+    st.caption(
+        f"{formatter.weakness_caption()} Your role's topics in {formatter.md_escape(domain.name)}, "
+        "plus any other topic of it you have quizzed."
+    )
 
 with side:
     with st.container(border=True):

@@ -5,39 +5,56 @@ its input, runs the agents, persists the result and returns typed state, so ever
 flow is testable without Streamlit. `ServiceError` messages are safe to show to users.
 """
 
+import csv
 import json
+import math
 import re
 import sqlite3
 import uuid
-from collections import Counter
-from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from collections import Counter, defaultdict
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from functools import lru_cache
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel
 
-from piq import agents, checks, db
+from piq import agents, checks, db, resume_builder, scorecard, syllabus
 from piq.config import (
     CRITERION_WEAK_BELOW,
     DATA_DIR,
     DIFFICULTIES,
     INTERVIEW_TIPS,
     INTERVIEW_TYPES,
+    PROJECT_STATUSES,
+    QUIZ_BATCH,
+    QUIZ_MAX_PER_TOPIC,
+    QUIZ_MAX_TOTAL,
     RECENT_DAYS,
     RESULTS_DIR,
+    RESUME_MASTERY_AT,
+    RESUME_REVIEW_DAYS,
     TIMEZONE,
-    TOPICS,
     TREND_STEP,
     WEAK_THRESHOLD,
 )
 from piq.graph import OnEvent
 from piq.resume import ResumeError as ResumeError  # re-exported: views catch it via services
 from piq.resume import extract_text
-from piq.schemas import AnswerEvaluation, InterviewTurn, QuizSet, StudentProfile, WeeklyPlan
+from piq.schemas import (
+    AnswerEvaluation,
+    InterviewTurn,
+    Question,
+    QuizSet,
+    StudentProfile,
+    WeeklyPlan,
+)
+from piq.syllabus import Domain
 
 USN_RE = re.compile(r"^[A-Z0-9]{4,20}$")
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+URL_RE = re.compile(r"^https?://[^\s<>()\[\]\"'`]+$")
 SAMPLES_DIR = DATA_DIR / "sample_resumes"
 MAX_ANSWER_CHARS = 4000
 
@@ -51,6 +68,87 @@ def _require_profile(student_id: str | None) -> StudentProfile:
     if profile is None:
         raise ServiceError("Onboard this student first.")
     return profile
+
+
+# --- syllabus: the student's domain and topics ---------------------------------------
+
+
+@dataclass(frozen=True)
+class LockedDomain:
+    domain: Domain
+    since: str  # UTC timestamp of the first saved resume
+
+
+@dataclass(frozen=True)
+class StudentSyllabus:
+    """What a student studies: their role's domain, the topics tracked for them (focus topics
+    plus domain topics they chose to quiz) and the rest of the domain."""
+
+    domain: Domain
+    role: str
+    focus: list[str]
+    tracked: list[str]
+    others: list[str]
+    locked: LockedDomain | None
+
+    @property
+    def area(self) -> str:
+        """How a quiz names the field a topic belongs to."""
+        return f"{self.domain.name}, for a {self.role}"
+
+
+def domains() -> tuple[Domain, ...]:
+    return syllabus.domains()
+
+
+def domain_roles(domain_id: str) -> list[str]:
+    try:
+        return syllabus.roles_in(domain_id)
+    except KeyError as e:
+        raise ServiceError(f"Unknown domain {domain_id!r}.") from e
+
+
+def domain_of_role(role: str) -> Domain:
+    return syllabus.domain_of_role(role)
+
+
+def focus_topics(role: str) -> list[str]:
+    return syllabus.focus_topics(role)
+
+
+def locked_domain(student_id: str | None) -> LockedDomain | None:
+    """The domain a student's first saved resume fixed, or None (nothing saved yet)."""
+    row = db.first_resume_domain(student_id) if student_id else None
+    if row is None:
+        return None
+    try:
+        return LockedDomain(syllabus.domain(row["domain_id"]), row["created_at"])
+    except KeyError:  # a domain since removed from the catalog no longer locks anything
+        return None
+
+
+def student_syllabus(
+    student_id: str | None, profile: StudentProfile, scores: Mapping[str, float] | None = None
+) -> StudentSyllabus:
+    """`scores`: the student's recent topic averages when the caller already read them."""
+    if scores is None:
+        scores = db.topic_performance(student_id) if student_id else {}
+    role = profile.target_role
+    tracked = syllabus.tracked_topics(role, scores)
+    return StudentSyllabus(
+        domain=syllabus.domain_of_role(role),
+        role=role,
+        focus=syllabus.focus_topics(role),
+        tracked=tracked,
+        others=syllabus.other_topics(role, tracked),
+        locked=locked_domain(student_id),
+    )
+
+
+def weakness_for(profile: StudentProfile, scores: Mapping[str, float]) -> dict[str, float]:
+    """Weakness of every topic tracked for this student (see syllabus.tracked_topics)."""
+    topics = syllabus.tracked_topics(profile.target_role, scores)
+    return checks.topic_weakness(dict(scores), agents.missing_topics(profile), topics)
 
 
 # --- students & onboarding -----------------------------------------------------
@@ -122,6 +220,12 @@ def onboard(
         raise ServiceError(f"Unknown target role {target_role!r}.")
     if not resume_text.strip():
         raise ServiceError("The resume is empty.")
+    owner = db.student_by_usn(usn)
+    lock = locked_domain(owner["id"]) if owner else None
+    if lock and syllabus.domain_of_role(target_role).id != lock.domain.id:
+        raise ServiceError(
+            f"This student's domain is locked to {lock.domain.name}: choose one of its roles."
+        )
     profile = agents.create_profile(resume_text, target_role, on_event)
     return db.save_profile(usn, profile), profile
 
@@ -160,10 +264,11 @@ def plan_overview(student_id: str, profile: StudentProfile | None = None) -> Pla
     with_progress = db.plans_with_progress(student_id)
     plans = [p for p, _ in with_progress]
     scores = db.topic_performance(student_id)
+    weakness = weakness_for(profile, scores)
     return PlanOverview(
         plans=plans,
-        scores=scores,
-        weakness=checks.topic_weakness(scores, agents.missing_topics(profile)),
+        scores={t: s for t, s in scores.items() if t in weakness},
+        weakness=weakness,
         next_week=plans[-1].week_no + 1 if plans else 1,
         done={p.week_no: days for p, days in with_progress},
     )
@@ -208,15 +313,18 @@ class QuizResult:
 
 @dataclass(frozen=True)
 class QuizSetup:
-    """What the quiz setup shows: each topic's weakness and its latest attempt."""
+    """What the quiz setup shows: the student's tracked topics with their weakness, the rest
+    of their domain to choose from, and each topic's latest attempt."""
 
-    weakness: dict[str, float]
+    weakness: dict[str, float]  # tracked topics only
     last: dict[str, tuple[float, str]]  # topic -> (score %, difficulty) of the latest quiz
+    others: list[str] = field(default_factory=list)  # the rest of the domain
+    focus: list[str] = field(default_factory=list)  # the role's focus topics
 
     @property
     def topics(self) -> list[str]:
-        """Weakest first; ties keep the syllabus order."""
-        return sorted(TOPICS, key=lambda t: -self.weakness[t])
+        """Tracked topics weakest first (ties keep the syllabus order), then the others."""
+        return sorted(self.weakness, key=lambda t: -self.weakness[t]) + list(self.others)
 
     def suggested(self, topic: str) -> str:
         """The difficulty after the latest quiz on `topic` (medium before the first)."""
@@ -230,9 +338,12 @@ def quiz_setup(student_id: str, profile: StudentProfile | None = None) -> QuizSe
     profile = profile or _require_profile(student_id)
     stats = db.topic_stats(student_id)
     scores = {t: s["avg_pct"] for t, s in stats.items()}
+    weakness = weakness_for(profile, scores)
     return QuizSetup(
-        weakness=checks.topic_weakness(scores, agents.missing_topics(profile)),
+        weakness=weakness,
         last={t: (s["last_pct"], s["last_difficulty"]) for t, s in stats.items()},
+        others=syllabus.other_topics(profile.target_role, weakness),
+        focus=syllabus.focus_topics(profile.target_role),
     )
 
 
@@ -242,7 +353,7 @@ def quiz_key(quiz: QuizSet) -> str:
 
 
 def _check_quiz_params(topic: str, difficulty: str | None = None) -> None:
-    if topic not in TOPICS:
+    if topic not in syllabus.all_topics():
         raise ServiceError(f"Unknown topic {topic!r}.")
     if difficulty is not None and difficulty not in DIFFICULTIES:
         raise ServiceError(f"Unknown difficulty {difficulty!r}.")
@@ -272,6 +383,267 @@ def submit_quiz(student_id: str, quiz: QuizSet, chosen: list[int | None]) -> Qui
         raise ServiceError("Invalid answer choice.")
     pct = db.save_quiz_attempt(student_id, quiz, list(chosen))
     return QuizResult(quiz, list(chosen), pct, agents.suggest_difficulty(pct, quiz.difficulty))
+
+
+# --- quizzes over several topics and difficulties -------------------------------------
+
+
+def mix_from_handles(low: int, high: int) -> dict[str, int]:
+    """A two-handle slider over 0-100 -> difficulty shares that always add up to 100:
+    easy below the first handle, medium between them, hard above the second."""
+    low, high = sorted((int(low), int(high)))
+    if low < 0 or high > 100:
+        raise ServiceError("The difficulty mix runs from 0% to 100%.")
+    return {"easy": low, "medium": high - low, "hard": 100 - high}
+
+
+def split_by_mix(n: int, mix: Mapping[str, int]) -> dict[str, int]:
+    """`n` questions shared by the mix's percentages (largest remainder, so the parts add up
+    to n exactly; a tie in remainders goes to medium, then easy, then hard)."""
+    exact = {d: n * mix.get(d, 0) / 100 for d in DIFFICULTIES}
+    counts = {d: math.floor(v) for d, v in exact.items()}
+    tie_order = {"medium": 0, "easy": 1, "hard": 2}
+    by_remainder = sorted(DIFFICULTIES, key=lambda d: (-(exact[d] - counts[d]), tie_order[d]))
+    for d in by_remainder[: n - sum(counts.values())]:
+        counts[d] += 1
+    return counts
+
+
+@dataclass(frozen=True)
+class QuizSpec:
+    """A quiz as the student set it up: questions per topic and the difficulty mix (%)."""
+
+    counts: dict[str, int]
+    mix: dict[str, int]
+
+    @property
+    def total(self) -> int:
+        return sum(self.counts.values())
+
+    def parts(self) -> list[tuple[str, str, int]]:
+        """(topic, difficulty, questions) for each non-empty part, topic by topic, easy to
+        hard: a topic's last part is its hardest, which its next suggestion is based on."""
+        return [
+            (topic, d, k)
+            for topic, n in self.counts.items()
+            for d, k in split_by_mix(n, self.mix).items()
+            if k
+        ]
+
+    @property
+    def batches(self) -> int:
+        """Generation calls this quiz needs (each checked by the critic)."""
+        return sum(math.ceil(k / QUIZ_BATCH) for *_, k in self.parts())
+
+
+def quiz_spec(
+    counts: Mapping[str, int], mix: Mapping[str, int], allowed: Iterable[str]
+) -> QuizSpec:
+    """Validate a quiz setup: 1-QUIZ_MAX_PER_TOPIC questions per chosen topic, at most
+    QUIZ_MAX_TOTAL in all, topics from `allowed`, a mix of whole percentages adding to 100."""
+    allowed = set(allowed)
+    if not counts:
+        raise ServiceError("Choose at least one topic.")
+    unknown = [t for t in counts if t not in allowed]
+    if unknown:
+        raise ServiceError(f"Not in your syllabus: {', '.join(unknown)}.")
+    for topic, n in counts.items():
+        if not 1 <= int(n) <= QUIZ_MAX_PER_TOPIC:
+            raise ServiceError(f"{topic}: choose 1 to {QUIZ_MAX_PER_TOPIC} questions.")
+    total = sum(int(n) for n in counts.values())
+    if total > QUIZ_MAX_TOTAL:
+        raise ServiceError(
+            f"That is {total} questions; one quiz holds at most {QUIZ_MAX_TOTAL}. "
+            "Lower some topics or take two quizzes."
+        )
+    shares = {d: int(mix.get(d, 0)) for d in DIFFICULTIES}
+    if set(mix) - set(DIFFICULTIES) or any(v < 0 for v in shares.values()):
+        raise ServiceError("The difficulty mix has only easy, medium and hard, each 0% or more.")
+    if sum(shares.values()) != 100:
+        raise ServiceError("The difficulty mix must add up to 100%.")
+    return QuizSpec({t: int(n) for t, n in counts.items()}, shares)
+
+
+class QuizRun(BaseModel):
+    """A generated quiz of one or more parts (one topic at one difficulty each), kept in
+    st.session_state between reruns."""
+
+    parts: list[QuizSet]
+
+    @property
+    def questions(self) -> list[tuple[QuizSet, Question]]:
+        """Every question in order, with the part it belongs to."""
+        return [(p, q) for p in self.parts for q in p.questions]
+
+    @property
+    def total(self) -> int:
+        return sum(len(p.questions) for p in self.parts)
+
+    @property
+    def key(self) -> str:
+        """Fresh widget keys per quiz, so a new quiz never shows old answers."""
+        return checks.text_hash("".join(q.text for _, q in self.questions[:3]))
+
+
+def start_quiz_run(student_id: str, spec: QuizSpec, on_event: OnEvent | None = None) -> QuizRun:
+    """Generate every part in batches of up to QUIZ_BATCH questions, each through the critic.
+    A batch avoids the student's earlier questions on the topic and those already in this
+    quiz. Raises like start_quiz when a batch cannot be approved."""
+    profile = _require_profile(student_id)
+    syl = student_syllabus(student_id, profile)
+    spec = quiz_spec(spec.counts, spec.mix, syl.domain.topics)
+    parts: list[QuizSet] = []
+    batch, batches = 0, spec.batches
+    for topic, difficulty, n in spec.parts():
+        earlier = db.asked_questions(student_id, topic)
+        earlier += [q.text for p in parts if p.topic == topic for q in p.questions]
+        questions: list[Question] = []
+        while len(questions) < n:
+            k = min(QUIZ_BATCH, n - len(questions))
+            batch += 1
+            if on_event and batches > 1:
+                on_event(f"Batch {batch} of {batches}: {k} {difficulty} {topic} questions")
+            made = agents.make_quiz(
+                topic,
+                difficulty,
+                earlier + [q.text for q in questions],
+                count=k,
+                student_id=student_id,
+                on_event=on_event,
+                area=syl.area,
+            )
+            questions += made.questions
+        parts.append(QuizSet(topic=topic, difficulty=difficulty, questions=questions))
+    return QuizRun(parts=parts)
+
+
+@dataclass(frozen=True)
+class Outcome:
+    """Answers in one slice of a quiz (a topic, a difficulty or a thinking level)."""
+
+    label: str
+    correct: int
+    wrong: int
+    skipped: int
+
+    @property
+    def total(self) -> int:
+        return self.correct + self.wrong + self.skipped
+
+    @property
+    def pct(self) -> float:
+        return round(100 * self.correct / self.total, 1) if self.total else 0.0
+
+
+@dataclass(frozen=True)
+class Mistake:
+    n: int  # the question's number in the quiz, from 1
+    topic: str
+    difficulty: str
+    question: Question
+    chosen: int | None
+
+
+BLOOM_ORDER = ("remember", "understand", "apply", "analyze")
+
+
+@dataclass(frozen=True)
+class QuizRunResult:
+    run: QuizRun
+    chosen: list[int | None]  # one per question, in quiz order
+    run_id: int
+
+    def _rows(self) -> list[tuple[int, QuizSet, Question, int | None]]:
+        return [
+            (i, p, q, a)
+            for i, ((p, q), a) in enumerate(zip(self.run.questions, self.chosen, strict=True), 1)
+        ]
+
+    @property
+    def total(self) -> int:
+        return self.run.total
+
+    @property
+    def correct(self) -> int:
+        return sum(a == q.correct_index for *_, q, a in self._rows())
+
+    @property
+    def skipped(self) -> int:
+        return sum(a is None for a in self.chosen)
+
+    @property
+    def wrong(self) -> int:
+        return self.total - self.correct - self.skipped
+
+    @property
+    def score_pct(self) -> float:
+        return round(100 * self.correct / self.total, 1)
+
+    def breakdown(self, by: str) -> list[Outcome]:
+        """Outcomes per "topic" (quiz order), "difficulty" (easy to hard) or "bloom" (the
+        question's thinking level, remember to analyze); only slices with questions."""
+        key: Callable[[QuizSet, Question], str] = {
+            "topic": lambda p, q: p.topic,
+            "difficulty": lambda p, q: p.difficulty,
+            "bloom": lambda p, q: q.bloom_level,
+        }[by]
+        tally: dict[str, Counter] = defaultdict(Counter)
+        for _, p, q, a in self._rows():
+            state = "skipped" if a is None else "correct" if a == q.correct_index else "wrong"
+            tally[key(p, q)][state] += 1
+        order = {
+            "topic": list(dict.fromkeys(p.topic for p in self.run.parts)),
+            "difficulty": list(DIFFICULTIES),
+            "bloom": list(BLOOM_ORDER),
+        }[by]
+        return [
+            Outcome(k, tally[k]["correct"], tally[k]["wrong"], tally[k]["skipped"])
+            for k in order
+            if k in tally
+        ]
+
+    def grid(self) -> dict[tuple[str, str], Outcome]:
+        """(topic, difficulty) -> outcome, for every part."""
+        out = {}
+        for p in self.run.parts:
+            rows = [(q, a) for _, pp, q, a in self._rows() if pp is p]
+            correct = sum(a == q.correct_index for q, a in rows)
+            skipped = sum(a is None for _, a in rows)
+            out[(p.topic, p.difficulty)] = Outcome(
+                f"{p.topic} · {p.difficulty}", correct, len(rows) - correct - skipped, skipped
+            )
+        return out
+
+    def mistakes(self) -> list[Mistake]:
+        """Every question answered wrong or left blank, in quiz order."""
+        return [
+            Mistake(i, p.topic, p.difficulty, q, a)
+            for i, p, q, a in self._rows()
+            if a != q.correct_index
+        ]
+
+    @property
+    def next_difficulty(self) -> dict[str, str]:
+        """Each topic's suggested next difficulty: from its hardest part in this quiz (the
+        part saved last, which the Quiz page reads next time)."""
+        out = {}
+        for (topic, difficulty), o in self.grid().items():
+            out[topic] = agents.suggest_difficulty(o.pct, difficulty)
+        return out
+
+
+def submit_quiz_run(student_id: str, run: QuizRun, chosen: Sequence[int | None]) -> QuizRunResult:
+    if len(chosen) != run.total:
+        raise ServiceError("The answers do not match the quiz.")
+    if any(a is not None and a not in range(4) for a in chosen):
+        raise ServiceError("Invalid answer choice.")
+    chosen = list(chosen)
+    parts, start = [], 0
+    for p in run.parts:
+        parts.append((p, chosen[start : start + len(p.questions)]))
+        start += len(p.questions)
+    run_id = db.save_quiz_run(student_id, parts)
+    return QuizRunResult(run, chosen, run_id)
 
 
 # --- interviews ----------------------------------------------------------------
@@ -408,15 +780,32 @@ def score_trend(scores: Sequence[float]) -> str:
     return "slipping" if change <= -TREND_STEP else "steady"
 
 
+def _field(row: Mapping, key: str, default: object = None) -> object:
+    """A column of a sqlite3.Row or a dict that may lack it (rows from older queries)."""
+    try:
+        return row[key]
+    except (KeyError, IndexError):
+        return default
+
+
 def topic_mastery(profile: StudentProfile, attempts: Sequence[Mapping]) -> list[TopicMastery]:
-    """Every topic, weakest first, from quiz_history rows (oldest first): the same last-three
-    average db.topic_performance takes, computed here so the dashboard needs no extra query."""
-    scores: dict[str, list[float]] = {t: [] for t in TOPICS}
+    """Every tracked topic, weakest first, from quiz_history rows (oldest first): the same
+    last-three average db.topic_performance takes (weighted by questions), computed here so
+    the dashboard needs no extra query. Topics outside the student's domain are left out."""
+    scores: dict[str, list[float]] = defaultdict(list)
+    sizes: dict[str, list[tuple[int, int]]] = defaultdict(list)
     for a in attempts:
-        scores[a["topic"]].append(float(a["score_pct"]))
-    recent = {t: round(sum(s[-3:]) / len(s[-3:]), 1) for t, s in scores.items() if s}
-    weakness = checks.topic_weakness(recent, agents.missing_topics(profile))
-    ranked = sorted(TOPICS, key=lambda t: -weakness[t])
+        pct = float(a["score_pct"])
+        scores[a["topic"]].append(pct)
+        total = _field(a, "total")
+        correct = _field(a, "correct")
+        sizes[a["topic"]].append((correct, total) if total else (pct, 100))
+    recent = {
+        t: round(100 * sum(c for c, _ in s[-3:]) / sum(n for _, n in s[-3:]), 1)
+        for t, s in sizes.items()
+    }
+    weakness = weakness_for(profile, recent)
+    ranked = sorted(weakness, key=lambda t: -weakness[t])
     return [TopicMastery(t, scores[t], weakness[t], score_trend(scores[t])) for t in ranked]
 
 
@@ -429,6 +818,20 @@ class Dashboard:
     agent_stats: list[sqlite3.Row]
     rejections: list[sqlite3.Row]
     readiness: list[sqlite3.Row]  # (created_at, readiness_score) per profile, oldest first
+    syllabus: StudentSyllabus | None = None
+    runs: list[sqlite3.Row] = field(default_factory=list)  # multi-part quizzes, newest first
+    accuracy: list[sqlite3.Row] = field(default_factory=list)  # topic x difficulty totals
+
+    @property
+    def answered(self) -> tuple[int, int]:
+        """(correct, total) over every question the student has answered."""
+        return sum(r["correct"] for r in self.accuracy), sum(r["total"] for r in self.accuracy)
+
+    @property
+    def quizzes_taken(self) -> int:
+        """Quizzes as the student took them: a multi-part quiz counts once."""
+        runs = {_field(a, "run_id") for a in self.quiz_history} - {None}
+        return len(runs) + sum(1 for a in self.quiz_history if _field(a, "run_id") is None)
 
     @property
     def plans(self) -> list[WeeklyPlan]:
@@ -447,14 +850,18 @@ def dashboard(student_id: str, profile: StudentProfile | None = None) -> Dashboa
     """`profile`: the student's current profile when the caller already loaded it."""
     profile = profile or _require_profile(student_id)
     try:
+        history = db.quiz_history(student_id)
         return Dashboard(
             profile=profile,
-            quiz_history=db.quiz_history(student_id),
+            quiz_history=history,
             plans_done=db.plans_with_progress(student_id),
             sessions=db.interview_history(student_id),
             agent_stats=db.agent_stats(),
             rejections=db.recent_rejections(),
             readiness=db.readiness_history(student_id),
+            syllabus=student_syllabus(student_id, profile, {a["topic"]: 0 for a in history}),
+            runs=db.quiz_runs(student_id),
+            accuracy=db.accuracy_grid(student_id),
         )
     except sqlite3.Error as e:
         raise ServiceError(
@@ -667,14 +1074,27 @@ def _checklist(
 def _recent(
     latest_plan: Mapping | None, attempts: Sequence[Mapping], sessions: Sequence[Mapping]
 ) -> list[Activity]:
-    items = [
-        Activity(
-            utc(a["attempted_at"]),
-            f"Scored {a['score_pct']:.0f}% on a {a['difficulty']} {a['topic']} quiz",
-            a["topic"],
+    # A quiz of several parts (topics and difficulties) is one line, not one per part.
+    runs: dict[object, list[Mapping]] = defaultdict(list)
+    for a in attempts:
+        runs[_field(a, "run_id") or ("single", id(a))].append(a)
+    quizzes = sorted(runs.values(), key=lambda parts: parts[-1]["attempted_at"])[-3:]
+    items = []
+    for parts in quizzes:
+        a = parts[-1]
+        if len(parts) == 1:
+            text = f"Scored {a['score_pct']:.0f}% on a {a['difficulty']} {a['topic']} quiz"
+            items.append(Activity(utc(a["attempted_at"]), text, a["topic"]))
+            continue
+        total = sum(_field(p, "total", 0) or 0 for p in parts)
+        correct = sum(_field(p, "correct", 0) or 0 for p in parts)
+        topics = list(dict.fromkeys(p["topic"] for p in parts))
+        pct = 100 * correct / total if total else 0
+        named = ", ".join(topics[:3]) + (f" and {len(topics) - 3} more" if len(topics) > 3 else "")
+        text = f"Scored {pct:.0f}% on a {total}-question quiz: {named}"
+        items.append(
+            Activity(utc(a["attempted_at"]), text, topics[0] if len(topics) == 1 else None)
         )
-        for a in attempts[-3:]
-    ]
     items += [
         Activity(
             utc(s["started"]),
@@ -704,7 +1124,7 @@ def home(
             "Your progress could not be read. Reload the page, and restart the app if it "
             "keeps failing."
         ) from e
-    weakness = checks.topic_weakness(scores, agents.missing_topics(profile))
+    weakness = weakness_for(profile, scores)
     action = decide_next_action(
         profile, latest, weakness, attempts, len(sessions), now or datetime.now(UTC)
     )
@@ -725,3 +1145,245 @@ def next_action(student_id: str | None) -> NextAction:
     if profile is None:
         return decide_next_action(None, None, {}, [], 0, datetime.now(UTC))
     return home(student_id, profile).next_action
+
+
+# --- resume builder: versions, domain lock and what to add next ---------------------
+
+
+@dataclass(frozen=True)
+class ResumeVersion:
+    n: int  # from 1
+    created_at: str  # UTC
+    domain_id: str
+    target_role: str
+    resume: dict
+    ats_score: int
+
+
+def resume_history(student_id: str | None) -> list[ResumeVersion]:
+    if not student_id:
+        return []
+    return [
+        ResumeVersion(
+            i, v["created_at"], v["domain_id"], v["target_role"], v["resume"], v["ats_score"]
+        )
+        for i, v in enumerate(db.resume_versions(student_id), 1)
+    ]
+
+
+def save_resume(
+    student_id: str | None,
+    domain_id: str,
+    resume: dict,
+    on_event: OnEvent | None = None,
+) -> tuple[str, int]:
+    """Save a built resume as the student's next version and re-profile them from it (their
+    readiness follows the resume). Without a student, a new one is created from it. The
+    first version locks the domain. Returns (student id, version number)."""
+    role = resume.get("target_role", "")
+    if role not in domain_roles(domain_id):
+        raise ServiceError(f"{role!r} is not a role in this domain.")
+    if not str(resume.get("full_name", "")).strip():
+        raise ServiceError("Enter your full name.")
+    email = str((resume.get("form") or {}).get("email", "")).strip()
+    if not EMAIL_RE.match(email):
+        raise ServiceError("Enter a valid email address.")
+    text = resume_builder.resume_text(resume)
+    if student_id:
+        lock = locked_domain(student_id)
+        if lock and lock.domain.id != domain_id:
+            raise ServiceError(f"Your domain is locked to {lock.domain.name}; choose a role in it.")
+        student = next((s for s in db.list_students() if s["id"] == student_id), None)
+        if student is None:
+            raise ServiceError("This student no longer exists.")
+        sid, _ = onboard(student["usn"], role, text, on_event)
+    else:
+        sid, _ = onboard_candidate(resume["full_name"], role, text, on_event=on_event)
+    ats = resume_builder.evaluate_ats_compatibility(resume, role)
+    db.save_resume_version(sid, domain_id, role, resume, ats.score)
+    return sid, len(db.resume_versions(sid))
+
+
+@dataclass(frozen=True)
+class MasteredTopic:
+    topic: str
+    pct: float  # recent quiz average
+    quizzes: int
+    skills: list[str]  # the role's skills under this topic that the resume does not show
+
+
+@dataclass(frozen=True)
+class ResumeAdvice:
+    """What to put on the resume next, from evidence: quiz mastery, finished projects, the
+    role's keywords still missing, and how long since the last version."""
+
+    last_saved: datetime | None
+    review_on: date | None  # the last version's day plus RESUME_REVIEW_DAYS
+    quizzes_since: int
+    plan_days_since: int
+    mastered: list[MasteredTopic]
+    missing_keywords: list[str]
+    projects_to_add: list[str]
+
+    def due(self, today: date) -> bool:
+        return self.review_on is not None and today >= self.review_on
+
+
+def resume_advice(student_id: str, profile: StudentProfile | None = None) -> ResumeAdvice:
+    profile = profile or _require_profile(student_id)
+    versions = resume_history(student_id)
+    latest = versions[-1] if versions else None
+    if latest:
+        on_resume = {s.lower() for s in latest.resume["skills"]}
+    else:
+        on_resume = {s.lower() for s in [*profile.skills, *profile.matched_skills]}
+
+    history = db.quiz_history(student_id)
+    attempts_by_topic = Counter(a["topic"] for a in history)
+    mastered = []
+    for topic, pct in db.topic_performance(student_id).items():
+        if pct < RESUME_MASTERY_AT or attempts_by_topic[topic] < 2:
+            continue
+        skills = [
+            s
+            for s in syllabus.skills_for_topic(profile.target_role, topic)
+            if s.lower() not in on_resume
+        ]
+        if skills:
+            mastered.append(MasteredTopic(topic, pct, attempts_by_topic[topic], skills))
+
+    since = latest.created_at if latest else None
+    missing = (
+        resume_builder.evaluate_ats_compatibility(
+            latest.resume, latest.target_role
+        ).missing_keywords
+        if latest
+        else []
+    )
+    titles = {p["title"].lower() for p in latest.resume["projects"]} if latest else set()
+    done = [
+        p["name"]
+        for p in db.projects(student_id)
+        if p["status"] == "Done" and p["name"].lower() not in titles
+    ]
+    saved = utc(since) if since else None
+    local = saved.astimezone(ZoneInfo(TIMEZONE)).date() if saved else None
+    return ResumeAdvice(
+        last_saved=saved,
+        review_on=local + timedelta(days=RESUME_REVIEW_DAYS) if local else None,
+        quizzes_since=sum(1 for a in history if since and a["attempted_at"] >= since),
+        plan_days_since=db.plan_days_done_since(student_id, since) if since else 0,
+        mastered=sorted(mastered, key=lambda m: -m.pct),
+        missing_keywords=missing,
+        projects_to_add=done,
+    )
+
+
+# --- project space -------------------------------------------------------------------
+
+
+def has_project_space(profile: StudentProfile | None) -> bool:
+    """Computing domains get a Project space (a GitHub-style list of repositories)."""
+    return profile is not None and syllabus.domain_of_role(profile.target_role).code_space
+
+
+@dataclass(frozen=True)
+class ProjectSpace:
+    projects: list[sqlite3.Row]
+    updates: list[sqlite3.Row]  # newest first
+    activity: dict[date, int]  # updates per day on the student's calendar
+
+
+def project_space(student_id: str) -> ProjectSpace:
+    updates = db.project_updates(student_id)
+    return ProjectSpace(
+        db.projects(student_id), updates, dict(activity_days(u["created_at"] for u in updates))
+    )
+
+
+def save_project(
+    student_id: str,
+    *,
+    name: str,
+    summary: str = "",
+    tech: str = "",
+    repo_url: str = "",
+    status: str = "In progress",
+    readme: str = "",
+    on_resume: bool = True,
+    project_id: int | None = None,
+) -> int:
+    name, repo_url = name.strip(), repo_url.strip()
+    if not 1 <= len(name) <= 80:
+        raise ServiceError("A project needs a name of up to 80 characters.")
+    if repo_url and (len(repo_url) > 300 or not URL_RE.match(repo_url)):
+        raise ServiceError("The repository link must be a web address starting with https://.")
+    if status not in PROJECT_STATUSES:
+        raise ServiceError(f"Unknown status {status!r}.")
+    if len(summary) > 1500 or len(tech) > 200 or len(readme) > 8000:
+        raise ServiceError(
+            "Keep highlights under 1,500 characters, the stack under 200 and the README "
+            "under 8,000."
+        )
+    fields = {
+        "name": name,
+        "summary": summary.strip(),
+        "tech": ", ".join(t.strip() for t in tech.split(",") if t.strip()),
+        "repo_url": repo_url,
+        "status": status,
+        "readme": readme.strip(),
+        "on_resume": bool(on_resume),
+    }
+    try:
+        return db.save_project(student_id, fields, project_id)
+    except sqlite3.IntegrityError as e:
+        raise ServiceError(f"You already have a project called {name!r}.") from e
+
+
+def delete_project(student_id: str, project_id: int) -> None:
+    db.delete_project(student_id, project_id)
+
+
+def log_project_update(student_id: str, project_id: int, note: str) -> None:
+    note = note.strip()
+    if not 1 <= len(note) <= 300:
+        raise ServiceError("Describe the update in up to 300 characters.")
+    if not db.add_project_update(student_id, project_id, note):
+        raise ServiceError("That project no longer exists.")
+
+
+def resume_projects(student_id: str | None) -> list[dict]:
+    """Projects marked for the resume, as resume projects: each highlight line a bullet."""
+    if not student_id:
+        return []
+    return [
+        {
+            "title": p["name"],
+            "tech": p["tech"],
+            "bullets": [ln.strip("-*• ").strip() for ln in p["summary"].splitlines() if ln.strip()],
+        }
+        for p in db.projects(student_id)
+        if p["on_resume"]
+    ]
+
+
+# --- evaluation scorecard --------------------------------------------------------------
+
+
+def _csv_rows(name: str) -> list[dict]:
+    try:
+        with (RESULTS_DIR / name).open(encoding="utf-8", newline="") as f:
+            return list(csv.DictReader(f))
+    except (OSError, csv.Error):
+        return []
+
+
+def evaluation_scorecard(summary: Mapping | None = None) -> scorecard.Scorecard | None:
+    """The last evaluation judged on the advanced parameters (piq/scorecard.py), from
+    summary.json and the per-case CSVs run_eval writes next to it."""
+    summary = summary if summary is not None else evaluation_summary()
+    if summary is None:
+        return None
+    return scorecard.build(
+        summary, _csv_rows("cases.csv"), _csv_rows("questions.csv"), _csv_rows("interviews.csv")
+    )

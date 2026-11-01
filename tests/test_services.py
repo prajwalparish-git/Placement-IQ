@@ -127,7 +127,9 @@ def test_quiz_setup_ranks_topics_and_suggests_from_the_latest_attempt(student):
     assert after.last == {"DBMS": (100.0, "medium")}
     assert after.suggested("DBMS") == services.suggested_difficulty(student, "DBMS") == "hard"
     assert after.weakness["DBMS"] == 0.0
-    assert after.topics[-1] == "DBMS"  # now the strongest, so last
+    tracked = after.topics[: len(after.weakness)]  # then the rest of the domain to choose from
+    assert tracked[-1] == "DBMS"  # now the strongest tracked topic, so last of them
+    assert after.topics[len(after.weakness) :] == after.others
 
 
 def test_quiz_result_counts_correct_answers_and_quiz_key_is_stable():

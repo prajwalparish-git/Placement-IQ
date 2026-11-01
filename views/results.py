@@ -1,5 +1,6 @@
-"""Results: PlacementIQ against a single-prompt baseline on the frozen evaluation cases, each
-metric in plain words with the direction that counts as better."""
+"""Results: PlacementIQ against a single-prompt baseline on the frozen evaluation cases,
+judged on a scorecard of advanced parameters. Each says what it measures and how, shows
+both systems' measured values, and rates them out of 10."""
 
 import streamlit as st
 
@@ -11,7 +12,7 @@ RUN = "python -m evaluation.run_eval --consecutive 5 --interviews"
 page_header(
     "Evaluation results",
     "PlacementIQ against a single-prompt baseline on the same 20 frozen test cases, judged "
-    "by the same checks and critic.",
+    "by the same checks and critic, and scored on the parameters below.",
 )
 summary = services.evaluation_summary()
 if summary is None:
@@ -30,29 +31,49 @@ if summary.get("mode") == "mock":
     )
 st.caption(formatter.results_caption(summary))
 
-metrics = formatter.results_metrics(summary)
-for start in range(0, len(metrics), 2):
-    row = metrics[start : start + 2]  # an odd last metric leaves its row's second column empty
-    for column, metric in zip(st.columns(2, gap="medium"), row, strict=False):
-        with column, st.container(border=True, height="stretch"):
-            st.markdown(f"**{metric.name}** {formatter.direction_md(metric.higher_is_better)}")
-            st.caption(metric.definition)
-            st.html(formatter.compare_html(metric))
+card = services.evaluation_scorecard(summary)
 
-b, p = summary.get("baseline") or {}, summary.get("placementiq") or {}
+# --- overall ---------------------------------------------------------------------------
 with st.container(border=True):
-    st.markdown(f"**Quiz generations per approved quiz** {formatter.direction_md(False)}")
+    st.subheader("Overall rating", anchor=False)
+    columns = st.columns(2, gap="large")
+    for column, system, label in zip(
+        columns, ("placementiq", "baseline"), ("PlacementIQ", "Baseline"), strict=True
+    ):
+        score = card.overall(system)
+        with column:
+            st.metric(label, formatter.score_text(score), width="content")
+            st.markdown(formatter.rating_md(score))
+    piq, base = card.overall("placementiq", True), card.overall("baseline", True)
     st.caption(
-        "A cost, not a quality score: the baseline writes one quiz and keeps it; PlacementIQ "
-        "writes again whenever the critic sends a flawed draft back."
+        "A weighted mean of the parameter scores below (validity counts double; the cue and "
+        "cost parameters half). Over only the parameters measured for both systems, "
+        f"PlacementIQ scores {formatter.score_text(piq)} and the baseline "
+        f"{formatter.score_text(base)}. Ratings: 9 or more excellent, 7 good, 5 fair, "
+        "below 5 needs work."
     )
-    with st.container(horizontal=True, gap="large"):
-        for system, values in (("Baseline", b), ("PlacementIQ", p)):
-            attempts = values.get("avg_quiz_attempts")
-            st.metric(system, "—" if attempts is None else f"{attempts:.2f}", width="content")
 
-with st.expander("All numbers as a table", icon=":material/table_rows:"):
-    st.dataframe(formatter.results_table(summary).round(2), width="stretch")
+# --- parameters, by group ------------------------------------------------------------
+for group in card.groups():
+    st.subheader(group, anchor=False)
+    params = [p for p in card.parameters if p.group == group]
+    for start in range(0, len(params), 2):
+        row = params[start : start + 2]  # an odd last card leaves its row's second column empty
+        for column, p in zip(st.columns(2, gap="medium"), row, strict=False):
+            with column, st.container(border=True, height="stretch"):
+                st.markdown(
+                    f"**{p.name}** {formatter.direction_md(p.higher_is_better)}  \n"
+                    f":gray[PlacementIQ:] {formatter.rating_md(p.placementiq_score)} "
+                    f":gray[Baseline:] {formatter.rating_md(p.baseline_score)}"
+                )
+                st.markdown(p.what)
+                st.html(formatter.scorecard_compare_html(p))
+                st.caption(f"How: {p.method}")
+                if p.note:
+                    st.caption(p.note)
+
+with st.expander("Every parameter as a table", icon=":material/table_rows:"):
+    st.dataframe(formatter.scorecard_table(card), width="stretch")
     st.caption(formatter.results_note(summary))
 
 if stats := summary.get("agent_stats"):

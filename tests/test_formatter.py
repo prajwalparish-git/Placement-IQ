@@ -1,3 +1,4 @@
+from datetime import date
 from html import escape
 
 import pytest
@@ -32,11 +33,11 @@ def test_plan_table_is_ordered_by_day():
     assert list(df.columns) == ["Topic", "Subtopics", "Minutes", "Goal"]
 
 
-def test_plan_minutes_has_every_topic_and_one_column_per_week():
+def test_plan_minutes_has_every_planned_topic_and_one_column_per_week():
     w1 = f.plan(week=1)
     w2 = f.plan(week=2, topics=("DBMS",) * 7)
     df = formatter.plan_minutes([w1, w2])
-    assert list(df.columns) == ["Week 1", "Week 2"] and len(df) == 6
+    assert list(df.columns) == ["Week 1", "Week 2"] and list(df.index) == ["OS", "DBMS"]
     assert (df.loc["OS", "Week 1"], df.loc["OS", "Week 2"], df.loc["DBMS", "Week 2"]) == (
         420,
         0,
@@ -147,10 +148,9 @@ def test_minutes_shift_headline_states_the_change(before, after, headline):
     assert formatter.minutes_shift_headline(before, after, 3) == headline
 
 
-def test_minutes_shift_alt_reads_every_topic():
+def test_minutes_shift_alt_reads_every_planned_topic_in_syllabus_order():
     alt = formatter.minutes_shift_alt({"OS": 600}, {"OS": 840, "DBMS": 120}, (3, 4))
-    assert alt.startswith("Minutes per topic, week 3 to week 4: Aptitude 0 to 0, DBMS 0 to 120")
-    assert "OS 600 to 840" in alt
+    assert alt == "Minutes per topic, week 3 to week 4: DBMS 0 to 120, OS 600 to 840"
 
 
 def test_weakness_source_explains_both_inputs():
@@ -668,3 +668,140 @@ def test_weakness_headline_and_alt_text_state_the_takeaway():
         formatter.weakness_alt(calm)
         == "Weakness by topic, weakest first: OS 43%, DBMS 40%, OOP 13%"
     )
+
+
+# --- new builders: syllabus, quiz runs, resume, projects, scorecard ---------------------
+
+NASTY = "<script>*p</script> __init__ ![x](http://e.com/a.png)"
+
+
+def test_topic_chips_colour_a_topic_by_its_syllabus_slot():
+    from piq.config import TOPIC_PALETTE
+
+    chip = formatter.topic_chip_html("Embedded C")  # ECE slot 1
+    assert f"light-dark({TOPIC_PALETTE['light'][1]}, {TOPIC_PALETTE['dark'][1]})" in chip
+    assert "currentColor" in formatter.topic_chip_html("Unknown topic")
+    assert "&lt;script&gt;" in formatter.topic_chips_html([NASTY])
+
+
+def test_spec_table_counts_questions_per_topic_and_level_with_totals():
+    df = formatter.spec_table([("OS", "easy", 2), ("OS", "hard", 3), ("DBMS", "medium", 5)])
+    assert list(df.columns) == ["Easy", "Medium", "Hard", "Total"]
+    assert df.loc["OS"].tolist() == [2, 0, 3, 5]
+    assert df.loc["All topics"].tolist() == [2, 5, 3, 10]
+
+
+def test_mix_and_spec_notes_read_plainly():
+    assert formatter.mix_md({"easy": 20, "medium": 60, "hard": 20}) == (
+        "Easy 20% \u00b7 Medium 60% \u00b7 Hard 20%"
+    )
+    assert "one go" in formatter.spec_note(5, 1)
+    assert "3 batches" in formatter.spec_note(25, 3) and "few minutes" in formatter.spec_note(25, 3)
+    assert "few minutes" not in formatter.spec_note(25, 3, mock=True)
+
+
+def test_run_notes_escape_model_text_and_mark_every_answer():
+    quiz = f.quiz(n=2).model_copy(
+        update={"questions": [f.question(text=NASTY), f.question(text="Plain question here")]}
+    )
+    notes = formatter.run_notes([quiz], [1, None], 0.0, date(2026, 11, 1))
+    assert "<script>" not in notes and "\\<script\\>" in notes
+    assert "wrong" in notes and "Your answer: none" in notes
+
+
+def test_resume_preview_and_filename_are_safe():
+    res = {
+        "full_name": NASTY,
+        "target_role": "Role",
+        "contact_line": "a@b.c",
+        "summary": "s",
+        "skills": ["C"],
+        "projects": [{"title": NASTY, "tech": "t", "bullets": [NASTY]}],
+        "education": {"degree": "B.E", "institution": "", "year": "", "gpa": ""},
+        "certifications": [NASTY],
+    }
+    md = formatter.resume_preview_md(res)
+    assert "<script>" not in md and "![x]" not in md
+    assert (
+        formatter.resume_filename("Asha Rao", "CAD/CAM & Product") == "asha_rao_cad_cam_product.pdf"
+    )
+
+
+def test_project_lines_escape_text_and_link_only_the_validated_url():
+    row = {
+        "name": NASTY,
+        "repo_url": "https://github.com/a/b",
+        "status": "Done",
+        "summary": f"- {NASTY}\nsecond",
+        "tech": NASTY,
+        "on_resume": 1,
+        "updated_at": "2026-11-01 10:00:00",
+        "readme": f"{NASTY}\nline two",
+    }
+    head = formatter.project_head_md(row)
+    assert head.startswith("[**") and "](https://github.com/a/b)" in head
+    assert "<script>" not in head and ":green-badge[:material/check_circle: Done]" in head
+    meta = formatter.project_meta_md(row, 1)
+    assert "1 update \u00b7" in meta and "<script>" not in meta
+    assert "<script>" not in formatter.readme_md(row["readme"])
+    assert formatter.readme_md("") == ":gray[No README yet.]"
+
+
+def test_diff_and_advice_lines_name_what_to_do():
+    from piq import resume_builder, services
+
+    base = dict(
+        email="",
+        phone="",
+        location="",
+        linkedin_url="",
+        experience_level="Fresher",
+        degree="",
+        institution="",
+        grad_year="",
+        gpa="",
+    )
+    old = resume_builder.build_ats_resume_data(
+        full_name="A", role_name="Software Engineer", selected_skills=["C"], **base
+    )
+    new = resume_builder.build_ats_resume_data(
+        full_name="A", role_name="Software Engineer", selected_skills=["C", NASTY], **base
+    )
+    md = formatter.diff_md(resume_builder.diff_resumes(old, new, 50, 60), 1)
+    assert md.startswith("**Since version 1**") and "ATS score +10" in md and "<script>" not in md
+    assert formatter.diff_md(resume_builder.diff_resumes(old, old), 2) == (
+        ":gray[No change from version 2.]"
+    )
+    advice = services.ResumeAdvice(
+        last_saved=None,
+        review_on=date(2026, 11, 15),
+        quizzes_since=1,
+        plan_days_since=3,
+        mastered=[services.MasteredTopic("RTOS", 82.0, 2, ["RTOS"])],
+        missing_keywords=["SPI"],
+        projects_to_add=["Logger"],
+    )
+    lines = formatter.advice_lines(advice, date(2026, 11, 1))
+    assert "You average **82%** on RTOS over 2 quizzes" in lines[0]
+    assert "Logger" in lines[1] and "SPI" in lines[2]
+    assert lines[3].endswith("Next review on 15 Nov.") and "1 quiz." in lines[3]
+    assert formatter.advice_lines(advice, date(2026, 11, 15))[3].endswith("Review it now.")
+
+
+def test_scorecard_bars_show_score_and_measured_value():
+    from piq import scorecard
+
+    p = scorecard.Parameter("k", "Name", "G", "w", "m", "seconds", False, 1, 12.6, None, 9.5, None)
+    html = formatter.scorecard_compare_html(p)
+    assert "9.5/10 \u00b7 12.6 s" in html and "Not measured" in html
+    assert formatter.score_text(None) == "\u2014" and formatter.score_text(8.44) == "8.4/10"
+    assert formatter.rating_md(9.6) == ":green-badge[:material/check_circle: Excellent]"
+    assert formatter.raw_value(0.876, "rate") == "88%"
+
+
+def test_accuracy_headline_compares_easy_with_hard():
+    cells = [("OS", "easy", 8, 10), ("OS", "hard", 2, 10), ("CN", "hard", 2, 10)]
+    assert formatter.accuracy_headline(cells) == (
+        "You get 80% of easy questions right and 20% of hard ones"
+    )
+    assert formatter.accuracy_headline([]).startswith("Answer a quiz")

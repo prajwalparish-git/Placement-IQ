@@ -1,5 +1,5 @@
 {
-  "_comment": "role -> required skill -> syllabus topic it is practised under (null = not a quiz topic). Topics must be one of Aptitude, DBMS, OS, CN, DSA, OOP.",
+  "_comment": "role -> required skill -> syllabus topic it is practised under (null = not a quiz topic). Each topic must be one of the role's domain topics in career_catalog.json.",
   "roles": {
     "Java Backend Developer": {
       "Java": "OOP",
@@ -70,15 +70,16 @@
       "Git": null
     },
     "Frontend Engineer": {
-      "JavaScript": "OOP",
-      "TypeScript": "OOP",
-      "React": "OOP",
-      "HTML5": null,
-      "CSS3": null,
+      "JavaScript": "Web Development",
+      "TypeScript": "Web Development",
+      "React": "Web Development",
+      "HTML5": "Web Development",
+      "CSS3": "Web Development",
       "REST APIs": "CN",
-      "Web Performance": "CN",
-      "Git": null,
-      "Jest": "OOP"
+      "Web Performance": "Web Development",
+      "Jest": "Web Development",
+      "Data Structures": "DSA",
+      "Git": null
     },
     "Backend Developer": {
       "Java": "OOP",
@@ -88,130 +89,145 @@
       "Operating Systems": "OS",
       "Computer Networks": "CN",
       "REST APIs": "CN",
-      "Microservices": "CN",
+      "Microservices": "System Design",
+      "System Design": "System Design",
       "Git": null
     },
     "DevOps & Cloud Engineer": {
       "Linux": "OS",
-      "Docker": "OS",
-      "Kubernetes": "OS",
+      "Docker": "DevOps & Cloud",
+      "Kubernetes": "DevOps & Cloud",
       "Computer Networks": "CN",
-      "CI/CD": null,
-      "Terraform": null,
-      "AWS": "CN",
+      "CI/CD": "DevOps & Cloud",
+      "Terraform": "DevOps & Cloud",
+      "AWS": "DevOps & Cloud",
       "Python": "OOP",
       "Git": null
     },
     "Data Analyst & BI Specialist": {
       "SQL": "DBMS",
       "Database Design": "DBMS",
-      "Python": "OOP",
-      "Statistics": "Aptitude",
+      "Python": "ML & Data Science",
+      "Statistics": "ML & Data Science",
       "Probability": "Aptitude",
-      "Power BI": null,
-      "Excel": null,
-      "Data Visualization": null
+      "Power BI": "ML & Data Science",
+      "Data Visualization": "ML & Data Science",
+      "Excel": null
     },
     "Machine Learning / AI Engineer": {
       "Python": "OOP",
       "Mathematics": "Aptitude",
-      "Statistics": "Aptitude",
+      "Statistics": "ML & Data Science",
       "Data Structures": "DSA",
       "Algorithms": "DSA",
       "SQL": "DBMS",
-      "PyTorch": null,
-      "Machine Learning": null,
+      "PyTorch": "ML & Data Science",
+      "Machine Learning": "ML & Data Science",
       "Git": null
     },
     "VLSI & Chip Design Engineer": {
-      "Digital Electronics": "OS",
-      "Verilog": "OOP",
-      "Static Timing Analysis": null,
-      "CMOS": null,
-      "FPGA": null,
+      "Digital Electronics": "Digital Electronics",
+      "Verilog": "VLSI & Verilog",
+      "Static Timing Analysis": "VLSI & Verilog",
+      "CMOS": "Analog Electronics",
+      "FPGA": "VLSI & Verilog",
       "Logical Reasoning": "Aptitude"
     },
     "Embedded Systems & Firmware Engineer": {
-      "Embedded C": "OS",
-      "Microcontrollers": "OS",
-      "I2C": "CN",
-      "SPI": "CN",
-      "UART": "CN",
-      "RTOS": "OS",
+      "Embedded C": "Embedded C",
+      "Microcontrollers": "Microcontrollers",
+      "Digital Electronics": "Digital Electronics",
+      "I2C": "Communication Protocols",
+      "SPI": "Communication Protocols",
+      "UART": "Communication Protocols",
+      "RTOS": "RTOS",
       "Git": null
     },
     "Automotive & EV Systems Engineer": {
-      "Thermodynamics": "Aptitude",
-      "SolidWorks": null,
-      "CAD": null,
-      "Battery Management": null,
+      "Thermodynamics": "Thermodynamics",
+      "SolidWorks": "CAD & Engineering Drawing",
+      "CAD": "CAD & Engineering Drawing",
+      "Battery Management": "EV & Battery Systems",
       "Logical Reasoning": "Aptitude"
     },
     "CAD/CAM & Product Design Engineer": {
-      "CAD": null,
-      "SolidWorks": null,
-      "FEA": null,
-      "GD&T": null,
-      "Engineering Drawing": "Aptitude"
+      "CAD": "CAD & Engineering Drawing",
+      "SolidWorks": "CAD & Engineering Drawing",
+      "FEA": "Strength of Materials",
+      "GD&T": "CAD & Engineering Drawing",
+      "Engineering Drawing": "CAD & Engineering Drawing",
+      "CNC Programming": "Manufacturing Processes"
     },
     "Structural Design Engineer": {
-      "Structural Analysis": "Aptitude",
-      "RCC Design": null,
-      "Steel Design": null,
-      "STAAD Pro": null,
-      "AutoCAD": null
+      "Structural Analysis": "Structural Analysis",
+      "RCC Design": "RCC Design",
+      "Steel Design": "Steel Design",
+      "STAAD Pro": "Civil CAD Tools",
+      "AutoCAD": "Civil CAD Tools"
     },
     "Industrial Automation & PLC Engineer": {
-      "PLC Programming": null,
-      "SCADA": null,
-      "Sensors": null,
-      "Control Systems": "OS",
-      "Electrical Machines": null
+      "PLC Programming": "PLC & SCADA",
+      "SCADA": "PLC & SCADA",
+      "Sensors": "Sensors & Instrumentation",
+      "Control Systems": "Control Systems",
+      "Electrical Machines": "Electrical Machines"
     },
     "Bioinformatics Analyst": {
-      "Python": "OOP",
-      "Bioinformatics": null,
-      "Algorithms": "DSA",
-      "Genomics": null,
-      "Statistics": "Aptitude"
+      "Python": "Python for Biology",
+      "Bioinformatics": "Bioinformatics Algorithms",
+      "Algorithms": "Bioinformatics Algorithms",
+      "Genomics": "Genomics",
+      "Statistics": "Biostatistics"
     },
     "Hospital Operations Administrator": {
-      "Healthcare Management": "Aptitude",
-      "Hospital Administration": null,
-      "Quality Assurance": null,
-      "Communication": "Aptitude"
+      "Healthcare Management": "Hospital Administration",
+      "Hospital Administration": "Hospital Administration",
+      "Quality Assurance": "Healthcare Quality",
+      "Communication": "Patient Communication"
     },
     "Corporate Legal Counsel": {
-      "Contract Law": "Aptitude",
-      "Corporate Law": null,
-      "Legal Drafting": null,
-      "Communication": "Aptitude"
+      "Contract Law": "Contract Drafting",
+      "Corporate Law": "Corporate Law",
+      "Legal Drafting": "Contract Drafting",
+      "Communication": "Business Communication"
     },
     "Financial Analyst": {
-      "Financial Modeling": "Aptitude",
-      "Excel": "Aptitude",
-      "Accounting": "Aptitude",
-      "SQL": "DBMS",
+      "Financial Modeling": "Financial Modelling",
+      "Excel": "Excel & SQL",
+      "Accounting": "Accounting",
+      "SQL": "Excel & SQL",
       "Statistics": "Aptitude"
     },
     "UPSC Civil Services Aspirant": {
-      "Indian Polity": "Aptitude",
-      "Modern History": "Aptitude",
-      "Geography": "Aptitude",
-      "Economics": "Aptitude",
-      "Logical Reasoning": "Aptitude"
+      "Indian Polity": "Indian Polity",
+      "Modern History": "History",
+      "Geography": "Geography",
+      "Economics": "Economy",
+      "Current Affairs": "Current Affairs",
+      "Logical Reasoning": "Reasoning"
     },
     "Public Sector Bank PO (SBI / IBPS)": {
       "Quantitative Aptitude": "Aptitude",
-      "Logical Reasoning": "Aptitude",
-      "Banking Awareness": "Aptitude",
-      "Data Interpretation": "Aptitude"
+      "Logical Reasoning": "Reasoning",
+      "Banking Awareness": "Banking Awareness",
+      "Data Interpretation": "Data Interpretation",
+      "English Language": "English"
     },
     "State Administrative Officer (KAS / PCS)": {
-      "State Administration": "Aptitude",
-      "Indian Polity": "Aptitude",
-      "Rural Development": "Aptitude",
-      "Logical Reasoning": "Aptitude"
+      "State Administration": "State Administration",
+      "Indian Polity": "Indian Polity",
+      "Rural Development": "Rural Development",
+      "Logical Reasoning": "Reasoning"
+    },
+    "Data Scientist": {
+      "Python": "OOP",
+      "Statistics": "ML & Data Science",
+      "Machine Learning": "ML & Data Science",
+      "Deep Learning": "ML & Data Science",
+      "Data Visualization": "ML & Data Science",
+      "SQL": "DBMS",
+      "Probability": "Aptitude",
+      "Git": null
     }
   }
 }

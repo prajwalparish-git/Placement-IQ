@@ -5,6 +5,9 @@
       "name": "Computer Science & IT",
       "icon": "computer",
       "description": "Software architecture, full stack web development, cloud computing, AI, and cybersecurity systems.",
+      "topics": ["Aptitude", "DBMS", "OS", "CN", "DSA", "OOP", "System Design", "Web Development", "DevOps & Cloud", "ML & Data Science"],
+      "core_topics": 6,
+      "code_space": true,
       "roles": [
         {
           "name": "Software Engineer",
@@ -173,6 +176,9 @@
       "name": "Electronics & Communication",
       "icon": "memory",
       "description": "Semiconductor VLSI design, embedded firmware, IoT edge hardware, and telecommunications.",
+      "topics": ["Aptitude", "Embedded C", "Microcontrollers", "Digital Electronics", "Communication Protocols", "RTOS", "Analog Electronics", "VLSI & Verilog", "Signals & Systems"],
+      "core_topics": 1,
+      "code_space": true,
       "roles": [
         {
           "name": "VLSI & Chip Design Engineer",
@@ -221,6 +227,9 @@
       "name": "Mechanical Engineering",
       "icon": "precision_manufacturing",
       "description": "Automotive systems, thermal design, FEA stress analysis, CAD product engineering, and mechatronics.",
+      "topics": ["Aptitude", "Thermodynamics", "Strength of Materials", "Theory of Machines", "Manufacturing Processes", "CAD & Engineering Drawing", "Fluid Mechanics", "EV & Battery Systems"],
+      "core_topics": 1,
+      "code_space": false,
       "roles": [
         {
           "name": "Automotive & EV Systems Engineer",
@@ -269,6 +278,9 @@
       "name": "Civil Engineering",
       "icon": "apartment",
       "description": "Reinforced concrete design, geotechnical foundations, highway transport, and construction management.",
+      "topics": ["Aptitude", "Structural Analysis", "RCC Design", "Steel Design", "Geotechnical Engineering", "Surveying", "Construction Management", "Civil CAD Tools"],
+      "core_topics": 1,
+      "code_space": false,
       "roles": [
         {
           "name": "Structural Design Engineer",
@@ -297,6 +309,9 @@
       "name": "Electrical Engineering",
       "icon": "bolt",
       "description": "Grid power systems, industrial PLC automation, motor drives, and solar/wind renewable integrations.",
+      "topics": ["Aptitude", "Electrical Machines", "Power Systems", "Control Systems", "PLC & SCADA", "Power Electronics", "Sensors & Instrumentation", "Electrical Safety & Standards"],
+      "core_topics": 1,
+      "code_space": false,
       "roles": [
         {
           "name": "Industrial Automation & PLC Engineer",
@@ -325,6 +340,9 @@
       "name": "Biotech & Biomedical",
       "icon": "biotech",
       "description": "Genomics bioinformatics, biosensor instrumentation, bioprocess scale-up, and clinical research.",
+      "topics": ["Aptitude", "Molecular Biology", "Genomics", "Bioinformatics Algorithms", "Biostatistics", "Python for Biology", "Lab Techniques"],
+      "core_topics": 1,
+      "code_space": false,
       "roles": [
         {
           "name": "Bioinformatics Analyst",
@@ -353,6 +371,9 @@
       "name": "Healthcare & Medicine",
       "icon": "medical_services",
       "description": "Hospital operations management, clinical pharmacy, medical records, and public health policy.",
+      "topics": ["Aptitude", "Hospital Administration", "Healthcare Quality", "Medical Ethics & Law", "Health Informatics", "Patient Communication", "Healthcare Finance"],
+      "core_topics": 1,
+      "code_space": false,
       "roles": [
         {
           "name": "Hospital Operations Administrator",
@@ -381,6 +402,9 @@
       "name": "Corporate, Finance & Law",
       "icon": "gavel",
       "description": "Corporate legal counsel, financial valuation modeling, human resources, and product management.",
+      "topics": ["Aptitude", "Accounting", "Financial Modelling", "Corporate Law", "Contract Drafting", "Business Communication", "Excel & SQL", "Economics"],
+      "core_topics": 1,
+      "code_space": false,
       "roles": [
         {
           "name": "Corporate Legal Counsel",
@@ -429,6 +453,9 @@
       "name": "Central Government",
       "icon": "account_balance",
       "description": "UPSC Civil Services, SSC CGL administration, Public Sector Banking, defense and railways careers.",
+      "topics": ["Aptitude", "Reasoning", "Indian Polity", "History", "Geography", "Economy", "Current Affairs", "English", "Banking Awareness", "Data Interpretation"],
+      "core_topics": 1,
+      "code_space": false,
       "roles": [
         {
           "name": "UPSC Civil Services Aspirant",
@@ -477,6 +504,9 @@
       "name": "State Government",
       "icon": "shield",
       "description": "State administrative civil service (KAS/PCS), police law & order, public works, and rural development.",
+      "topics": ["Aptitude", "Reasoning", "Indian Polity", "History", "Geography", "State Administration", "Current Affairs", "Rural Development"],
+      "core_topics": 1,
+      "code_space": false,
       "roles": [
         {
           "name": "State Administrative Officer (KAS / PCS)",

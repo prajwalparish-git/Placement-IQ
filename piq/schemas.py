@@ -9,7 +9,9 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-Topic = Literal["Aptitude", "DBMS", "OS", "CN", "DSA", "OOP"]
+# A syllabus topic of the student's domain (piq/syllabus.py). Which names are allowed depends
+# on the student, so checks.check_plan and checks.check_quiz enforce it, not the schema.
+Topic = Annotated[str, Field(min_length=1, max_length=60)]
 Difficulty = Literal["easy", "medium", "hard"]
 Score05 = Annotated[int, Field(ge=0, le=5)]
 

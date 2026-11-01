@@ -1,19 +1,17 @@
-"""ATS-optimized resume generator and PDF compiler.
+"""ATS resume builder: the student's own details as a single-column resume, an ATS keyword
+audit against the target role, version-to-version differences and a vector PDF (fpdf2).
 
-Supports all career domains, dynamic personal inputs, ATS keyword insertion,
-and instant vector PDF export using fpdf2.
+Only what the student entered goes on the resume. The role's keywords and the catalog's
+sample projects are suggestions shown beside the form, never written into the resume.
 """
 
-import json
+import re
 from dataclasses import dataclass
-from functools import lru_cache
 from typing import Any
 
 from fpdf import FPDF
 
-from piq.config import DATA_DIR
-
-CATALOG_PATH = DATA_DIR / "career_catalog.json"
+from piq import syllabus
 
 
 @dataclass(frozen=True)
@@ -26,11 +24,8 @@ class ATSScoreResult:
     suggestions: list[str]
 
 
-@lru_cache(maxsize=1)
 def load_catalog() -> dict[str, Any]:
-    if not CATALOG_PATH.exists():
-        return {"domains": []}
-    return json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+    return syllabus.catalog()
 
 
 def list_domains() -> list[dict[str, Any]]:
@@ -99,78 +94,138 @@ def build_ats_resume_data(
     custom_project_title: str = "",
     custom_project_tech: str = "",
     custom_project_desc: str = "",
+    github_url: str = "",
+    certifications: list[str] | None = None,
+    extra_projects: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    role_info = get_role_info(role_name) or {
-        "name": role_name,
-        "category": "General",
-        "ats_keywords": selected_skills or ["Problem Solving", "Communication", "Leadership"],
-        "sample_projects": [],
-    }
-
-    # Ensure crucial ATS keywords are represented in skills
-    top_keywords = role_info.get("ats_keywords", [])
-    merged_skills = list(dict.fromkeys(selected_skills + top_keywords[:8]))
-
-    # Professional Summary synthesis
-    exp_phrase = (
-        "Aspiring and dedicated"
-        if experience_level == "Fresher"
-        else f"Results-driven {experience_level.lower()}"
-    )
-    core_kw_str = ", ".join(top_keywords[:4])
-    skills_head = ", ".join(merged_skills[:3])
+    """The resume from the student's inputs only. `extra_projects` ({title, tech, bullets})
+    come from their Project space. Nothing is invented: no keyword is added to the skills, no
+    sample project and no certificate the student did not enter. The raw inputs are kept
+    under "form" so the next version starts from them."""
+    skills = list(dict.fromkeys(s.strip() for s in selected_skills if s.strip()))
+    fresher = experience_level.lower().startswith("fresher")
+    lead = "Entry-level" if fresher else f"{experience_level.strip()}"
+    focus = f" with hands-on work in {', '.join(skills[:4])}" if skills else ""
     summary = (
-        f"{exp_phrase} {role_name} skilled in {core_kw_str}. "
-        f"Demonstrated proficiency in {skills_head} with a strong foundation in modern methods. "
-        "Committed to delivering scalable, high-quality outcomes while adhering to best practices."
+        f"{lead} {role_name}{focus}. Builds and documents projects end to end and keeps "
+        "learning the fundamentals the role depends on."
     )
 
-    # Projects
     projects = []
     if custom_project_title.strip():
-        # Clean custom bullets
         bullets = [b.strip().lstrip("-*• ") for b in custom_project_desc.split("\n") if b.strip()]
-        if not bullets:
-            tech_label = custom_project_tech or "modern tooling"
-            bullets = [
-                f"Designed and deployed {custom_project_title} utilizing {tech_label}.",
-                "Engineered test-driven architecture ensuring robust reliability and performance.",
-            ]
         projects.append(
             {
                 "title": custom_project_title.strip(),
-                "tech": custom_project_tech.strip() or "Standard Stack",
+                "tech": custom_project_tech.strip(),
                 "bullets": bullets,
             }
         )
+    for extra in extra_projects or []:
+        if extra["title"] not in {p["title"] for p in projects}:
+            projects.append(extra)
 
-    # Add sample project from catalog if user has none or wants an additional one
-    for sp in role_info.get("sample_projects", []):
-        if len(projects) < 2:
-            projects.append(sp)
-
-    # Contact line
-    contact_parts = [p for p in [location, email, phone, linkedin_url] if p.strip()]
-    contact_line = " | ".join(contact_parts)
-
+    links = [linkedin_url, github_url]
+    contact_parts = [p.strip() for p in [location, email, phone, *links] if p.strip()]
     return {
-        "full_name": full_name.strip() or "Candidate Name",
-        "contact_line": contact_line,
+        "full_name": full_name.strip(),
+        "contact_line": " | ".join(contact_parts),
         "target_role": role_name,
         "summary": summary,
-        "skills": merged_skills,
+        "skills": skills,
         "education": {
-            "degree": degree.strip() or "Bachelor of Engineering",
-            "institution": institution.strip() or "University / College of Engineering",
-            "year": grad_year.strip() or "2026",
-            "gpa": gpa.strip() or "First Class with Distinction",
+            "degree": degree.strip(),
+            "institution": institution.strip(),
+            "year": grad_year.strip(),
+            "gpa": gpa.strip(),
         },
         "projects": projects,
-        "certifications": [
-            f"Certified {role_name} Fundamentals",
-            "Professional Ethics & Collaborative Workplace Practices",
-        ],
+        "certifications": [c.strip() for c in certifications or [] if c.strip()],
+        "form": {
+            "full_name": full_name,
+            "email": email,
+            "phone": phone,
+            "location": location,
+            "linkedin_url": linkedin_url,
+            "github_url": github_url,
+            "experience_level": experience_level,
+            "degree": degree,
+            "institution": institution,
+            "grad_year": grad_year,
+            "gpa": gpa,
+            "project_title": custom_project_title,
+            "project_tech": custom_project_tech,
+            "project_desc": custom_project_desc,
+            "certifications": "\n".join(certifications or []),
+        },
     }
+
+
+def resume_text(res: dict[str, Any]) -> str:
+    """The resume as plain text, for the profile agent (same sections as the PDF)."""
+    edu = res["education"]
+    projects = "\n".join(
+        f"Project: {p['title']} ({p['tech']})\n" + "\n".join(f"- {b}" for b in p["bullets"])
+        for p in res["projects"]
+    )
+    certs = "\n".join(f"- {c}" for c in res.get("certifications", []))
+    parts = [
+        res["full_name"],
+        res["contact_line"],
+        f"OBJECTIVE: {res['summary']}",
+        f"SKILLS: {', '.join(res['skills'])}",
+        f"EDUCATION: {edu['degree']}, {edu['institution']} ({edu['year']}) {edu['gpa']}".strip(),
+        f"PROJECTS:\n{projects}" if projects else "",
+        f"CERTIFICATIONS:\n{certs}" if certs else "",
+    ]
+    return "\n\n".join(p for p in parts if p)
+
+
+@dataclass(frozen=True)
+class ResumeDiff:
+    """What changed from one resume version to the next."""
+
+    skills_added: list[str]
+    skills_removed: list[str]
+    projects_added: list[str]
+    projects_removed: list[str]
+    certifications_added: list[str]
+    role_changed: tuple[str, str] | None
+    ats_change: int
+
+    @property
+    def empty(self) -> bool:
+        return not (
+            self.skills_added
+            or self.skills_removed
+            or self.projects_added
+            or self.projects_removed
+            or self.certifications_added
+            or self.role_changed
+            or self.ats_change
+        )
+
+
+def _added(old: list[str], new: list[str]) -> list[str]:
+    before = {x.lower() for x in old}
+    return [x for x in new if x.lower() not in before]
+
+
+def diff_resumes(
+    old: dict[str, Any], new: dict[str, Any], old_ats: int = 0, new_ats: int = 0
+) -> ResumeDiff:
+    old_projects = [p["title"] for p in old.get("projects", [])]
+    new_projects = [p["title"] for p in new.get("projects", [])]
+    role = (old.get("target_role", ""), new.get("target_role", ""))
+    return ResumeDiff(
+        skills_added=_added(old.get("skills", []), new.get("skills", [])),
+        skills_removed=_added(new.get("skills", []), old.get("skills", [])),
+        projects_added=_added(old_projects, new_projects),
+        projects_removed=_added(new_projects, old_projects),
+        certifications_added=_added(old.get("certifications", []), new.get("certifications", [])),
+        role_changed=role if role[0] != role[1] else None,
+        ats_change=new_ats - old_ats,
+    )
 
 
 def evaluate_ats_compatibility(resume_data: dict[str, Any], role_name: str) -> ATSScoreResult:
@@ -192,13 +247,14 @@ def evaluate_ats_compatibility(resume_data: dict[str, Any], role_name: str) -> A
     matched = []
     missing = []
     for kw in target_keywords:
-        if kw.lower() in corpus:
+        # Whole words only: "Git" must not match inside "digital".
+        if re.search(rf"(?<!\w){re.escape(kw.lower())}(?!\w)", corpus):
             matched.append(kw)
         else:
             missing.append(kw)
 
     # Check action verbs
-    found_verbs = [v for v in ACTION_VERBS if v in corpus]
+    found_verbs = [v for v in ACTION_VERBS if re.search(rf"\b{v}\b", corpus)]
     has_metrics = any(char.isdigit() for char in corpus)
 
     # Compute ATS Score
@@ -212,12 +268,24 @@ def evaluate_ats_compatibility(resume_data: dict[str, Any], role_name: str) -> A
     # 15 pts: structure & metrics
     metric_score = 15 if has_metrics else 5
 
-    # 15 pts: contact and completeness
-    completeness = 15 if resume_data.get("education") and resume_data.get("projects") else 10
+    # 15 pts: contact and completeness, 3 per section that is filled in
+    edu = resume_data.get("education") or {}
+    sections = [
+        bool(resume_data.get("full_name")),
+        bool(resume_data.get("contact_line")),
+        bool(edu.get("degree") and edu.get("institution")),
+        bool(resume_data.get("projects")),
+        any(len(p.get("bullets", [])) >= 2 for p in resume_data.get("projects", [])),
+    ]
+    completeness = 3 * sum(sections)
 
     total_score = min(98, kw_score + verb_score + metric_score + completeness)
 
     suggestions = []
+    if not sections[3]:
+        suggestions.append("Add at least one project: it is where ATS keywords carry weight.")
+    elif not sections[4]:
+        suggestions.append("Give each project two or more bullets: what you built and its result.")
     if missing:
         suggestions.append(f"Incorporate missing core industry keywords: {', '.join(missing[:4])}.")
     if not has_metrics:
@@ -239,7 +307,34 @@ def evaluate_ats_compatibility(resume_data: dict[str, Any], role_name: str) -> A
     )
 
 
+_PDF_SUBSTITUTES = str.maketrans(
+    {
+        "–": "-",
+        "—": "-",
+        "‘": "'",
+        "’": "'",
+        "“": '"',
+        "”": '"',
+        "•": "-",
+        "…": "...",
+        "₹": "Rs.",
+        "→": "->",
+        " ": " ",
+        "​": "",
+    }
+)
+
+
+def pdf_safe(text: str) -> str:
+    """Text the PDF's core fonts can draw (Latin-1): common typography mapped to ASCII, any
+    other character replaced, so a pasted dash or a rupee sign never breaks the export."""
+    return text.translate(_PDF_SUBSTITUTES).encode("latin-1", "replace").decode("latin-1")
+
+
 class ATSDoc(FPDF):
+    def normalize_text(self, text: str) -> str:
+        return super().normalize_text(pdf_safe(text))
+
     def section_heading(self, label: str) -> None:
         self.set_font("Helvetica", "B", 10.5)
         self.set_text_color(20, 30, 35)
@@ -304,9 +399,10 @@ def generate_ats_pdf(resume_data: dict[str, Any]) -> bytes:
         pdf.set_text_color(20, 30, 35)
         pdf.cell(0, 4.5, proj.get("title", ""), new_x="LMARGIN", new_y="NEXT")
 
-        pdf.set_font("Helvetica", "I", 8.5)
-        pdf.set_text_color(70, 80, 85)
-        pdf.cell(0, 4, f"Technologies: {proj.get('tech', '')}", new_x="LMARGIN", new_y="NEXT")
+        if proj.get("tech"):
+            pdf.set_font("Helvetica", "I", 8.5)
+            pdf.set_text_color(70, 80, 85)
+            pdf.cell(0, 4, f"Technologies: {proj['tech']}", new_x="LMARGIN", new_y="NEXT")
 
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(30, 35, 40)
@@ -322,16 +418,12 @@ def generate_ats_pdf(resume_data: dict[str, Any]) -> bytes:
     pdf.cell(0, 4.5, edu.get("degree", ""), new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 8.5)
     pdf.set_text_color(70, 80, 85)
-    inst_str = edu.get("institution", "")
-    yr_str = edu.get("year", "")
-    gpa_str = edu.get("gpa", "")
-    pdf.cell(
-        0,
-        4,
-        f"{inst_str} | Year: {yr_str} | Performance: {gpa_str}",
-        new_x="LMARGIN",
-        new_y="NEXT",
-    )
+    details = [
+        edu.get("institution", ""),
+        f"Year: {edu['year']}" if edu.get("year") else "",
+        f"Performance: {edu['gpa']}" if edu.get("gpa") else "",
+    ]
+    pdf.cell(0, 4, " | ".join(d for d in details if d), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(3)
 
     # 5. Certifications

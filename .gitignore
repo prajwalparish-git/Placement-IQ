@@ -40,3 +40,7 @@ Thumbs.db
 # Screenshot captures: only curated sets are committed, with git add -f
 docs/design/before/
 docs/design/after/
+
+#Personal and college Documentations
+/Personal documentation/
+Personal Docs/

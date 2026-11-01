@@ -4,9 +4,9 @@ import logging
 
 import streamlit as st
 
-from piq import db, formatter
+from piq import db, formatter, services
 from piq.config import BRAND_DIR, ConfigError, settings
-from piq.ui import load_css, sidebar_context, student_selector
+from piq.ui import current_student, load_css, sidebar_context, student_selector
 from scripts.seed import main as seed_demo
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -42,6 +42,15 @@ _startup()
 student_selector()
 sidebar_context(mock_mode=cfg.mock_mode)
 
+# Computing domains get a Project space; the selected student's row already names the role.
+student = current_student()
+code_space = bool(student) and services.domain_of_role(student["target_role"]).code_space
+projects = (
+    [st.Page("views/projects.py", title="Project space", icon=":material/folder_code:")]
+    if code_space
+    else []
+)
+
 # Sidebar navigation keeps every page visible with the student context beneath it; a top
 # bar would fold the sections into menus, which is worse on a projector (docs/design).
 st.navigation(
@@ -50,6 +59,7 @@ st.navigation(
             st.Page("views/home.py", title="Home", icon=":material/home:", default=True),
             st.Page("views/resume_builder.py", title="Resume builder", icon=":material/badge:"),
             st.Page("views/onboard.py", title="Onboard", icon=":material/upload_file:"),
+            *projects,
             st.Page("views/plan.py", title="Weekly plan", icon=":material/calendar_month:"),
             st.Page("views/quiz.py", title="Quiz", icon=":material/quiz:"),
             st.Page(

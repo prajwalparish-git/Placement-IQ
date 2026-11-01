@@ -61,7 +61,7 @@ def _profile(ctx: dict) -> dict:
 
 def _planner(ctx: dict) -> dict:
     w = ctx["weakness"]
-    pool = weak_topics(w) or sorted(TOPICS, key=lambda t: -w[t])
+    pool = weak_topics(w) or sorted(w, key=lambda t: -w[t])  # only the student's topics
     days = []
     for i in range(7):
         t = pool[i % len(pool)]

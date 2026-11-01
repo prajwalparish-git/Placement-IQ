@@ -7,11 +7,9 @@ Agents read inputs and return validated models; they never write domain tables
 import hashlib
 import json
 import threading
-from functools import lru_cache
 
-from piq import checks, llm, prompts
+from piq import checks, llm, prompts, syllabus
 from piq.config import (
-    DATA_DIR,
     DIFFICULTY_DOWN_BELOW,
     DIFFICULTY_UP_AT,
     INTERVIEW_MAX_TURNS,
@@ -38,10 +36,9 @@ def _feedback(reasons: list[str]) -> str:
     return f"\n\nYour previous attempt was REJECTED for these reasons. Fix all of them:\n{bullets}"
 
 
-@lru_cache
 def roles() -> dict[str, dict[str, str | None]]:
     """role -> {required skill -> syllabus topic or null}."""
-    return json.loads((DATA_DIR / "role_skills.json").read_text(encoding="utf-8"))["roles"]
+    return syllabus.role_skills()
 
 
 def missing_topics(profile: StudentProfile) -> set[str]:
@@ -141,13 +138,14 @@ def planner_inputs(
     previous: WeeklyPlan | None = None,
     student_id: str | None = None,
 ) -> dict:
+    topics = syllabus.tracked_topics(profile.target_role, scores)
     return {
         "student_id": student_id,
         "week_no": week_no,
         "target_role": profile.target_role,
         "missing_skills": profile.missing_skills,
-        "scores": scores,
-        "weakness": checks.topic_weakness(scores, missing_topics(profile)),
+        "scores": {t: s for t, s in scores.items() if t in topics},
+        "weakness": checks.topic_weakness(scores, missing_topics(profile), topics),
         "previous_minutes": previous.minutes_by_topic() if previous else None,
     }
 
@@ -183,8 +181,9 @@ def _ask_questions(
     inp: dict, count: int, avoid: list[str], note: str, first: bool
 ) -> tuple[QuizSet, int]:
     existing = "\n".join(f"- {q}" for q in avoid[:20]) or "none"
+    area = f"Syllabus area: {inp['area']}\n" if inp.get("area") else ""
     user = (
-        f"Topic: {inp['topic']}\nDifficulty: {inp['difficulty']}\n"
+        f"{area}Topic: {inp['topic']}\nDifficulty: {inp['difficulty']}\n"
         f"Number of questions: {count}\n\n"
         f"Existing questions (do not repeat or paraphrase):\n{existing}{note}"
     )
@@ -303,13 +302,17 @@ def quiz_inputs(
     previous: list[str],
     count: int = QUIZ_SIZE,
     student_id: str | None = None,
+    area: str | None = None,
 ) -> dict:
+    """`area`: the domain and role the topic belongs to (e.g. "Electronics & Communication,
+    for an Embedded Systems & Firmware Engineer"), so a topic name is read in its field."""
     return {
         "topic": topic,
         "difficulty": difficulty,
         "count": count,
         "previous": previous,
         "student_id": student_id,
+        "area": area,
     }
 
 
@@ -320,8 +323,9 @@ def make_quiz(
     count: int = QUIZ_SIZE,
     student_id: str | None = None,
     on_event: OnEvent | None = None,
+    area: str | None = None,
 ) -> QuizSet:
-    inp = quiz_inputs(topic, difficulty, previous, count, student_id)
+    inp = quiz_inputs(topic, difficulty, previous, count, student_id, area)
     return run_or_raise(QUIZ_TASK, inp, on_event)
 
 

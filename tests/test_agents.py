@@ -2,7 +2,7 @@
 
 import pytest
 
-from piq import agents, checks, db, graph, mock
+from piq import agents, checks, db, graph, mock, syllabus
 from piq.config import DATA_DIR, INTERVIEW_MAX_TURNS, TOPICS
 
 ROLE = "Java Backend Developer"
@@ -14,9 +14,17 @@ def profile():
     return agents.create_profile(RESUME, ROLE)
 
 
-def test_role_map_uses_only_syllabus_topics():
-    for skills in agents.roles().values():
-        assert {t for t in skills.values() if t} <= set(TOPICS)
+def test_role_map_uses_only_its_domains_topics():
+    for role, skills in agents.roles().items():
+        topics = set(syllabus.domain_of_role(role).topics)
+        assert {t for t in skills.values() if t} <= topics, role
+
+
+def test_the_evaluated_cs_roles_keep_the_six_core_topics():
+    # The frozen evaluation cases use these roles: their topics must stay the CS core.
+    for role in ("Java Backend Developer", "Python Developer", "Full Stack Developer"):
+        assert syllabus.focus_topics(role) == list(TOPICS)
+    assert set(syllabus.focus_topics("Data Analyst")) <= set(TOPICS)
 
 
 def test_profile_scores_are_computed_in_code(profile):

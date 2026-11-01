@@ -89,8 +89,9 @@ blueColor = "#0045D2"
 blueTextColor = "#0045D2"
 grayColor = "#566461"
 grayTextColor = "#566461"
-# TOPICS order: Aptitude, DBMS, OS, CN, DSA, OOP.
-chartCategoricalColors = ["#C78100", "#005D9C", "#A55582", "#009B71", "#B23D00", "#3799CC"]
+# config.TOPIC_PALETTE: a domain's n-th topic takes the n-th colour (CS: Aptitude, DBMS, OS, CN,
+# DSA, OOP, System Design, Web Development, DevOps & Cloud, ML & Data Science).
+chartCategoricalColors = ["#C78100", "#005D9C", "#A55582", "#009B71", "#B23D00", "#3799CC", "#672692", "#7A710D", "#6C3C4B", "#7858BB"]
 chartSequentialColors = ["#DCF4F5", "#C2E0E1", "#A8CCCD", "#8EB8BA", "#74A5A7", "#5B9295", "#407F82", "#226D71", "#005B5F", "#00494F"]
 
 [theme.dark]
@@ -117,7 +118,7 @@ blueColor = "#A9BCF5"
 blueTextColor = "#A9BCF5"
 grayColor = "#A0AEAB"
 grayTextColor = "#A0AEAB"
-chartCategoricalColors = ["#EFA71C", "#0975B6", "#DF8BB9", "#009B71", "#D05900", "#55B4E8"]
+chartCategoricalColors = ["#EFA71C", "#0975B6", "#DF8BB9", "#009B71", "#D05900", "#55B4E8", "#A365D4", "#A09520", "#D35182", "#B495FE"]
 chartSequentialColors = ["#163332", "#234644", "#305957", "#3E6D6B", "#4C817F", "#5B9794", "#69ACA9", "#79C3BF", "#89D9D6", "#99F0EC"]
 
 # The sidebar swaps the two background layers: it sits on the surface colour and its inputs

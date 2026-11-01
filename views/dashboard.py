@@ -10,10 +10,18 @@ from piq.ui import Stat, empty_state, page_header, require_profile, stat_row
 def _kpis(d: services.Dashboard, streak: services.Streak) -> None:
     change = formatter.readiness_change([r["readiness_score"] for r in d.readiness])
     delta, color = change or (None, "normal")
+    correct, answered = d.answered
     stat_row(
         [
             Stat("Readiness", f"{d.profile.readiness_score}/100", delta, delta_color=color),
-            Stat("Quizzes taken", str(len(d.quiz_history))),
+            Stat("Quizzes taken", str(d.quizzes_taken)),
+            Stat(
+                "Questions answered",
+                str(answered),
+                f"{correct / answered:.0%} right" if answered else None,
+                delta_color="off",
+                delta_arrow="off",  # a share, not a change
+            ),
             Stat("Interview sessions", str(len(d.sessions))),
             Stat(
                 "Study streak",
@@ -39,8 +47,33 @@ def _activity(streak: services.Streak) -> None:
     )
 
 
+def _syllabus(d: services.Dashboard) -> None:
+    """The topics this student is measured on: their role's, the ones they chose, the rest."""
+    syl = d.syllabus
+    if syl is None:
+        return
+    with st.container(border=True):
+        st.subheader("Your syllabus", anchor=False)
+        st.markdown(formatter.syllabus_line(syl.domain.name, syl.role))
+        chosen = [t for t in syl.tracked if t not in syl.focus]
+        columns = st.columns(3 if chosen else 2, gap="medium")
+        groups = [("For your role", syl.focus)]
+        if chosen:
+            groups.append(("Chosen by you", chosen))
+        groups.append(("Not tried yet", syl.others))
+        for column, (title, topics) in zip(columns, groups, strict=True):
+            with column:
+                st.markdown(f"**{title}**")
+                if topics:
+                    st.html(formatter.topic_chips_html(topics))
+                else:
+                    st.caption("None: you have tried every topic of your domain.")
+        if syl.others:
+            st.caption("Add any topic of your domain to a quiz; it is tracked from then on.")
+
+
 def _topic_mastery(d: services.Dashboard) -> None:
-    """Every topic, weakest first: weakness now, which way it moves, and its quiz scores."""
+    """Every tracked topic, weakest first: weakness now, which way it moves, its scores."""
     mastery = d.mastery
     st.subheader(
         formatter.topic_scores_headline({m.topic: m.scores for m in mastery}), anchor=False
@@ -52,8 +85,9 @@ def _topic_mastery(d: services.Dashboard) -> None:
         "Weakest topic first. Weakness is what the next plan uses; the line is every quiz "
         "score on the topic, oldest to latest, on a 0-100% scale."
     )
-    for row in (mastery[:3], mastery[3:]):
-        for column, m in zip(st.columns(3, gap="small"), row, strict=True):
+    for start in range(0, len(mastery), 3):
+        row = mastery[start : start + 3]
+        for column, m in zip(st.columns(3, gap="small"), row, strict=False):
             with column, st.container(border=True, gap="small"):
                 st.markdown(formatter.mastery_line(m.topic, m.weakness, m.scores))
                 if m.scores:
@@ -63,6 +97,29 @@ def _topic_mastery(d: services.Dashboard) -> None:
                         width="stretch",
                         alt=f"{m.topic} quiz scores: " + ", ".join(f"{s:.0f}%" for s in m.scores),
                     )
+
+
+def _accuracy(d: services.Dashboard) -> None:
+    cells = [(r["topic"], r["difficulty"], r["correct"], r["total"]) for r in d.accuracy]
+    st.subheader(formatter.accuracy_headline(cells), anchor=False)
+    if not cells:
+        st.caption("Each quiz adds its questions here, per topic and difficulty.")
+        return
+    st.vega_lite_chart(
+        spec=charts.accuracy_grid_spec(cells),
+        width="stretch",
+        alt="Share correct by topic and difficulty: "
+        + "; ".join(f"{t} {lvl} {c} of {n}" for t, lvl, c, n in cells),
+    )
+    st.caption("Every question you answered; a stronger teal is a higher share right.")
+
+
+def _runs(d: services.Dashboard) -> None:
+    st.subheader("Recent quizzes", anchor=False)
+    if not d.runs:
+        st.caption("Quizzes you set up on the Quiz page appear here with their score.")
+        return
+    st.dataframe(formatter.runs_table(d.runs), hide_index=True, width="stretch")
 
 
 def _readiness(d: services.Dashboard) -> None:
@@ -159,7 +216,13 @@ except services.ServiceError as e:
 
 streak = d.streak
 _kpis(d, streak)
+_syllabus(d)
 _topic_mastery(d)
+accuracy_col, runs_col = st.columns(2, gap="medium")
+with accuracy_col, st.container(border=True, height="stretch"):
+    _accuracy(d)
+with runs_col, st.container(border=True, height="stretch"):
+    _runs(d)
 readiness_col, interview_col = st.columns(2, gap="medium")
 with readiness_col, st.container(border=True, height="stretch"):
     _readiness(d)

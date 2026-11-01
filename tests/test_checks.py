@@ -150,3 +150,16 @@ def test_plan_ties_in_weakness_are_unconstrained():
         minutes=(120, 120, 120, 120, 90, 90, 60),
     )
     assert checks.check_plan(plan, 1, weakness) == []
+
+
+def test_a_plan_topic_outside_the_students_syllabus_is_rejected():
+    weakness = {"Aptitude": 0.4, "Embedded C": 0.7, "RTOS": 0.7}
+    plan = f.plan(topics=("Embedded C",) * 3 + ("RTOS",) * 3 + ("DBMS",))
+    [reason] = checks.check_plan(plan, 1, weakness)
+    assert reason.startswith("topics ['DBMS'] are not in this student's syllabus")
+    assert "Embedded C" in reason  # names the allowed topics for the regeneration
+
+
+def test_weakness_covers_exactly_the_topics_given():
+    w = checks.topic_weakness({"RTOS": 30.0}, {"Embedded C"}, ["Aptitude", "Embedded C", "RTOS"])
+    assert w == {"Aptitude": 0.4, "Embedded C": 0.7, "RTOS": 0.7}

@@ -38,8 +38,8 @@ def test_plan_needs_exactly_seven_days_and_bounded_minutes():
         f.plan(topics=("OS",) * 6, minutes=(60,) * 6)
     with pytest.raises(ValidationError):
         f.plan(minutes=(60,) * 6 + (300,))
-    with pytest.raises(ValidationError):
-        DayPlan(day=1, topic="Maths", subtopics=["a", "b"], duration_min=60, practice_goal="g")
+    with pytest.raises(ValidationError):  # a topic is a name (which ones: checks.check_plan)
+        DayPlan(day=1, topic="", subtopics=["a", "b"], duration_min=60, practice_goal="g")
     with pytest.raises(ValidationError):
         DayPlan(day=8, topic="OS", subtopics=["a", "b"], duration_min=60, practice_goal="g")
 

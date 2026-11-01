@@ -19,6 +19,10 @@ NEW = "— new student —"
 PER_STUDENT_KEYS = (
     "quiz",
     "quiz_result",
+    "quiz_run",
+    "quiz_run_result",
+    "quiz_topic",
+    "built_resume",
     "quiz_blanks",
     "interview",
     "onboard_confirm",
@@ -181,6 +185,7 @@ class Stat:
     delta: str | None = None
     help: str | None = None
     delta_color: str = "normal"  # "off" for a change that is neither good nor bad
+    delta_arrow: str = "auto"  # "off" for a note under the value that is not a change
 
 
 @lru_cache(maxsize=1)
@@ -227,6 +232,7 @@ def stat_row(stats: Sequence[Stat]) -> None:
             s.value,
             s.delta,
             delta_color=s.delta_color,
+            delta_arrow=s.delta_arrow,
             help=s.help,
             border=True,
             height="stretch",

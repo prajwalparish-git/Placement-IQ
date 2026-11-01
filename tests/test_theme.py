@@ -11,12 +11,13 @@ import pytest
 from piq.config import (
     BRAND_COLOR,
     BRAND_DIR,
+    MAX_DOMAIN_TOPICS,
+    OUTCOME_COLORS,
     PALETTE,
     ROOT,
     SCHEMES,
     SEMANTIC_COLORS,
-    TOPIC_COLORS,
-    TOPICS,
+    TOPIC_PALETTE,
 )
 
 THEME = tomllib.loads((ROOT / ".streamlit" / "config.toml").read_text(encoding="utf-8"))["theme"]
@@ -84,7 +85,7 @@ def test_config_toml_mirrors_the_tokens(scheme):
     assert (t["primaryColor"], t["dataframeBorderColor"]) == (p["primary"], p["hairline"])
     for role, key in ROLE_KEYS.items():
         assert t[f"{key}Color"] == t[f"{key}TextColor"] == s[role]
-    assert t["chartCategoricalColors"] == [TOPIC_COLORS[scheme][topic] for topic in TOPICS]
+    assert t["chartCategoricalColors"] == list(TOPIC_PALETTE[scheme])
     side = THEME[scheme]["sidebar"]
     assert (side["backgroundColor"], side["secondaryBackgroundColor"]) == (
         p["surface"],
@@ -116,15 +117,15 @@ def test_buttons_edges_and_chart_marks_reach_3_to_1(scheme):
     assert contrast("#FFFFFF", p["primary"]) >= 4.5  # white primary-button label
     for mark in (p["primary"], p["border"]):
         assert contrast(mark, p["background"]) >= 3 and contrast(mark, p["surface"]) >= 3
-    for topic, color in TOPIC_COLORS[scheme].items():
-        assert contrast(color, p["background"]) >= 3, topic
+    for slot, color in enumerate(TOPIC_PALETTE[scheme]):
+        assert contrast(color, p["background"]) >= 3, slot
 
 
 @pytest.mark.parametrize("scheme", SCHEMES)
-def test_every_topic_has_its_own_colour(scheme):
-    colors = TOPIC_COLORS[scheme]
-    assert list(colors) == list(TOPICS)
-    for (a, ca), (b, cb) in itertools.combinations(colors.items(), 2):
+def test_every_topic_slot_has_its_own_colour(scheme):
+    colors = TOPIC_PALETTE[scheme]
+    assert len(colors) == MAX_DOMAIN_TOPICS  # one colour per topic a domain may list
+    for (a, ca), (b, cb) in itertools.combinations(enumerate(colors), 2):
         assert distance(ca, cb) >= MIN_TOPIC_DISTANCE, (a, b)
 
 
@@ -133,7 +134,7 @@ def test_status_and_primary_colours_stay_away_from_topic_colours(scheme):
     p = PALETTE[scheme]
     others = {**SEMANTIC_COLORS[scheme], "primary": p["primary"], "primary_text": p["primary_text"]}
     for (role, color), (topic, tc) in itertools.product(
-        others.items(), TOPIC_COLORS[scheme].items()
+        others.items(), enumerate(TOPIC_PALETTE[scheme])
     ):
         assert distance(color, tc) >= MIN_STATUS_DISTANCE, (role, topic, distance(color, tc))
 
@@ -146,8 +147,17 @@ def test_neutral_chart_marks_read_in_both_schemes():
 
 
 def test_the_threshold_rejects_the_old_amber_accent():
-    assert distance("#B7791F", TOPIC_COLORS["light"]["Aptitude"]) < MIN_STATUS_DISTANCE
-    assert distance("#E8AE45", TOPIC_COLORS["dark"]["Aptitude"]) < MIN_STATUS_DISTANCE
+    assert distance("#B7791F", TOPIC_PALETTE["light"][0]) < MIN_STATUS_DISTANCE  # Aptitude
+    assert distance("#E8AE45", TOPIC_PALETTE["dark"][0]) < MIN_STATUS_DISTANCE
+
+
+def test_quiz_outcome_colours_read_in_both_schemes_and_differ():
+    # Vega charts cannot follow the theme switch: each outcome needs >= 3:1 on both pages.
+    for outcome, color in OUTCOME_COLORS.items():
+        for scheme in SCHEMES:
+            assert contrast(color, PALETTE[scheme]["background"]) >= 3, (outcome, scheme)
+    for a, b in itertools.combinations(OUTCOME_COLORS.values(), 2):
+        assert distance(a, b) >= MIN_TOPIC_DISTANCE
 
 
 def test_fonts_are_self_hosted_woff2_files_with_their_licences():
@@ -231,7 +241,7 @@ def test_brand_colour_reads_on_every_background():
     for scheme in SCHEMES:
         for layer in ("background", "surface"):
             assert contrast(BRAND_COLOR, PALETTE[scheme][layer]) >= 3, (scheme, layer)
-        for tc in TOPIC_COLORS[scheme].values():
+        for tc in TOPIC_PALETTE[scheme]:
             assert distance(BRAND_COLOR, tc) >= MIN_STATUS_DISTANCE
 
 

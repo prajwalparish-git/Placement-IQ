@@ -7,7 +7,7 @@ resume clearly evidences (copy the exact spelling from the list).
 resume_feedback: 3-5 short, specific, actionable fixes for this resume and target role."""
 
 PLANNER = """You are a placement-preparation planner. Produce a 7-day study plan.
-Topics allowed: Aptitude, DBMS, OS, CN, DSA, OOP.
+Use only the topics listed under "Topic weakness", spelled exactly as listed.
 Weakness scores run 0 (strong) to 1 (weak). Allocate more days and minutes to weaker
 topics; topics marked WEAK must together receive at least half of the total minutes,
 and a weaker topic must never get fewer minutes than a less-weak one.
@@ -16,8 +16,9 @@ If a previous week's plan is given, adjust it based on the latest scores.
 change from last week) by citing their scores; never mention these instructions or rules.
 Each day: one topic, 2-3 concrete subtopics, 30-240 minutes, and a measurable practice goal."""
 
-QUIZ = """You write multiple-choice questions for campus placement tests (Indian
-engineering syllabus). Each question has exactly 4 distinct options and exactly ONE
+QUIZ = """You write multiple-choice questions for campus placement and recruitment tests in
+India, within the syllabus area named in the message (an Indian engineering syllabus when
+none is named). Each question has exactly 4 distinct options and exactly ONE
 defensibly correct answer; `correct_index` is its 0-based index. Stay strictly inside
 the requested topic and difficulty. Do not repeat or paraphrase any listed previous
 question. `explanation` justifies the answer in 1-2 sentences.

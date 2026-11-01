@@ -2,9 +2,10 @@
 unit-tested.
 
 Colour comes from the active Streamlit theme, so charts follow the light/dark switch:
-topic series use a fixed domain (TOPICS) and no range, and Streamlit fills it with that
-scheme's chartCategoricalColors, which config.toml lists in TOPICS order. OS is therefore
-the same colour in every chart. Neutral marks keep the theme's defaults.
+topic series use a domain of colour slots (syllabus.color_domain: a topic sits at its
+position in its domain's syllabus) and no range, and Streamlit fills it with that scheme's
+chartCategoricalColors (config.TOPIC_PALETTE). A topic is therefore the same colour in every
+chart. Neutral marks keep the theme's defaults; quiz outcomes use config.OUTCOME_COLORS.
 
 Views render the `*_spec` functions with st.vega_lite_chart: the same charts as plain
 Vega-Lite, built once per distinct data (see the note above them).
@@ -19,16 +20,29 @@ from functools import lru_cache
 import altair as alt
 import pandas as pd
 
-from piq.config import BRAND_COLOR, PALETTE, TOPICS, WEAK_THRESHOLD
+from piq import syllabus
+from piq.config import BRAND_COLOR, DIFFICULTIES, OUTCOME_COLORS, PALETTE, WEAK_THRESHOLD
 
 FONT = "Atkinson Hyperlegible Next"
 HEADING_FONT = "Bricolage Grotesque"
-TOPIC_SCALE = alt.Scale(domain=list(TOPICS))
 ROW_PX = 34  # one horizontal bar plus breathing room
 LEGEND_PX = 80  # an x axis and a two-row legend under a chart
 # Marks that must read in either scheme (Vega cannot follow the theme switch for them):
 # this grey keeps >= 3:1 on both page backgrounds.
 NEUTRAL = PALETTE["light"]["border"]
+
+
+def topic_scale(topics: Sequence[str]) -> alt.Scale:
+    """The colour scale for these topics: each at its slot of the theme's categorical colours."""
+    return alt.Scale(domain=syllabus.color_domain(topics))
+
+
+def _by_slot(topics: Sequence[str]) -> list[str]:
+    """Topics in syllabus order (their colour slot), unknown ones last."""
+    return sorted(
+        dict.fromkeys(topics),
+        key=lambda t: (syllabus.color_slot(t) is None, syllabus.color_slot(t) or 0),
+    )
 
 
 def themed[C: alt.TopLevelMixin](chart: C) -> C:
@@ -70,7 +84,10 @@ def weakness_bars(weakness: Mapping[str, float], title: str | None = None) -> al
         alt.Chart(df)
         .mark_bar(cornerRadiusEnd=4, size=18)
         .encode(
-            y=y, x=x, color=alt.Color("topic:N", scale=TOPIC_SCALE, legend=None), tooltip=tooltip
+            y=y,
+            x=x,
+            color=alt.Color("topic:N", scale=topic_scale(list(weakness)), legend=None),
+            tooltip=tooltip,
         )
     )
     threshold = (
@@ -89,11 +106,12 @@ def minutes_shift(
     filled dot in the topic's colour for the later one, joined by a line, so the shift reads
     as movement and the weeks differ by shape, not colour alone. Axis labels carry the
     numbers ("OS  600 → 840"); the busiest topic comes first."""
+    topics = _by_slot([*before, *after])
     df = pd.DataFrame(
         {
-            "topic": list(TOPICS),
-            "before": [int(before.get(t, 0)) for t in TOPICS],
-            "after": [int(after.get(t, 0)) for t in TOPICS],
+            "topic": topics,
+            "before": [int(before.get(t, 0)) for t in topics],
+            "after": [int(after.get(t, 0)) for t in topics],
         }
     )
     df["change"] = df["after"] - df["before"]
@@ -124,7 +142,7 @@ def minutes_shift(
     )
     later = base.mark_circle(size=150, opacity=1).encode(
         x=alt.X("after:Q", scale=scale, axis=axis),
-        color=alt.Color("topic:N", scale=TOPIC_SCALE, legend=None),
+        color=alt.Color("topic:N", scale=topic_scale(topics), legend=None),
     )
     return themed(alt.layer(line, earlier, later).properties(height=ROW_PX * len(df)))
 
@@ -213,7 +231,7 @@ def score_spark(topic: str, scores: Sequence[float]) -> alt.LayerChart:
     base = alt.Chart(df).encode(
         x=alt.X("attempt:Q", axis=None, scale=alt.Scale(domain=[1, max(len(scores), 2)])),
         y=alt.Y("score:Q", axis=None, scale=alt.Scale(domain=[0, 100])),
-        color=alt.Color("topic:N", scale=TOPIC_SCALE, legend=None),
+        color=alt.Color("topic:N", scale=topic_scale([topic]), legend=None),
         tooltip=[
             alt.Tooltip("attempt:Q", title="Quiz"),
             alt.Tooltip("score:Q", title="Score (%)", format=".0f"),
@@ -225,10 +243,11 @@ def score_spark(topic: str, scores: Sequence[float]) -> alt.LayerChart:
 
 
 def week_mix(weeks: Mapping[int, Mapping[str, int]]) -> alt.Chart:
-    """Each week's minutes as one bar, split by topic in topic colours (stacked in TOPICS
+    """Each week's minutes as one bar, split by topic in topic colours (stacked in syllabus
     order), oldest week on top; the legend names the colours."""
+    topics = _by_slot([t for minutes in weeks.values() for t, m in minutes.items() if m])
     rows = [
-        {"week": f"Week {w}", "topic": t, "minutes": int(m), "rank": TOPICS.index(t)}
+        {"week": f"Week {w}", "topic": t, "minutes": int(m), "rank": topics.index(t)}
         for w, minutes in weeks.items()
         for t, m in minutes.items()
         if m
@@ -242,9 +261,12 @@ def week_mix(weeks: Mapping[int, Mapping[str, int]]) -> alt.Chart:
             x=alt.X("minutes:Q", title=None, axis=alt.Axis(format="d", tickCount=3)),
             color=alt.Color(
                 "topic:N",
-                scale=TOPIC_SCALE,
-                # Three columns wrap on a phone, where one row was cut off.
-                legend=alt.Legend(orient="bottom", title=None, columns=3, labelFontSize=13),
+                scale=topic_scale(topics),
+                # Three columns wrap on a phone, where one row was cut off. `values` keeps the
+                # scale's unused colour slots out of the legend.
+                legend=alt.Legend(
+                    orient="bottom", title=None, columns=3, labelFontSize=13, values=topics
+                ),
             ),
             order=alt.Order("rank:Q"),
             tooltip=[
@@ -254,7 +276,7 @@ def week_mix(weeks: Mapping[int, Mapping[str, int]]) -> alt.Chart:
             ],
         )
         # Streamlit fits the whole chart into `height`, axis and legend included.
-        .properties(height=ROW_PX * len(order) + LEGEND_PX)
+        .properties(height=ROW_PX * len(order) + LEGEND_PX + 18 * (len(topics) // 4))
     )
     return themed(chart)
 
@@ -399,3 +421,133 @@ def activity_heatmap_spec(days: Mapping[date, int], today: date) -> dict:
 def _activity_heatmap_json(days: tuple[tuple[str, int], ...], today: str) -> str:
     counts = {date.fromisoformat(d): n for d, n in days}
     return json.dumps(to_spec(activity_heatmap(counts, date.fromisoformat(today))))
+
+
+# --- quiz results ------------------------------------------------------------------------
+
+OUTCOMES = tuple(OUTCOME_COLORS)  # Correct, Wrong, Skipped: stacked in this order
+
+
+def outcome_bars(rows: Sequence[tuple[str, int, int, int]]) -> alt.Chart:
+    """One horizontal bar per slice (topic, difficulty or thinking level) split into correct,
+    wrong and skipped answers, in that order and in fixed outcome colours (readable in both
+    schemes). Axis labels carry the score ("OS  7/10"); the legend and tooltips name the
+    outcomes, so colour is never the only cue. `rows`: (label, correct, wrong, skipped)."""
+    data = []
+    order = []
+    for label, correct, wrong, skipped in rows:
+        total = correct + wrong + skipped
+        shown = f"{label}  {correct}/{total}"
+        order.append(shown)
+        for rank, (outcome, n) in enumerate(zip(OUTCOMES, (correct, wrong, skipped), strict=True)):
+            if n:
+                data.append(
+                    {"slice": shown, "outcome": outcome, "n": n, "rank": rank, "total": total}
+                )
+    chart = (
+        alt.Chart(pd.DataFrame(data, columns=["slice", "outcome", "n", "rank", "total"]))
+        .mark_bar(size=18)
+        .encode(
+            y=alt.Y(
+                "slice:N",
+                sort=order,
+                title=None,
+                axis=alt.Axis(labelFontSize=14, labelPadding=8, labelLimit=0),
+            ),
+            x=alt.X("n:Q", stack="zero", title=None, axis=alt.Axis(format="d", tickCount=4)),
+            color=alt.Color(
+                "outcome:N",
+                scale=alt.Scale(domain=list(OUTCOMES), range=list(OUTCOME_COLORS.values())),
+                legend=alt.Legend(orient="bottom", title=None, labelFontSize=13),
+            ),
+            order=alt.Order("rank:Q"),
+            tooltip=[
+                alt.Tooltip("slice:N", title="Slice"),
+                alt.Tooltip("outcome:N", title="Answers"),
+                alt.Tooltip("n:Q", title="Questions"),
+            ],
+        )
+        # Streamlit fits axis and legend inside `height`, so both get their full room.
+        .properties(height=ROW_PX * len(order) + LEGEND_PX)
+    )
+    return themed(chart)
+
+
+def accuracy_grid(cells: Sequence[tuple[str, str, int, int]]) -> alt.Chart:
+    """Accuracy per topic and difficulty as a grid of teal cells, stronger for a higher share
+    correct; a cell without questions stays empty. Tooltips give the counts. `cells`:
+    (topic, difficulty, correct, total)."""
+    data = [
+        {
+            "topic": t,
+            "difficulty": d.capitalize(),
+            "correct": c,
+            "total": n,
+            "accuracy": c / n if n else 0.0,
+        }
+        for t, d, c, n in cells
+        if n
+    ]
+    topics = _by_slot([row["topic"] for row in data])
+    chart = (
+        alt.Chart(
+            pd.DataFrame(data, columns=["topic", "difficulty", "correct", "total", "accuracy"])
+        )
+        .mark_rect(cornerRadius=3)
+        .encode(
+            x=alt.X(
+                "difficulty:N",
+                sort=[d.capitalize() for d in DIFFICULTIES],
+                title=None,
+                axis=alt.Axis(labelAngle=0, orient="top", labelFontSize=13),
+            ),
+            y=alt.Y(
+                "topic:N", sort=topics, title=None, axis=alt.Axis(labelFontSize=13, labelLimit=0)
+            ),
+            color=alt.value(BRAND_COLOR),
+            opacity=alt.Opacity(
+                "accuracy:Q", legend=None, scale=alt.Scale(domain=[0, 1], range=[0.15, 1])
+            ),
+            tooltip=[
+                alt.Tooltip("topic:N", title="Topic"),
+                alt.Tooltip("difficulty:N", title="Difficulty"),
+                alt.Tooltip("accuracy:Q", title="Correct", format=".0%"),
+                alt.Tooltip("correct:Q", title="Right answers"),
+                alt.Tooltip("total:Q", title="Questions"),
+            ],
+        )
+        .properties(height=ROW_PX * max(len(topics), 1))
+    )
+    return themed(chart)
+
+
+def ats_trend(scores: Sequence[int], labels: Sequence[str]) -> alt.LayerChart:
+    """ATS score (0-100) of each saved resume version, oldest first."""
+    return _trend(scores, labels, top=100, noun="Version", title="ATS score (/100)", fmt="d")
+
+
+def outcome_bars_spec(rows: Sequence[tuple[str, int, int, int]]) -> dict:
+    return json.loads(_outcome_bars_json(tuple(tuple(r) for r in rows)))
+
+
+@lru_cache(maxsize=128)
+def _outcome_bars_json(rows: tuple[tuple[str, int, int, int], ...]) -> str:
+    return json.dumps(to_spec(outcome_bars(rows)))
+
+
+def accuracy_grid_spec(cells: Sequence[tuple[str, str, int, int]]) -> dict:
+    return json.loads(_accuracy_grid_json(tuple(sorted(tuple(c) for c in cells))))
+
+
+@lru_cache(maxsize=128)
+def _accuracy_grid_json(cells: tuple[tuple[str, str, int, int], ...]) -> str:
+    return json.dumps(to_spec(accuracy_grid(cells)))
+
+
+def ats_trend_spec(scores: Sequence[int], labels: Sequence[str]) -> dict:
+    return json.loads(_ats_trend_json(tuple(scores), tuple(labels)))
+
+
+@lru_cache(maxsize=128)
+def _ats_trend_json(scores: tuple[int, ...], labels: tuple[str, ...]) -> str:
+    return json.dumps(to_spec(ats_trend(scores, labels)))

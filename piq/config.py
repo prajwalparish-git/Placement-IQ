@@ -14,11 +14,23 @@ RESULTS_DIR = ROOT / "evaluation" / "results"
 STATIC_DIR = ROOT / "static"  # served at app/static/: fonts, brand, app.css
 BRAND_DIR = STATIC_DIR / "brand"  # mark.svg (icon) and wordmark.svg
 
+# The computer-science core syllabus. Every domain's own topics (and which of them are always
+# tracked) live in data/career_catalog.json and are read by piq/syllabus.py; these six stay
+# the CS core, which the frozen evaluation and the demo seed are built on.
 TOPICS = ("Aptitude", "DBMS", "OS", "CN", "DSA", "OOP")
+DEFAULT_DOMAIN = "cs"  # the domain of a role the catalog does not list (the original CS roles)
+MAX_DOMAIN_TOPICS = 10  # one topic colour each; tests/test_syllabus.py enforces it
 DIFFICULTIES = ("easy", "medium", "hard")
 INTERVIEW_TYPES = ("HR", "Technical", "Project")
 
-QUIZ_SIZE = 5
+QUIZ_SIZE = 5  # questions per topic when a quiz is first set up
+QUIZ_MAX_PER_TOPIC = 50
+QUIZ_MAX_TOTAL = 100
+QUIZ_BATCH = 10  # questions per generation call; each batch is checked by the critic
+DEFAULT_MIX = {"easy": (60, 90), "medium": (20, 80), "hard": (10, 40)}  # slider handles per level
+RESUME_REVIEW_DAYS = 14  # a resume version this old is due for review
+RESUME_MASTERY_AT = 70  # recent quiz average (%) at which a topic's skills belong on the resume
+PROJECT_STATUSES = ("Idea", "In progress", "Done")
 INTERVIEW_MAX_TURNS = 5
 CRITERION_WEAK_BELOW = 3.0  # an interview criterion averaging below this gets a tip
 # One fixed tip per rubric criterion (the evaluator's four), shown when it averages low.
@@ -81,26 +93,41 @@ SEMANTIC_COLORS = {
     "dark": {"success": "#5BBF7A", "warning": "#F0D45C", "error": "#FF8675", "info": "#A9BCF5"},
 }
 
-# Okabe-Ito hues without yellow, lightness-tuned per scheme to >= 3:1 on the background.
-# They mark chart series and topic chips (which also show the topic name), never a status.
-TOPIC_COLORS = {
-    "light": {
-        "Aptitude": "#C78100",
-        "DBMS": "#005D9C",
-        "OS": "#A55582",
-        "CN": "#009B71",
-        "DSA": "#B23D00",
-        "OOP": "#3799CC",
-    },
-    "dark": {
-        "Aptitude": "#EFA71C",
-        "DBMS": "#0975B6",
-        "OS": "#DF8BB9",
-        "CN": "#009B71",
-        "DSA": "#D05900",
-        "OOP": "#55B4E8",
-    },
+# Topic colours by position: a domain's n-th topic (career_catalog.json) takes the n-th colour,
+# so a topic keeps its colour on every page. The first six are Okabe-Ito hues without yellow;
+# the last four (purple, olive, rose, violet) were chosen to stay as far from all others as the
+# contrast rule allows. Lightness is tuned per scheme to >= 3:1 on the background. They mark
+# chart series and topic chips (which also show the topic name), never a status.
+TOPIC_PALETTE = {
+    "light": (
+        "#C78100",
+        "#005D9C",
+        "#A55582",
+        "#009B71",
+        "#B23D00",
+        "#3799CC",
+        "#672692",
+        "#7A710D",
+        "#6C3C4B",
+        "#7858BB",
+    ),
+    "dark": (
+        "#EFA71C",
+        "#0975B6",
+        "#DF8BB9",
+        "#009B71",
+        "#D05900",
+        "#55B4E8",
+        "#A365D4",
+        "#A09520",
+        "#D35182",
+        "#B495FE",
+    ),
 }
+
+# Quiz outcomes in result charts. Vega cannot follow the theme switch, so each reads at >= 3:1
+# on both page backgrounds; the charts also name every outcome in words (legend, tooltip).
+OUTCOME_COLORS = {"Correct": BRAND_COLOR, "Wrong": "#CF4B5B", "Skipped": "#8E8A80"}  # warm grey
 
 
 class ConfigError(RuntimeError):

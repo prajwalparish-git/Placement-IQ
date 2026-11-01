@@ -169,40 +169,104 @@ def list_plans(student_id: str) -> list[WeeklyPlan]:
 # --- quizzes -------------------------------------------------------------------
 
 
+def _insert_attempt(
+    c: sqlite3.Connection,
+    student_id: str,
+    quiz: QuizSet,
+    chosen: list[int | None],
+    at: str | None,
+) -> tuple[int, int, int]:
+    """One quiz part and its questions; returns (attempt id, correct, total)."""
+    correct = sum(q.correct_index == a for q, a in zip(quiz.questions, chosen, strict=True))
+    total = len(quiz.questions)
+    cur = c.execute(
+        """INSERT INTO quiz_attempts
+           (student_id, topic, difficulty, total, correct, score_pct, attempted_at)
+           VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))""",
+        (
+            student_id,
+            quiz.topic,
+            quiz.difficulty,
+            total,
+            correct,
+            round(100 * correct / total, 1),
+            at,
+        ),
+    )
+    c.executemany(
+        """INSERT INTO quiz_questions
+           (attempt_id, question_hash, text, correct_index, chosen_index)
+           VALUES (?, ?, ?, ?, ?)""",
+        [
+            (cur.lastrowid, text_hash(q.text), q.text, q.correct_index, a)
+            for q, a in zip(quiz.questions, chosen, strict=True)
+        ],
+    )
+    return cur.lastrowid, correct, total
+
+
 def save_quiz_attempt(
     student_id: str, quiz: QuizSet, chosen: list[int | None], at: str | None = None
 ) -> float:
-    correct = sum(q.correct_index == a for q, a in zip(quiz.questions, chosen, strict=True))
-    total = len(quiz.questions)
-    pct = round(100 * correct / total, 1)
     with tx() as c:
+        _, correct, total = _insert_attempt(c, student_id, quiz, chosen, at)
+    return round(100 * correct / total, 1)
+
+
+def save_quiz_run(
+    student_id: str, parts: list[tuple[QuizSet, list[int | None]]], at: str | None = None
+) -> int:
+    """A quiz of several parts (topic x difficulty) in one transaction: each part an attempt,
+    in the order given (so the last part of a topic is its latest attempt). Returns run id."""
+    with tx() as c:
+        saved = [_insert_attempt(c, student_id, quiz, chosen, at) for quiz, chosen in parts]
+        correct, total = sum(s[1] for s in saved), sum(s[2] for s in saved)
         cur = c.execute(
-            """INSERT INTO quiz_attempts
-               (student_id, topic, difficulty, total, correct, score_pct, attempted_at)
-               VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))""",
-            (student_id, quiz.topic, quiz.difficulty, total, correct, pct, at),
+            """INSERT INTO quiz_runs (student_id, total, correct, score_pct, attempted_at)
+               VALUES (?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))""",
+            (student_id, total, correct, round(100 * correct / total, 1), at),
         )
         c.executemany(
-            """INSERT INTO quiz_questions
-               (attempt_id, question_hash, text, correct_index, chosen_index)
-               VALUES (?, ?, ?, ?, ?)""",
-            [
-                (cur.lastrowid, text_hash(q.text), q.text, q.correct_index, a)
-                for q, a in zip(quiz.questions, chosen, strict=True)
-            ],
+            "INSERT INTO quiz_run_parts (run_id, attempt_id) VALUES (?, ?)",
+            [(cur.lastrowid, s[0]) for s in saved],
         )
-    return pct
+        return cur.lastrowid
+
+
+def quiz_runs(student_id: str, limit: int = 20) -> list[sqlite3.Row]:
+    """Recent multi-part quizzes, newest first: when, size, score and the topics in it."""
+    with tx() as c:
+        return c.execute(
+            """SELECT r.id, r.attempted_at, r.total, r.correct, r.score_pct,
+                      GROUP_CONCAT(DISTINCT a.topic) AS topics
+               FROM quiz_runs r
+               JOIN quiz_run_parts p ON p.run_id = r.id
+               JOIN quiz_attempts a ON a.id = p.attempt_id
+               WHERE r.student_id = ? GROUP BY r.id ORDER BY r.id DESC LIMIT ?""",
+            (student_id, limit),
+        ).fetchall()
+
+
+def accuracy_grid(student_id: str) -> list[sqlite3.Row]:
+    """Every question answered, summed per topic and difficulty."""
+    with tx() as c:
+        return c.execute(
+            """SELECT topic, difficulty, SUM(correct) AS correct, SUM(total) AS total
+               FROM quiz_attempts WHERE student_id = ? GROUP BY topic, difficulty""",
+            (student_id,),
+        ).fetchall()
 
 
 def topic_stats(student_id: str) -> dict[str, dict]:
-    """Per quizzed topic, in one query: avg_pct, the average score_pct over its three most
-    recent attempts, and the latest attempt's last_pct and last_difficulty."""
+    """Per quizzed topic, in one query: avg_pct, the share of questions answered correctly
+    over its three most recent attempts (weighted by size; for equal-sized quizzes the plain
+    average), and the latest attempt's last_pct and last_difficulty."""
     with tx() as c:
         rows = c.execute(
-            """SELECT topic, AVG(score_pct) AS avg_pct,
+            """SELECT topic, 100.0 * SUM(correct) / SUM(total) AS avg_pct,
                       MAX(CASE WHEN rn = 1 THEN score_pct END) AS last_pct,
                       MAX(CASE WHEN rn = 1 THEN difficulty END) AS last_difficulty
-               FROM (SELECT topic, score_pct, difficulty, ROW_NUMBER() OVER (
+               FROM (SELECT topic, score_pct, difficulty, correct, total, ROW_NUMBER() OVER (
                        PARTITION BY topic ORDER BY attempted_at DESC, id DESC) AS rn
                      FROM quiz_attempts WHERE student_id = ?)
                WHERE rn <= 3 GROUP BY topic""",
@@ -247,8 +311,10 @@ def asked_questions(student_id: str, topic: str, limit: int = 30) -> list[str]:
 def quiz_history(student_id: str) -> list[sqlite3.Row]:
     with tx() as c:
         return c.execute(
-            """SELECT attempted_at, topic, difficulty, score_pct FROM quiz_attempts
-               WHERE student_id = ? ORDER BY attempted_at, id""",
+            """SELECT a.attempted_at, a.topic, a.difficulty, a.score_pct, a.correct, a.total,
+                      p.run_id
+               FROM quiz_attempts a LEFT JOIN quiz_run_parts p ON p.attempt_id = a.id
+               WHERE a.student_id = ? ORDER BY a.attempted_at, a.id""",
             (student_id,),
         ).fetchall()
 
@@ -378,4 +444,125 @@ def recent_rejections(limit: int = 10) -> list[sqlite3.Row]:
             """SELECT created_at, agent_name, retry_count, reject_reason FROM agent_logs
                WHERE critic_approved = 0 ORDER BY id DESC LIMIT ?""",
             (limit,),
+        ).fetchall()
+
+
+# --- resume versions -----------------------------------------------------------
+
+
+def save_resume_version(
+    student_id: str,
+    domain_id: str,
+    target_role: str,
+    resume: dict,
+    ats_score: int,
+    at: str | None = None,
+) -> int:
+    with tx() as c:
+        cur = c.execute(
+            """INSERT INTO resume_versions
+               (student_id, domain_id, target_role, resume_json, ats_score, created_at)
+               VALUES (?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))""",
+            (student_id, domain_id, target_role, json.dumps(resume), ats_score, at),
+        )
+        return cur.lastrowid
+
+
+def resume_versions(student_id: str) -> list[dict]:
+    """Every saved resume, oldest first, with its JSON decoded."""
+    with tx() as c:
+        rows = c.execute(
+            """SELECT id, domain_id, target_role, resume_json, ats_score, created_at
+               FROM resume_versions WHERE student_id = ? ORDER BY id""",
+            (student_id,),
+        ).fetchall()
+    return [{**dict(r), "resume": json.loads(r["resume_json"])} for r in rows]
+
+
+def first_resume_domain(student_id: str) -> sqlite3.Row | None:
+    """The domain and date of the student's first saved resume (their locked domain)."""
+    with tx() as c:
+        return c.execute(
+            """SELECT domain_id, created_at FROM resume_versions WHERE student_id = ?
+               ORDER BY id LIMIT 1""",
+            (student_id,),
+        ).fetchone()
+
+
+def plan_days_done_since(student_id: str, since: str) -> int:
+    with tx() as c:
+        return c.execute(
+            "SELECT COUNT(*) FROM plan_progress WHERE student_id = ? AND done_at >= ?",
+            (student_id, since),
+        ).fetchone()[0]
+
+
+# --- project space -------------------------------------------------------------
+
+PROJECT_FIELDS = ("name", "summary", "tech", "repo_url", "status", "readme", "on_resume")
+
+
+def save_project(student_id: str, fields: dict, project_id: int | None = None) -> int:
+    """Create a project, or update `project_id` (only when it is this student's)."""
+    values = [fields[k] for k in PROJECT_FIELDS]
+    with tx() as c:
+        if project_id is None:
+            cur = c.execute(
+                """INSERT INTO projects
+                   (student_id, name, summary, tech, repo_url, status, readme, on_resume)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (student_id, *values),
+            )
+            return cur.lastrowid
+        c.execute(
+            """UPDATE projects SET name = ?, summary = ?, tech = ?, repo_url = ?, status = ?,
+                 readme = ?, on_resume = ?, updated_at = CURRENT_TIMESTAMP
+               WHERE id = ? AND student_id = ?""",
+            (*values, project_id, student_id),
+        )
+        return project_id
+
+
+def projects(student_id: str) -> list[sqlite3.Row]:
+    """The student's projects, most recently active first (an update or an edit bumps
+    updated_at), with their update count."""
+    with tx() as c:
+        return c.execute(
+            """SELECT p.*, COUNT(u.id) AS updates
+               FROM projects p LEFT JOIN project_updates u ON u.project_id = p.id
+               WHERE p.student_id = ? GROUP BY p.id ORDER BY p.updated_at DESC, p.id DESC""",
+            (student_id,),
+        ).fetchall()
+
+
+def delete_project(student_id: str, project_id: int) -> None:
+    with tx() as c:
+        c.execute("DELETE FROM projects WHERE id = ? AND student_id = ?", (project_id, student_id))
+
+
+def add_project_update(student_id: str, project_id: int, note: str, at: str | None = None) -> bool:
+    """Log work on a project; False when the project is not this student's."""
+    with tx() as c:
+        owned = c.execute(
+            "SELECT 1 FROM projects WHERE id = ? AND student_id = ?", (project_id, student_id)
+        ).fetchone()
+        if not owned:
+            return False
+        c.execute(
+            """INSERT INTO project_updates (project_id, note, created_at)
+               VALUES (?, ?, COALESCE(?, CURRENT_TIMESTAMP))""",
+            (project_id, note, at),
+        )
+        c.execute("UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (project_id,))
+        return True
+
+
+def project_updates(student_id: str) -> list[sqlite3.Row]:
+    """Every logged update of the student's projects, newest first."""
+    with tx() as c:
+        return c.execute(
+            """SELECT u.id, u.project_id, p.name AS project, u.note, u.created_at
+               FROM project_updates u JOIN projects p ON p.id = u.project_id
+               WHERE p.student_id = ? ORDER BY u.created_at DESC, u.id DESC""",
+            (student_id,),
         ).fetchall()

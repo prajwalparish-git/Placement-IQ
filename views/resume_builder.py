@@ -1,259 +1,346 @@
-"""ATS Resume Builder: build an industry-tailored, ATS-optimized resume from scratch
-with automatic keyword integration, scoring audit, and instant vector PDF export.
-"""
+"""Resume builder: the student's own details as an ATS-friendly resume, audited against
+the target role, saved as numbered versions. The first saved version locks the domain; the
+history shows what changed between versions, and "What to add next" says what the student's
+quiz scores and projects now justify adding."""
+
+from functools import partial
 
 import streamlit as st
 
-from piq import formatter, resume_builder, services, ui
+from piq import charts, formatter, resume_builder, services, ui
+
+BUILT = "built_resume"  # (domain id, resume dict, ATS result) of the last Generate
+SAVED = "resume_saved"  # the version number just saved, shown once
 
 ui.page_header(
-    "ATS Resume Builder",
-    "Build a high-scoring, ATS-optimized professional resume tailored to your target career. "
-    "Automatically incorporates industry keywords, metrics, and single-column formatting.",
+    "Resume builder",
+    "Build a single-column, ATS-friendly resume from your own details, see how it matches "
+    "your target role, and save each improvement as a new version. Only what you enter goes "
+    "on the resume; keywords and project ideas are suggestions.",
 )
 
-# Step 1: Select Career Domain & Target Role
-domains = resume_builder.list_domains()
-domain_names = [d["name"] for d in domains]
+student = ui.current_student()
+sid = student["id"] if student else None
+profile = services.current_profile(sid)
+versions = services.resume_history(sid)
+latest = versions[-1] if versions else None
+lock = services.locked_domain(sid)
+key = sid or "new"  # widget keys per student: a switch never carries another's inputs over
 
-col_dom, col_role = st.columns([1, 1], gap="medium")
+# --- domain and role -------------------------------------------------------------------
+domains = list(services.domains())
+col_dom, col_role = st.columns(2, gap="medium")
 with col_dom:
-    chosen_domain = st.selectbox("Career Domain", domain_names, index=0)
-
-domain_roles = resume_builder.roles_for_domain(chosen_domain)
-role_names = [r["name"] for r in domain_roles] if domain_roles else ["Software Engineer"]
-
+    if lock:
+        domain = lock.domain
+        st.selectbox("Career domain", [domain.name], disabled=True, key=f"rb_domain_lock_{key}")
+    else:
+        role_now = latest.target_role if latest else profile.target_role if profile else None
+        current = services.domain_of_role(role_now).id if role_now else domains[0].id
+        domain = st.selectbox(
+            "Career domain",
+            domains,
+            index=next((i for i, d in enumerate(domains) if d.id == current), 0),
+            format_func=lambda d: d.name,
+            key=f"rb_domain_{key}",
+        )
+roles = services.domain_roles(domain.id)
 with col_role:
-    chosen_role = st.selectbox("Target Job Role", role_names, index=0)
+    wanted = latest.target_role if latest else profile.target_role if profile else None
+    role = st.selectbox(
+        "Target job role",
+        roles,
+        index=roles.index(wanted) if wanted in roles else 0,
+        key=f"rb_role_{key}_{domain.id}",
+    )
+if lock:
+    st.markdown(formatter.locked_md(domain.name, lock.since))
+elif sid:
+    st.caption(
+        ":material/lock_open: Saving your first version locks your domain, so your plans and "
+        "quizzes stay on one syllabus. You can still change role within it."
+    )
 
-role_info = resume_builder.get_role_info(chosen_role) or {}
-
-# Show role overview
+role_info = resume_builder.get_role_info(role) or {}
+# The original CS roles have no catalog entry (no description or keywords): no empty card.
 if role_info:
     with st.container(border=True):
-        st.markdown(f"**Target Role:** `{chosen_role}` · *{chosen_domain}*")
+        st.markdown(f"**{formatter.md_escape(role)}** · {formatter.md_escape(domain.name)}")
         st.caption(role_info.get("description", ""))
-        st.markdown(
-            f"**Recommended Background:** {role_info.get('recommended_degree', 'Any Graduate')}"
-        )
-        kw_preview = ", ".join(role_info.get("ats_keywords", [])[:8])
-        st.caption(f"**High-Yield ATS Keywords:** {kw_preview}")
+        if degree := role_info.get("recommended_degree"):
+            st.markdown(f"**Usual background:** {formatter.md_escape(degree)}")
+        if keywords := role_info.get("ats_keywords"):
+            st.caption(f"**Keywords recruiters scan for:** {', '.join(keywords)}")
+        if ideas := role_info.get("sample_projects"):
+            with st.expander("Project ideas for this role", icon=":material/lightbulb:"):
+                st.caption(
+                    "Ideas to build, not to copy onto the resume: add a project once it is yours."
+                )
+                for idea in ideas:
+                    title = formatter.md_escape(idea["title"])
+                    tech = formatter.md_escape(idea["tech"])
+                    st.markdown(f"**{title}** :gray[({tech})]")
+
+if saved_n := st.session_state.pop(SAVED, None):  # once, right after a save
+    st.success(
+        f"Saved version {saved_n}. Your profile and readiness now follow this resume.",
+        icon=":material/task_alt:",
+    )
+    ui.show_last_run("Profile agent")
+
+# --- what to add next (a returning student) -------------------------------------------------
+if sid and profile:
+    advice = services.resume_advice(sid, profile)
+    lines = formatter.advice_lines(advice, formatter.local_today())
+    with st.container(border=True):
+        st.subheader("What to add next", anchor=False)
+        if advice.due(formatter.local_today()):
+            st.warning("Your resume is due for a review.", icon=":material/event:")
+        if lines:
+            st.markdown("  \n".join(lines))
+        else:
+            st.caption(
+                "Nothing new yet. Average 70% or more on a topic over two quizzes, or finish a "
+                "project, and it will be suggested here."
+            )
 
 st.divider()
 
-# Input Form
-with st.form("builder_form", border=False):
-    st.subheader("1. Contact & Personal Details", anchor=False)
-    p_col1, p_col2 = st.columns(2, gap="medium")
-    with p_col1:
-        full_name = st.text_input("Full Name *", value="Prajwal K", placeholder="e.g. Alex Morgan")
-        email = st.text_input(
-            "Email Address *", value="prajwal@example.com", placeholder="alex.morgan@email.com"
+# --- the form -----------------------------------------------------------------------------
+form = (latest.resume.get("form") if latest else None) or {}
+if not form and profile:
+    form = {"full_name": profile.name}
+    if profile.education and profile.education != "Not stated":
+        form["degree"] = profile.education
+previous_skills = (
+    list(latest.resume["skills"]) if latest else list(profile.matched_skills) if profile else []
+)
+options = list(dict.fromkeys([*role_info.get("ats_keywords", []), *previous_skills]))
+space_projects = services.resume_projects(sid) if domain.code_space else []
+levels = ["Fresher / Entry Level", "1-3 Years Experience", "Senior / Lead"]
+
+with st.form(f"builder_{key}", border=False):
+    st.subheader("1. Contact details", anchor=False)
+    c1, c2 = st.columns(2, gap="medium")
+    with c1:
+        full_name = st.text_input(
+            "Full name *", value=form.get("full_name", ""), placeholder="Your name"
         )
-        phone = st.text_input(
-            "Phone Number", value="+91 98765 43210", placeholder="+91 98765 43210"
-        )
-    with p_col2:
-        location = st.text_input(
-            "Location / City", value="Bengaluru, India", placeholder="City, State / Country"
-        )
+        email = st.text_input("Email *", value=form.get("email", ""), placeholder="you@example.com")
+        phone = st.text_input("Phone", value=form.get("phone", ""), placeholder="+91 ...")
+    with c2:
+        location = st.text_input("City", value=form.get("location", ""), placeholder="City, State")
         linkedin = st.text_input(
-            "LinkedIn / Portfolio URL",
-            value="linkedin.com/in/prajwal-k",
-            placeholder="linkedin.com/in/yourprofile",
+            "LinkedIn or portfolio",
+            value=form.get("linkedin_url", ""),
+            placeholder="linkedin.com/in/...",
         )
-        exp_level = st.selectbox(
-            "Career Experience Level",
-            ["Fresher / Entry Level", "1-3 Years Experience", "Senior / Lead"],
-            index=0,
+        github = (
+            st.text_input(
+                "GitHub profile", value=form.get("github_url", ""), placeholder="github.com/..."
+            )
+            if domain.code_space
+            else ""
+        )
+        level = st.selectbox(
+            "Experience level",
+            levels,
+            index=levels.index(form["experience_level"])
+            if form.get("experience_level") in levels
+            else 0,
         )
 
-    st.subheader("2. Education & Academics", anchor=False)
-    e_col1, e_col2 = st.columns(2, gap="medium")
-    with e_col1:
+    st.subheader("2. Education", anchor=False)
+    e1, e2 = st.columns(2, gap="medium")
+    with e1:
         degree = st.text_input(
-            "Degree & Specialization *",
-            value="B.E in Computer Science & Engineering",
-            placeholder="e.g. B.Tech in Mechanical Engineering",
+            "Degree and branch *",
+            value=form.get("degree", ""),
+            placeholder="e.g. B.E in Electronics & Communication",
         )
         institution = st.text_input(
-            "Institution / University *",
-            value="Don Bosco Institute of Technology",
-            placeholder="e.g. National Institute of Technology",
+            "College or university *", value=form.get("institution", ""), placeholder="Your college"
         )
-    with e_col2:
-        grad_year = st.text_input("Graduation Year", value="2026", placeholder="e.g. 2026")
+    with e2:
+        grad_year = st.text_input(
+            "Graduation year", value=form.get("grad_year", ""), placeholder="e.g. 2026"
+        )
         gpa = st.text_input(
-            "CGPA / Percentage", value="8.75 CGPA", placeholder="e.g. 8.5 CGPA or 82%"
+            "CGPA or percentage", value=form.get("gpa", ""), placeholder="e.g. 8.2 CGPA"
         )
 
-    st.subheader("3. Existing Skills & ATS Keywords", anchor=False)
-    recommended_kws = role_info.get(
-        "ats_keywords", ["Problem Solving", "Communication", "Teamwork"]
+    st.subheader("3. Skills", anchor=False)
+    skills = st.multiselect(
+        "Skills you can show evidence for",
+        options=options,
+        default=[s for s in previous_skills if s in options],
+        help="The role's keywords are listed; choose only those you have used.",
     )
-    selected_kws = st.multiselect(
-        "Select skills you currently possess (recommended for this role):",
-        options=recommended_kws,
-        default=recommended_kws[: min(5, len(recommended_kws))],
-        help="These keywords match industry ATS scanner parameters for your chosen role.",
-    )
-    extra_skills_raw = st.text_input(
-        "Additional Skills (comma-separated)",
-        placeholder="e.g. Git, Agile Scrum, Docker, Analytical Thinking",
+    extra_raw = st.text_input(
+        "Other skills (comma-separated)",
+        value=form.get("extra_skills", ""),
+        placeholder="e.g. Oscilloscope, KiCad, Python",
     )
 
-    st.subheader("4. Projects & Technical Experience", anchor=False)
-    st.caption(
-        "Highlight a custom project. Our engine formats it with Google's XYZ impact structure."
-    )
-    proj_title = st.text_input(
-        "Project / Initiative Title",
-        value="CareerMatrix Multi-Disciplinary Prep Engine",
-        placeholder="e.g. IoT Sensor Automation System",
-    )
-    proj_tech = st.text_input(
-        "Technologies & Tools Used",
-        value="Python, Streamlit, SQLite, Groq LLM",
-        placeholder="e.g. React, Node.js, PostgreSQL",
-    )
-    proj_bullets = st.text_area(
-        "Key Responsibilities & Quantifiable Outcomes (one per line)",
-        value=(
-            "Engineered multi-agent placement prep system serving curated career roles.\n"
-            "Curated offline database of 5,600+ high-yield assessment questions."
-        ),
-        placeholder="Engineered X that achieved Y by implementing Z\nReduced latency by 30%",
-        height=100,
+    st.subheader("4. Projects", anchor=False)
+    chosen_space = []
+    if space_projects:
+        titles = [p["title"] for p in space_projects]
+        chosen_space = st.multiselect(
+            "From your Project space",
+            titles,
+            default=titles,
+            help="Projects marked On resume in your Project space; highlights become bullets.",
+        )
+    st.caption("Describe a project as: what you built, how, and the result, one bullet per line.")
+    proj_title = st.text_input("Project title", value=form.get("project_title", ""))
+    proj_tech = st.text_input("Tools and technologies", value=form.get("project_tech", ""))
+    proj_desc = st.text_area(
+        "What you did and what it achieved (one bullet per line)",
+        value=form.get("project_desc", ""),
+        placeholder="Built X with Y, which did Z\nReduced A by 30% by changing B",
+        height=110,
     )
 
+    st.subheader("5. Certifications", anchor=False)
+    certs_raw = st.text_area(
+        "Certifications you hold (one per line)", value=form.get("certifications", ""), height=80
+    )
     submitted = st.form_submit_button(
-        "Generate ATS-Optimized Resume",
-        type="primary",
-        icon=":material/auto_awesome:",
+        "Build resume", type="primary", icon=":material/auto_awesome:"
     )
 
 if submitted:
-    # Process extra skills
-    extra_list = [s.strip() for s in extra_skills_raw.split(",") if s.strip()]
-    all_selected_skills = list(dict.fromkeys(selected_kws + extra_list))
-
-    resume_payload = resume_builder.build_ats_resume_data(
+    extra = [s.strip() for s in extra_raw.split(",") if s.strip()]
+    res = resume_builder.build_ats_resume_data(
         full_name=full_name,
         email=email,
         phone=phone,
         location=location,
         linkedin_url=linkedin,
-        role_name=chosen_role,
-        selected_skills=all_selected_skills,
-        experience_level=exp_level,
+        role_name=role,
+        selected_skills=[*skills, *extra],
+        experience_level=level,
         degree=degree,
         institution=institution,
         grad_year=grad_year,
         gpa=gpa,
         custom_project_title=proj_title,
         custom_project_tech=proj_tech,
-        custom_project_desc=proj_bullets,
+        custom_project_desc=proj_desc,
+        github_url=github,
+        certifications=[c for c in certs_raw.splitlines() if c.strip()],
+        extra_projects=[p for p in space_projects if p["title"] in chosen_space],
     )
-    st.session_state["built_resume"] = resume_payload
-    st.session_state["built_ats_eval"] = resume_builder.evaluate_ats_compatibility(
-        resume_payload, chosen_role
-    )
+    res["form"]["extra_skills"] = extra_raw
+    st.session_state[BUILT] = (domain.id, res, resume_builder.evaluate_ats_compatibility(res, role))
     st.rerun()
 
-# Display Generated Resume & Audit
-if "built_resume" in st.session_state:
-    res = st.session_state["built_resume"]
-    eval_res: resume_builder.ATSScoreResult = st.session_state["built_ats_eval"]
-
+# --- the built resume -------------------------------------------------------------------
+built = st.session_state.get(BUILT)
+if built and built[0] == domain.id and built[1]["target_role"] == role:
+    _, res, ats = built
     st.divider()
-    st.subheader("ATS Compatibility Scorecard", anchor=False)
-
-    col_score, col_details = st.columns([1, 2], gap="large")
-    with col_score, st.container(border=True):
-        st.metric("ATS Match Score", f"{eval_res.score} / 100")
-        if eval_res.score >= 80:
-            st.success("High ATS Compatibility — Ready for submission!", icon=":material/verified:")
-        elif eval_res.score >= 60:
-            st.info("Moderate ATS Match — Incorporate more keywords.", icon=":material/info:")
-        else:
-            st.warning("Low ATS Match — Add recommended skills.", icon=":material/warning:")
-        st.caption(f"**Action Verbs Detected:** {eval_res.action_verbs_count}")
-        st.caption(f"**Quantifiable Metrics:** {'Yes' if eval_res.has_metrics else 'None found'}")
-
-    with col_details, st.container(border=True):
-        st.markdown(f"**Matched Keywords ({len(eval_res.matched_keywords)}):**")
-        st.write(", ".join(eval_res.matched_keywords) if eval_res.matched_keywords else "None yet")
-        if eval_res.missing_keywords:
-            st.markdown(f"**Recommended Keywords to Add ({len(eval_res.missing_keywords)}):**")
-            st.caption(", ".join(eval_res.missing_keywords[:6]))
-        if eval_res.suggestions:
-            for s in eval_res.suggestions:
-                st.markdown(f":material/lightbulb: {formatter.md_escape(s)}")
-
-    # PDF Download & Profile Activation
-    pdf_bytes = resume_builder.generate_ats_pdf(res)
-    safe_name = res["full_name"].replace(" ", "_").lower()
-    pdf_filename = f"{safe_name}_{chosen_role.replace(' ', '_').lower()}_resume.pdf"
-
-    st.subheader("Download & Onboard", anchor=False)
-    btn_col1, btn_col2 = st.columns([1, 1], gap="medium")
-    with btn_col1:
-        st.download_button(
-            "Download ATS-Optimized PDF",
-            data=pdf_bytes,
-            file_name=pdf_filename,
-            mime="application/pdf",
-            type="primary",
-            icon=":material/download:",
+    st.subheader("ATS check", anchor=False)
+    score_col, detail_col = st.columns([1, 2], gap="large")
+    with score_col, st.container(border=True):
+        st.metric("ATS match", f"{ats.score}/100")
+        state = "done" if ats.score >= 80 else "warning" if ats.score >= 60 else "error"
+        word = (
+            "Strong match" if ats.score >= 80 else "Fair match" if ats.score >= 60 else "Weak match"
         )
-    with btn_col2:
-        if st.button("Save & Start Career Coaching", icon=":material/rocket_launch:"):
-            # Turn the resume data into plain text resume for profile extraction
-            edu_d = res["education"]["degree"]
-            edu_i = res["education"]["institution"]
-            edu_y = res["education"]["year"]
-            resume_text = (
-                f"{res['full_name']}\n{res['contact_line']}\n\n"
-                f"OBJECTIVE: {res['summary']}\n\n"
-                f"SKILLS: {', '.join(res['skills'])}\n\n"
-                f"EDUCATION: {edu_d}, {edu_i} ({edu_y})\n\n"
-                f"PROJECTS:\n"
-                + "\n".join(
-                    f"{p['title']} ({p['tech']})\n" + "\n".join(f"- {b}" for b in p["bullets"])
-                    for p in res["projects"]
+        st.markdown(formatter.status_md(state, word))
+        numbers = "yes" if ats.has_metrics else "none"
+        st.caption(f"Action verbs: {ats.action_verbs_count} · Numbers in bullets: {numbers}")
+    with detail_col, st.container(border=True):
+        st.markdown(f"**Keywords found ({len(ats.matched_keywords)})**")
+        st.markdown(formatter.skill_chips(ats.matched_keywords, present=True) or ":gray[None yet.]")
+        if ats.missing_keywords:
+            st.markdown(f"**Keywords not on the resume ({len(ats.missing_keywords)})**")
+            st.markdown(formatter.skill_chips(ats.missing_keywords[:10], present=False))
+        for tip in ats.suggestions:
+            st.markdown(f":material/lightbulb: {formatter.md_escape(tip)}")
+    if latest:
+        diff = resume_builder.diff_resumes(latest.resume, res, latest.ats_score, ats.score)
+        st.markdown(formatter.diff_md(diff, latest.n))
+
+    pdf_name = formatter.resume_filename(res["full_name"], role)
+    with st.container(horizontal=True, vertical_alignment="center"):
+        st.download_button(
+            "Download PDF",
+            data=partial(resume_builder.generate_ats_pdf, res),  # built only when clicked
+            file_name=pdf_name,
+            mime="application/pdf",
+            icon=":material/download:",
+            on_click="ignore",
+        )
+        label = f"Save as version {len(versions) + 1}" if sid else "Save and start coaching"
+        save = st.button(label, type="primary", icon=":material/save:")
+    if save:
+        saved = ui.run_agent(
+            "Profile agent", lambda ev: services.save_resume(sid, domain.id, res, ev)
+        )
+        if saved:
+            st.session_state.pop(BUILT, None)
+            ui.set_student(saved[0], keep_runs=("Profile agent",), fresh=True)
+            st.session_state[SAVED] = saved[1]  # after set_student, which clears old state
+            st.rerun()
+
+    with st.expander("Preview", expanded=True, icon=":material/visibility:"):
+        st.markdown(formatter.resume_preview_md(res))
+
+# --- version history -----------------------------------------------------------------------
+if versions:
+    st.divider()
+    st.subheader("Your versions", anchor=False)
+    scores = [v.ats_score for v in versions]
+    hist_col, compare_col = st.columns(2, gap="medium")
+    with hist_col, st.container(border=True, height="stretch"):
+        first, last = scores[0], scores[-1]
+        headline = (
+            f"ATS score {first} at version 1, {last} now"
+            if len(scores) > 1
+            else f"Version 1 scores {first}/100"
+        )
+        st.markdown(f"**{headline}**")
+        st.vega_lite_chart(
+            spec=charts.ats_trend_spec(
+                scores, [formatter.local_day(v.created_at) for v in versions]
+            ),
+            width="stretch",
+            alt="ATS score by version: " + ", ".join(f"{s} of 100" for s in scores),
+        )
+        st.dataframe(formatter.versions_table(versions), width="stretch")
+    with compare_col, st.container(border=True, height="stretch"):
+        st.markdown("**Compare two versions**")
+        numbers = [v.n for v in versions]
+        if len(numbers) > 1:
+            a, b = st.select_slider(
+                "Versions", numbers, value=(numbers[-2], numbers[-1]), format_func=lambda n: f"v{n}"
+            )
+            old, new = versions[a - 1], versions[b - 1]
+            st.markdown(
+                formatter.diff_md(
+                    resume_builder.diff_resumes(
+                        old.resume, new.resume, old.ats_score, new.ats_score
+                    ),
+                    old.n,
                 )
             )
-            # Onboard without requiring a USN!
-            target_role_for_profile = chosen_role
-            if target_role_for_profile not in services.target_roles():
-                target_role_for_profile = "Software Engineer"
-            try:
-                sid, prof = services.onboard_candidate(
-                    res["full_name"], target_role_for_profile, resume_text
-                )
-                ui.set_student(sid, fresh=True)
-                st.success(
-                    f"Profile created for {res['full_name']}! Redirecting to Career Dashboard...",
-                    icon=":material/task_alt:",
-                )
-                st.switch_page("views/home.py")
-            except services.ServiceError as err:
-                st.error(f"Error creating profile: {err}")
-
-    # Live Document Preview
-    with st.expander("Preview Formatted Resume", expanded=True, icon=":material/visibility:"):
-        st.markdown(f"## {res['full_name']}")
-        st.markdown(f"**{res['target_role']}** | {res['contact_line']}")
-        st.markdown("---")
-        st.markdown("### Professional Summary")
-        st.write(res["summary"])
-        st.markdown("### Core Competencies & Skills")
-        st.write(" • ".join(res["skills"]))
-        st.markdown("### Projects & Key Experience")
-        for p in res["projects"]:
-            st.markdown(f"**{p['title']}** *({p['tech']})*")
-            for b in p["bullets"]:
-                st.markdown(f"- {b}")
-        st.markdown("### Education")
-        edu = res["education"]
-        st.markdown(f"**{edu['degree']}** — {edu['institution']} *({edu['year']})* | {edu['gpa']}")
+        else:
+            st.caption("Save a second version to compare what changed.")
+        pick = st.selectbox(
+            "Download a version",
+            numbers,
+            index=len(numbers) - 1,
+            format_func=lambda n: f"Version {n}",
+        )
+        chosen = versions[pick - 1]
+        st.download_button(
+            f"Download version {pick} (PDF)",
+            data=partial(resume_builder.generate_ats_pdf, chosen.resume),
+            file_name=f"resume_v{pick}.pdf",
+            mime="application/pdf",
+            icon=":material/history:",
+            on_click="ignore",
+        )

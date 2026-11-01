@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
+from piq import scorecard, syllabus
 from piq.config import (
     BRAND_COLOR,
     DIFFICULTIES,
@@ -19,8 +20,7 @@ from piq.config import (
     DIFFICULTY_UP_AT,
     PALETTE,
     TIMEZONE,
-    TOPIC_COLORS,
-    TOPICS,
+    TOPIC_PALETTE,
     WEAK_THRESHOLD,
 )
 from piq.schemas import (
@@ -69,8 +69,12 @@ def _light_dark(light: str, dark: str) -> str:
 
 def topic_chip_html(topic: str) -> str:
     """A topic chip: the topic's colour as a dot next to its name (never colour alone)."""
-    light, dark = TOPIC_COLORS["light"].get(topic), TOPIC_COLORS["dark"].get(topic)
-    dot = _light_dark(light, dark) if light and dark else "currentColor"
+    slot = syllabus.color_slot(topic)
+    dot = (
+        _light_dark(TOPIC_PALETTE["light"][slot], TOPIC_PALETTE["dark"][slot])
+        if slot is not None and slot < len(TOPIC_PALETTE["light"])
+        else "currentColor"
+    )
     edge = _light_dark(PALETTE["light"]["hairline"], PALETTE["dark"]["hairline"])
     return (
         '<span style="display:inline-flex;align-items:center;gap:0.45em;padding:0.15em 0.7em;'
@@ -155,7 +159,8 @@ def plan_table(plan: WeeklyPlan) -> pd.DataFrame:
 def plan_minutes(plans: Iterable[WeeklyPlan]) -> pd.DataFrame:
     """Rows = topics, columns = 'Week n', values = minutes. Feeds the week-vs-week chart."""
     data = {f"Week {p.week_no}": p.minutes_by_topic() for p in plans}
-    return pd.DataFrame(data, index=list(TOPICS)).fillna(0).astype(int)
+    topics = list(dict.fromkeys(t for minutes in data.values() for t in minutes))
+    return pd.DataFrame(data, index=topics).fillna(0).astype(int)
 
 
 # --- weekly plan -----------------------------------------------------------------------
@@ -270,19 +275,28 @@ def days_done_md(week_no: int, done: int, total: int = 7) -> str:
     return f":primary[:material/task_alt:] Week {week_no}: {done} of {total} days done."
 
 
+def _topics_of(*minutes: Mapping[str, int]) -> list[str]:
+    """Every topic in these weeks, in syllabus order (ties of the headline keep it)."""
+    names = dict.fromkeys(t for m in minutes for t in m)
+    return sorted(
+        names, key=lambda t: (syllabus.color_slot(t) is None, syllabus.color_slot(t) or 0)
+    )
+
+
 def minutes_shift_headline(
     before: Mapping[str, int], after: Mapping[str, int], before_week: int
 ) -> str:
     """The week-over-week chart's takeaway: a new top topic, else the biggest gain and the
     biggest loss (the planner moves minutes from one topic to another)."""
-    old = {t: before.get(t, 0) for t in TOPICS}
-    new = {t: after.get(t, 0) for t in TOPICS}
-    change = {t: new[t] - old[t] for t in TOPICS}
-    leaders = [t for t in TOPICS if new[t] == max(new.values())]
+    topics = _topics_of(before, after)
+    old = {t: before.get(t, 0) for t in topics}
+    new = {t: after.get(t, 0) for t in topics}
+    change = {t: new[t] - old[t] for t in topics}
+    leaders = [t for t in topics if new[t] == max(new.values())]
     if len(leaders) == 1 and old[leaders[0]] < max(old.values()):
         return f"{leaders[0]} now gets the most minutes"
-    gain = max(TOPICS, key=lambda t: change[t])
-    loss = min(TOPICS, key=lambda t: change[t])
+    gain = max(topics, key=lambda t: change[t])
+    loss = min(topics, key=lambda t: change[t])
     since = f"than in week {before_week}"
     if change[gain] > 0 and change[loss] < 0:
         return f"{gain} gets {change[gain]} more minutes and {loss} {-change[loss]} fewer {since}"
@@ -297,7 +311,8 @@ def minutes_shift_alt(
     before: Mapping[str, int], after: Mapping[str, int], weeks: tuple[int, int]
 ) -> str:
     """The same chart in words, for screen readers."""
-    pairs = ", ".join(f"{t} {before.get(t, 0)} to {after.get(t, 0)}" for t in TOPICS)
+    topics = _topics_of(before, after)
+    pairs = ", ".join(f"{t} {before.get(t, 0)} to {after.get(t, 0)}" for t in topics)
     return f"Minutes per topic, week {weeks[0]} to week {weeks[1]}: {pairs}"
 
 
@@ -1008,3 +1023,390 @@ def weakness_alt(weakness: Mapping[str, float]) -> str:
     """The same chart in words, for screen readers."""
     ranked = sorted(weakness.items(), key=lambda kv: -kv[1])
     return "Weakness by topic, weakest first: " + ", ".join(f"{t} {w:.0%}" for t, w in ranked)
+
+
+# --- syllabus ---------------------------------------------------------------------------
+
+
+def topic_chips_html(topics: Iterable[str]) -> str:
+    """Several topic chips that wrap as a row."""
+    chips = "".join(topic_chip_html(t) for t in topics)
+    return f'<div style="display:flex;flex-wrap:wrap;gap:0.4em">{chips}</div>'
+
+
+def syllabus_line(domain_name: str, role: str) -> str:
+    """Whose syllabus the page shows, in grey (Markdown, escaped)."""
+    return f":gray[:material/school: {md_escape(domain_name)} · {md_escape(role)}]"
+
+
+def locked_md(domain_name: str, since: str) -> str:
+    """Why the domain cannot change, and since when."""
+    return (
+        f":material/lock: Your domain is locked to **{md_escape(domain_name)}** since your "
+        f"first saved resume ({local_day(since)}): your plans, quizzes and progress are built on "
+        "its syllabus. You can still change role within it."
+    )
+
+
+# --- quiz over several topics ----------------------------------------------------------
+
+
+def topic_pick_label(topic: str, weakness: float | None) -> str:
+    """A topic in the quiz picker: its weakness when tracked, else that it is new to you."""
+    return f"{topic} · new" if weakness is None else topic_option(topic, weakness)
+
+
+def mix_md(mix: Mapping[str, int]) -> str:
+    """The difficulty mix in words, easy to hard."""
+    return " · ".join(f"{d.capitalize()} {mix.get(d, 0)}%" for d in DIFFICULTIES)
+
+
+def spec_table(parts: Sequence[tuple[str, str, int]]) -> pd.DataFrame:
+    """A quiz setup as questions per topic (rows) and difficulty (columns), with totals."""
+    topics = list(dict.fromkeys(t for t, _, _ in parts))
+    df = pd.DataFrame(0, index=topics, columns=[d.capitalize() for d in DIFFICULTIES])
+    for topic, difficulty, n in parts:
+        df.loc[topic, difficulty.capitalize()] = n
+    df["Total"] = df.sum(axis=1)
+    df.loc["All topics"] = df.sum(axis=0)
+    return df.rename_axis("Topic")
+
+
+def spec_note(total: int, batches: int, mock: bool = False) -> str:
+    """How the quiz is made: its size, the batches the critic checks and the wait."""
+    if batches <= 1:
+        return f"{total} questions, written and checked by the critic in one go."
+    wait = "" if mock else " On the free AI tier a large quiz takes a few minutes."
+    return (
+        f"{total} questions, written in {batches} batches of up to 10; the critic checks "
+        f"each batch and rewrites any flawed question.{wait}"
+    )
+
+
+def run_title(topics: Sequence[str]) -> str:
+    named = ", ".join(topics[:3]) + (f" and {len(topics) - 3} more" if len(topics) > 3 else "")
+    return f"Quiz on {named}"
+
+
+def run_result_md(correct: int, wrong: int, skipped: int, total: int) -> str:
+    """The run's outcome in one sentence, with icons and words."""
+    parts = [f"**{correct}** of {total} correct", f"{wrong} wrong"]
+    if skipped:
+        parts.append(f"{skipped} left blank")
+    return (
+        f":primary[:material/task_alt:] {', '.join(parts)}. Each topic's score counts toward "
+        "its weakness in next week's plan."
+    )
+
+
+def next_difficulty_md(next_by_topic: Mapping[str, str]) -> str:
+    """Each topic's suggested next difficulty, as a short list."""
+    return "  \n".join(
+        f":material/trending_flat: {md_escape(t)}: next try **{d}**"
+        for t, d in next_by_topic.items()
+    )
+
+
+def outcome_rows(outcomes: Iterable) -> list[tuple[str, int, int, int]]:
+    """services.Outcome -> chart rows (label, correct, wrong, skipped); labels capitalised."""
+    return [(o.label[:1].upper() + o.label[1:], o.correct, o.wrong, o.skipped) for o in outcomes]
+
+
+def outcome_alt(title: str, outcomes: Iterable) -> str:
+    """An outcome chart in words, for screen readers."""
+    return f"{title}: " + "; ".join(
+        f"{o.label} {o.correct} correct, {o.wrong} wrong, {o.skipped} blank" for o in outcomes
+    )
+
+
+def grid_table(grid: Mapping[tuple[str, str], object]) -> pd.DataFrame:
+    """(topic, difficulty) -> Outcome as a table: "7/10 (70%)" per cell, "—" for none."""
+    topics = list(dict.fromkeys(t for t, _ in grid))
+    rows = {}
+    for t in topics:
+        rows[t] = {
+            d.capitalize(): (
+                f"{o.correct}/{o.total} ({o.pct:.0f}%)" if (o := grid.get((t, d))) else "—"
+            )
+            for d in DIFFICULTIES
+        }
+    return pd.DataFrame.from_dict(rows, orient="index").rename_axis("Topic")
+
+
+def mistake_md(n: int, topic: str, difficulty: str, question: Question, chosen: int | None) -> str:
+    """A question answered wrong or left blank: where it came from, then the review."""
+    head = f":gray[{md_escape(topic)} · {difficulty}]"
+    return f"{head}  \n{review_md(n, question, chosen)}"
+
+
+def run_notes(
+    parts: Sequence[QuizSet], chosen: Sequence[int | None], score_pct: float, day: date
+) -> str:
+    """A reviewed multi-part quiz as Markdown notes to keep, part by part."""
+    total = sum(len(p.questions) for p in parts)
+    flat = [(p, q) for p in parts for q in p.questions]
+    correct = sum(a == q.correct_index for (_, q), a in zip(flat, chosen, strict=True))
+    out = [
+        f"# {run_title(list(dict.fromkeys(p.topic for p in parts)))}, {day:%d %b %Y}",
+        "",
+        f"Score: {score_pct:.0f}% ({correct} of {total} correct).",
+    ]
+    n = 0
+    for p in parts:
+        out += ["", f"## {md_escape(p.topic)} ({p.difficulty})"]
+        for q in p.questions:
+            a = chosen[n]
+            n += 1
+            mark = "not answered" if a is None else "correct" if a == q.correct_index else "wrong"
+            out += ["", f"### Q{n}. {md_escape(q.text)}", ""]
+            out.append(
+                f"- Your answer ({mark}): {md_escape(q.options[a])}"
+                if a is not None
+                else "- Your answer: none"
+            )
+            if a != q.correct_index:
+                out.append(f"- Correct answer: {md_escape(q.options[q.correct_index])}")
+            out.append(f"- Why: {md_escape(q.explanation)}")
+    return "\n".join(out) + "\n"
+
+
+# --- dashboard: quizzes and accuracy -------------------------------------------------------
+
+
+def runs_table(rows: Iterable[Mapping], tz: str = TIMEZONE) -> pd.DataFrame:
+    """quiz_runs rows -> when, topics, questions and score."""
+    data = [
+        {
+            "When": local_day(r["attempted_at"], tz),
+            "Topics": (r["topics"] or "").replace(",", ", "),
+            "Questions": r["total"],
+            "Correct": r["correct"],
+            "Score (%)": round(float(r["score_pct"])),
+        }
+        for r in rows
+    ]
+    return pd.DataFrame(data, columns=["When", "Topics", "Questions", "Correct", "Score (%)"])
+
+
+def accuracy_headline(cells: Iterable[tuple[str, str, int, int]]) -> str:
+    """The accuracy grid's takeaway: how the share correct changes from easy to hard."""
+    by_level: dict[str, list[int]] = {d: [0, 0] for d in DIFFICULTIES}
+    for _, d, c, n in cells:
+        by_level[d][0] += c
+        by_level[d][1] += n
+    seen = {d: c / n for d, (c, n) in by_level.items() if n}
+    if not seen:
+        return "Answer a quiz to see your accuracy by difficulty"
+    if len(seen) == 1:
+        ((d, share),) = seen.items()
+        return f"You answer {share:.0%} of {d} questions correctly"
+    first, last = next(iter(seen)), list(seen)[-1]
+    return (
+        f"You get {seen[first]:.0%} of {first} questions right and {seen[last]:.0%} of {last} ones"
+    )
+
+
+# --- resume versions and advice --------------------------------------------------------
+
+
+def _names(items: Sequence[str]) -> str:
+    return ", ".join(md_escape(i) for i in items)
+
+
+def diff_md(diff: object, before: int) -> str:
+    """What changed since version `before`, as short lines (Markdown, escaped)."""
+    lines = []
+    if diff.role_changed:
+        old, new = diff.role_changed
+        lines.append(f":material/swap_horiz: Role: {md_escape(old)} → {md_escape(new)}")
+    if diff.skills_added:
+        lines.append(f":material/add_circle: Skills added: {_names(diff.skills_added)}")
+    if diff.skills_removed:
+        lines.append(f":material/remove_circle: Skills removed: {_names(diff.skills_removed)}")
+    if diff.projects_added:
+        lines.append(f":material/add_circle: Projects added: {_names(diff.projects_added)}")
+    if diff.projects_removed:
+        lines.append(f":material/remove_circle: Projects removed: {_names(diff.projects_removed)}")
+    if diff.certifications_added:
+        names = _names(diff.certifications_added)
+        lines.append(f":material/add_circle: Certifications added: {names}")
+    if diff.ats_change:
+        lines.append(f":material/trending_flat: ATS score {diff.ats_change:+d}")
+    if not lines:
+        return f":gray[No change from version {before}.]"
+    return f"**Since version {before}**  \n" + "  \n".join(lines)
+
+
+def advice_lines(advice: object, today: date) -> list[str]:
+    """What to add to the resume next, most useful first (Markdown, escaped)."""
+    lines = []
+    for m in advice.mastered:
+        lines.append(
+            f":material/verified: You average **{m.pct:.0f}%** on {md_escape(m.topic)} over "
+            f"{m.quizzes} quizzes: add {_names(m.skills)}, ideally inside a project that uses them."
+        )
+    for name in advice.projects_to_add:
+        lines.append(
+            f":material/folder_open: {md_escape(name)} is marked done in your Project space "
+            "but is not on the resume yet."
+        )
+    if advice.missing_keywords:
+        lines.append(
+            ":material/key: Role keywords not on the resume yet: "
+            f"{_names(advice.missing_keywords[:6])}. Add only those you can show in a project."
+        )
+    if advice.review_on:
+        since = (
+            f"Since your last version you finished {days(advice.plan_days_since)} of your plan "
+            f"and took {advice.quizzes_since} quiz{'zes' if advice.quizzes_since != 1 else ''}."
+        )
+        when = (
+            "Review it now." if advice.due(today) else f"Next review on {advice.review_on:%d %b}."
+        )
+        lines.append(f":material/event: {since} {when}")
+    return lines
+
+
+def resume_filename(name: str, role: str) -> str:
+    """A safe PDF file name from the student's name and role."""
+    slug = re.sub(r"[^a-z0-9]+", "_", f"{name or 'resume'} {role}".lower()).strip("_")
+    return f"{slug or 'resume'}.pdf"
+
+
+def resume_preview_md(res: Mapping) -> str:
+    """The built resume as Markdown, section by section; every value escaped."""
+    edu = res["education"]
+    out = [
+        f"### {md_escape(res['full_name'])}",
+        f"**{md_escape(res['target_role'])}** · {md_escape(res['contact_line'])}",
+        f"**Summary**  \n{md_escape(res['summary'])}",
+        f"**Skills**  \n{md_escape(', '.join(res['skills'])) or '—'}",
+    ]
+    for p in res["projects"]:
+        bullets = "\n".join(f"- {md_escape(b)}" for b in p["bullets"])
+        out.append(f"**{md_escape(p['title'])}** :gray[{md_escape(p['tech'])}]\n\n{bullets}")
+    school = ", ".join(md_escape(x) for x in (edu["degree"], edu["institution"]) if x)
+    extra = " ".join(md_escape(x) for x in (edu["year"], edu["gpa"]) if x)
+    out.append(f"**Education**  \n{school} {extra}".rstrip())
+    if res.get("certifications"):
+        certs = "  \n".join(md_escape(c) for c in res["certifications"])
+        out.append(f"**Certifications**  \n{certs}")
+    return "\n\n".join(out)
+
+
+def versions_table(versions: Iterable, tz: str = TIMEZONE) -> pd.DataFrame:
+    data = [
+        {
+            "Version": v.n,
+            "Saved": local_day(v.created_at, tz),
+            "Role": v.target_role,
+            "ATS score": v.ats_score,
+            "Skills": len(v.resume.get("skills", [])),
+            "Projects": len(v.resume.get("projects", [])),
+        }
+        for v in versions
+    ]
+    return pd.DataFrame(
+        data, columns=["Version", "Saved", "Role", "ATS score", "Skills", "Projects"]
+    ).set_index("Version")
+
+
+# --- project space ---------------------------------------------------------------------
+
+PROJECT_STATUS = {"Idea": "todo", "In progress": "info", "Done": "done"}
+
+
+def project_head_md(row: Mapping) -> str:
+    """A repository card's first lines: its name (linked when it has a repository), status
+    as an icon and a word, and its one-line description."""
+    name = md_escape(row["name"])
+    title = f"[**{name}**]({row['repo_url']})" if row["repo_url"] else f"**{name}**"
+    badge = status_md(PROJECT_STATUS.get(row["status"], "todo"), row["status"])
+    first = next((ln for ln in row["summary"].splitlines() if ln.strip()), "")
+    desc = f"  \n:gray[{md_escape(first.strip('-*• ').strip())}]" if first else ""
+    return f"{title} {badge}{desc}"
+
+
+def project_meta_md(row: Mapping, updates: int) -> str:
+    """Stack, resume use and activity, in one grey line."""
+    bits = []
+    if row["tech"]:
+        bits.append(f":material/code: {md_escape(row['tech'])}")
+    bits.append(":material/description: on resume" if row["on_resume"] else "not on resume")
+    bits.append(f":material/commit: {updates} update{'s' if updates != 1 else ''}")
+    bits.append(
+        f"updated {relative_day(datetime.fromisoformat(row['updated_at']).replace(tzinfo=UTC))}"
+    )
+    return ":gray[" + " · ".join(bits) + "]"
+
+
+def update_line_md(row: Mapping) -> str:
+    when = relative_day(datetime.fromisoformat(row["created_at"]).replace(tzinfo=UTC))
+    return f":material/commit: {md_escape(row['note'])} :gray[· {when}]"
+
+
+def readme_md(text: str) -> str:
+    """A README shown literally: escaped, line breaks kept."""
+    return "  \n".join(md_escape(line) for line in text.splitlines()) or ":gray[No README yet.]"
+
+
+# --- evaluation scorecard ----------------------------------------------------------------
+
+
+def score_text(score: float | None) -> str:
+    return "—" if score is None else f"{score:.1f}/10"
+
+
+def rating_md(score: float | None) -> str:
+    """A 0-10 score's rating as a badge: an icon and a word."""
+    word, state = scorecard.rating(score)
+    return status_md(state, word)
+
+
+def raw_value(value: float | None, unit: str) -> str:
+    """A parameter's measured value in its unit."""
+    if value is None:
+        return "Not measured"
+    if unit == "seconds":
+        return f"{value:.1f} s"
+    if unit == "tokens":
+        return f"{value:,.0f} tokens"
+    return f"{value:.0%}"
+
+
+def scorecard_compare_html(param: object) -> str:
+    """Both systems' scores as labelled bars out of 10 in their system colours, each with
+    its measured value (styled by app.css, as compare_html)."""
+    rows = []
+    for system, value, score in (
+        ("Baseline", param.baseline, param.baseline_score),
+        ("PlacementIQ", param.placementiq, param.placementiq_score),
+    ):
+        if score is None:
+            bar, shown = "", "Not measured"
+        else:
+            width = round(10 * min(max(score, 0.0), 10.0))
+            bar = f'<span style="width:{width}%;background:{SYSTEM_COLORS[system]}"></span>'
+            shown = f"{score:.1f}/10 · {escape(raw_value(value, param.unit))}"
+        rows.append(
+            f'<div class="piq-criterion"><span>{system}</span>'
+            f'<span class="piq-bar" aria-hidden="true">{bar}</span><span>{shown}</span></div>'
+        )
+    return f'<div class="piq-criteria">{"".join(rows)}</div>'
+
+
+def scorecard_table(card: object) -> pd.DataFrame:
+    """Every parameter: group, both raw values and both scores."""
+    data = [
+        {
+            "Group": p.group,
+            "Parameter": p.name,
+            "Weight": p.weight,
+            "Baseline": raw_value(p.baseline, p.unit),
+            "Baseline score": p.baseline_score,
+            "PlacementIQ": raw_value(p.placementiq, p.unit),
+            "PlacementIQ score": p.placementiq_score,
+        }
+        for p in card.parameters
+    ]
+    return pd.DataFrame(data).set_index("Parameter")

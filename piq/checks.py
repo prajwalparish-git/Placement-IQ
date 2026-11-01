@@ -6,6 +6,7 @@ The reasons are fed back verbatim into the regeneration prompt.
 
 import hashlib
 import re
+from collections.abc import Iterable
 
 from piq.config import TOPICS, WEAK_MIN_SHARE, WEAK_THRESHOLD
 from piq.schemas import InterviewTurn, ProfileExtraction, QuizSet, WeeklyPlan
@@ -33,10 +34,13 @@ def text_hash(text: str) -> str:
     return hashlib.sha1(norm.encode()).hexdigest()[:16]
 
 
-def topic_weakness(scores: dict[str, float], missing_topics: set[str]) -> dict[str, float]:
-    """0 = strong, 1 = weak. Quiz evidence wins; otherwise fall back to resume gaps."""
+def topic_weakness(
+    scores: dict[str, float], missing_topics: set[str], topics: Iterable[str] = TOPICS
+) -> dict[str, float]:
+    """0 = strong, 1 = weak, for each of the student's `topics` (syllabus.tracked_topics).
+    Quiz evidence wins; otherwise fall back to resume gaps."""
     out = {}
-    for t in TOPICS:
+    for t in topics:
         if t in scores:
             out[t] = round(1 - scores[t] / 100, 2)
         else:
@@ -69,6 +73,12 @@ def check_plan(plan: WeeklyPlan, week_no: int, weakness: dict[str, float]) -> li
         reasons.append(f"week_no must be {week_no}, got {plan.week_no}")
     if sorted(d.day for d in plan.days) != list(range(1, 8)):
         reasons.append("days must be numbered 1 to 7 exactly once each")
+    unknown = sorted({d.topic for d in plan.days} - set(weakness))
+    if unknown:
+        reasons.append(
+            f"topics {unknown} are not in this student's syllabus; use only: {list(weakness)}"
+        )
+        return reasons  # the minute rules below need every topic's weakness
     minutes = plan.minutes_by_topic()
     weak = weak_topics(weakness)
     if weak:

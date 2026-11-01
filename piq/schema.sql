@@ -87,3 +87,58 @@ CREATE TABLE IF NOT EXISTS plan_progress (
     done_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (student_id, week_no, day)
 );
+
+-- A quiz as the student set it up: several topics and difficulties at once. Each part (one
+-- topic at one difficulty) is a quiz_attempts row, so weakness and difficulty suggestions
+-- read them as before; a run groups its parts for the result breakdown and history.
+CREATE TABLE IF NOT EXISTS quiz_runs (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id   TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    total        INTEGER NOT NULL,
+    correct      INTEGER NOT NULL,
+    score_pct    REAL NOT NULL,
+    attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS quiz_run_parts (
+    run_id     INTEGER NOT NULL REFERENCES quiz_runs(id) ON DELETE CASCADE,
+    attempt_id INTEGER NOT NULL UNIQUE REFERENCES quiz_attempts(id) ON DELETE CASCADE,
+    PRIMARY KEY (run_id, attempt_id)
+);
+
+-- Every resume saved from the Resume builder, oldest first. The first version's domain locks
+-- the student's domain (their plans and quizzes are built on its syllabus).
+CREATE TABLE IF NOT EXISTS resume_versions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id  TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    domain_id   TEXT NOT NULL,
+    target_role TEXT NOT NULL,
+    resume_json TEXT NOT NULL,
+    ats_score   INTEGER NOT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_resume_student ON resume_versions (student_id, id);
+
+-- Project space (computing domains): the student's repositories and a log of work on each.
+CREATE TABLE IF NOT EXISTS projects (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    name       TEXT NOT NULL,
+    summary    TEXT NOT NULL DEFAULT '',
+    tech       TEXT NOT NULL DEFAULT '',
+    repo_url   TEXT NOT NULL DEFAULT '',
+    status     TEXT NOT NULL,
+    readme     TEXT NOT NULL DEFAULT '',
+    on_resume  BOOLEAN NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (student_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS project_updates (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    note       TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

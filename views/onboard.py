@@ -19,9 +19,29 @@ NEXT = (
 )
 
 
-def _form(roles: list[str], role_index: int) -> None:
+def _roles(profile: services.StudentProfile | None, key: str) -> tuple[list[str], int]:
+    """The domain picker (outside the form, so the role list follows it at once) and the
+    roles it offers. A student whose domain is locked keeps it."""
+    lock = services.locked_domain(st.session_state.get("student_id")) if profile else None
+    domains = list(services.domains())
+    if lock:
+        domain = lock.domain
+        st.markdown(formatter.locked_md(domain.name, lock.since))
+    else:
+        current = services.domain_of_role(profile.target_role).id if profile else domains[0].id
+        index = next((i for i, d in enumerate(domains) if d.id == current), 0)
+        domain = st.selectbox(
+            "Career domain", domains, index=index, format_func=lambda d: d.name, key=key
+        )
+    roles = services.domain_roles(domain.id)
+    role_index = roles.index(profile.target_role) if profile and profile.target_role in roles else 0
+    return roles, role_index
+
+
+def _form(profile: services.StudentProfile | None, key: str) -> None:
     """The resume form; a valid submission runs the profile agent and opens the profile."""
-    with st.form("onboard", border=False):
+    roles, role_index = _roles(profile, key)
+    with st.form(f"onboard_{key}", border=False):
         usn = st.text_input(
             "USN (required)",
             value=(current_student() or {}).get("usn", ""),
@@ -115,9 +135,10 @@ def _delete(student: dict) -> None:
 
 def _readiness_card(profile: services.StudentProfile) -> None:
     score = profile.readiness_score
+    domain = services.domain_of_role(profile.target_role)
     with st.container(border=True):
         st.subheader(formatter.md_escape(profile.name), anchor=False)
-        st.markdown(f":gray[Target role: {formatter.md_escape(profile.target_role)}]")
+        st.markdown(formatter.syllabus_line(domain.name, profile.target_role))
         # A row even on a phone: the ring is a picture of the number beside it.
         with st.container(horizontal=True, vertical_alignment="center", gap="large"):
             st.metric(
@@ -141,6 +162,11 @@ def _readiness_card(profile: services.StudentProfile) -> None:
             formatter.skill_chips(profile.missing_skills, present=False)
             or ":gray[None: the resume shows every skill this role needs.]"
         )
+        st.markdown("**Topics you will practise**")
+        st.html(formatter.topic_chips_html(services.focus_topics(profile.target_role)))
+        st.caption(
+            "Your plans and quizzes use these; the Quiz page offers the rest of your domain."
+        )
 
 
 def _resume_card(profile: services.StudentProfile) -> None:
@@ -153,8 +179,6 @@ def _resume_card(profile: services.StudentProfile) -> None:
 
 
 profile = services.current_profile(st.session_state.get("student_id"))
-roles = services.target_roles()
-role_index = roles.index(profile.target_role) if profile and profile.target_role in roles else 0
 
 page_header(
     "Onboard",
@@ -166,7 +190,7 @@ if profile is None:
     form_col, next_col = st.columns([2, 3], gap="medium")
     with form_col, st.container(border=True):
         st.subheader("New student", anchor=False)
-        _form(roles, role_index)
+        _form(None, "new")
     with next_col, st.container(border=True):
         st.subheader("What happens next", anchor=False)
         for n, (icon, text) in enumerate(NEXT, 1):
@@ -181,7 +205,7 @@ else:
         _resume_card(profile)
         show_last_run("Profile agent")
         with st.expander("Re-profile with a new resume", icon=":material/refresh:"):
-            _form(roles, role_index)
+            _form(profile, "again")
         if st.button("Delete this student", type="tertiary", icon=":material/delete:"):
             st.session_state[DELETE] = True
         if st.session_state.get(DELETE) and (student := current_student()):

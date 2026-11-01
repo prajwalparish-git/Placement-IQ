@@ -30,13 +30,19 @@ views/              One file per page. Calls piq.services, piq.formatter, piq.ch
   home.py           Default page: the loop explained, or readiness, streak and today's focus
   onboard.py        Resume (upload or sample) -> profile; taken-USN confirmation; delete student
   plan.py           Week pills, day-by-day plan with check-off and export, shift and weakness charts
-  quiz.py           Topic by weakness + suggested difficulty, critic trail, blank guard, review
+  quiz.py           Several topics x 1-50 questions (100 max), difficulty-mix slider, batched
+                    critic trail, blank guard, breakdown by topic/difficulty/level, mistakes
+  resume_builder.py Own details only -> ATS resume + PDF; versions, diff, domain lock, advice
+  projects.py       Project space (computing domains): repositories, README, work log, calendar
   interview.py      Chat mock interview, scored feedback, retry for a failed follow-up, summary
   dashboard.py      Readiness, streak, topic mastery, plans, interviews; agents and critic apart
-  results.py        Baseline vs PlacementIQ evaluation results (reads results/summary.json)
+  results.py        Evaluation scorecard: advanced parameters rated 0-10 (piq/scorecard.py)
 piq/                Application package. Only ui.py imports Streamlit
   services.py       Controllers: every user operation; validates, runs agents, persists, typed state
-  config.py         Env settings (cached) and constants: topics, thresholds, sizes
+  config.py         Env settings (cached) and constants: CS core topics, thresholds, sizes
+  syllabus.py       Domain topics, role focus topics, topic colour slots (career_catalog.json)
+  scorecard.py      Evaluation parameters from summary.json + CSVs, scores and ratings (pure)
+  resume_builder.py Resume data, ATS audit, version diff, Latin-1-safe PDF (fpdf2)
   schemas.py        Pydantic models for every LLM output and derived objects
   llm.py            The ONLY LLM gateway: JSON mode, validation, repair retry, agent_logs, mock
   mock.py           Deterministic MOCK_MODE responses (must pass the same checks)
@@ -52,7 +58,8 @@ piq/                Application package. Only ui.py imports Streamlit
   ui.py             Streamlit helpers: student selector, critic trail, design-system components
 static/             Served at app/static: app.css, brand/ (mark, wordmark), fonts/ (OFL woff2)
 data/
-  role_skills.json  Role -> required skill -> syllabus topic (drives readiness and weakness)
+  career_catalog.json Domains: ordered topics (<= 10), core topics, code_space, roles
+  role_skills.json  Role -> required skill -> its domain's topic (drives readiness and weakness)
   sample_resumes/   Three fictional resumes (TXT)
   placementiq.db    Runtime database (git-ignored; created on first run)
 evaluation/
@@ -112,7 +119,7 @@ There is no build step. `.env.example` already contains the verified model IDs. 
 - Prompts live only in `piq/prompts.py`. Constants and thresholds live only in `piq/config.py`.
 - Views stay thin: no business logic, and rendering goes through `formatter.py` and `charts.py`.
 - **Theme first, CSS last.** Colours, fonts and radii live in `.streamlit/config.toml` (light and dark), mirrored by `config.PALETTE`, `SEMANTIC_COLORS` and `TOPIC_COLORS`; `tests/test_theme.py` checks contrast and that both agree. `static/app.css` (under 150 lines and 8 KB) holds only what the theme cannot express: every selector includes a `data-testid` (own classes only beneath one, never `.st-emotion-cache-*`), every colour is a `PALETTE` token written `light-dark(light, dark)`, and each rule says why it exists.
-- **Topic colours mean topics.** Every topic chart, chip and legend uses `TOPIC_COLORS` (charts get them from the theme's categorical palette with a fixed `TOPICS` domain). Never use them for status; every status shows an icon and words, never colour alone.
+- **Topic colours mean topics.** A domain's n-th topic takes the n-th colour of `TOPIC_PALETTE` (charts get it from the theme's categorical palette through `syllabus.color_domain`; chips through `syllabus.color_slot`). Never use them for status; every status shows an icon and words, never colour alone.
 - **Escape every dynamic value.** Resume, LLM and user text go through `formatter.md_escape` in Markdown and `html.escape` in HTML builders (`st.html`); tests feed `<script>`, `*p`, `__init__` and image Markdown through each builder.
 - **Charts** are pure builders in `charts.py` returning `alt.Chart` (tests check encodings); views render the matching `*_spec` (plain Vega-Lite cached per distinct data) with `st.vega_lite_chart`. Titles state the takeaway as text above the chart; every mark has a tooltip.
 - Icons are Material Symbols (`:material/name:`), never emoji. Copy is sentence case, British spelling, no exclamation marks.
@@ -130,7 +137,7 @@ There is no build step. `.env.example` already contains the verified model IDs. 
 - `.env` must never be committed or printed. Never echo `GROQ_API_KEY`.
 - **Never put model IDs in code.** They come only from `.env`, because Groq renames and retires models. `scripts/check_models.py` detects a retired ID.
 - `evaluation/test_cases.json` is frozen. Editing it invalidates all earlier results.
-- `data/role_skills.json` changes readiness and weakness for every student. Edit it only on purpose, and keep its topics within `Aptitude, DBMS, OS, CN, DSA, OOP` (a test enforces this).
+- `data/role_skills.json` changes readiness and weakness for every student. Edit it only on purpose, and keep each role's topics within its domain's topics in `data/career_catalog.json` (a test enforces this). The five roles the frozen evaluation uses keep the six CS core topics; a student tracks their role's focus topics plus domain topics they quiz.
 - The `scripts/seed.py` trajectory (OS and DBMS start weak) is what the demo depends on. Do not change it casually.
 - `students.usn` is required (`NOT NULL UNIQUE`). Never drop it or make it optional.
 - `schema.sql` has no migrations. A new table (`CREATE TABLE IF NOT EXISTS`, as `plan_progress`) is safe for existing databases; changing an existing table is not, so ask first, and afterwards delete `data/placementiq.db` and reseed.
