@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from piq import scorecard, syllabus
+from piq import degrees, resume_builder, scorecard, syllabus
 from piq.config import (
     BRAND_COLOR,
     DIFFICULTIES,
@@ -120,7 +120,10 @@ def delete_warning_md(usn: str, name: str) -> str:
 def readiness_summary(p: StudentProfile) -> str:
     total = len(p.matched_skills) + len(p.missing_skills)
     role = md_escape(p.target_role)
-    return f"{len(p.matched_skills)} of the {total} skills {role} needs are on the resume."
+    return (
+        f"{len(p.matched_skills)} of the {total} skills {role} needs are named on the resume; "
+        "skills the syllabus tests count double."
+    )
 
 
 def skill_chips(skills: Iterable[str], present: bool) -> str:
@@ -1230,6 +1233,14 @@ def diff_md(diff: object, before: int) -> str:
     if diff.certifications_added:
         names = _names(diff.certifications_added)
         lines.append(f":material/add_circle: Certifications added: {names}")
+    if diff.experience_added:
+        lines.append(f":material/work: Experience added: {_names(diff.experience_added)}")
+    if diff.experience_removed:
+        lines.append(
+            f":material/remove_circle: Experience removed: {_names(diff.experience_removed)}"
+        )
+    if diff.education_added:
+        lines.append(f":material/school: Education added: {_names(diff.education_added)}")
     if diff.ats_change:
         lines.append(f":material/trending_flat: ATS score {diff.ats_change:+d}")
     if not lines:
@@ -1275,23 +1286,71 @@ def resume_filename(name: str, role: str) -> str:
 
 def resume_preview_md(res: Mapping) -> str:
     """The built resume as Markdown, section by section; every value escaped."""
-    edu = res["education"]
     out = [
         f"### {md_escape(res['full_name'])}",
         f"**{md_escape(res['target_role'])}** · {md_escape(res['contact_line'])}",
         f"**Summary**  \n{md_escape(res['summary'])}",
         f"**Skills**  \n{md_escape(', '.join(res['skills'])) or '—'}",
     ]
+    jobs = resume_builder.experience_entries(res)
+    if jobs:
+        out.append("**Work experience**")
+    for e in jobs:
+        bullets = "\n".join(f"- {md_escape(b)}" for b in e["bullets"])
+        when = " · ".join(x for x in (e["type"], resume_builder.job_dates(e)) if x)
+        head = f"**{md_escape(resume_builder.job_label(e))}** :gray[{md_escape(when)}]"
+        out.append(f"{head}\n\n{bullets}" if bullets else head)
     for p in res["projects"]:
         bullets = "\n".join(f"- {md_escape(b)}" for b in p["bullets"])
         out.append(f"**{md_escape(p['title'])}** :gray[{md_escape(p['tech'])}]\n\n{bullets}")
-    school = ", ".join(md_escape(x) for x in (edu["degree"], edu["institution"]) if x)
-    extra = " ".join(md_escape(x) for x in (edu["year"], edu["gpa"]) if x)
-    out.append(f"**Education**  \n{school} {extra}".rstrip())
+    lines = []
+    for e in resume_builder.education_entries(res):
+        detail = ", ".join(
+            x for x in (e.get("institution", ""), resume_builder.education_dates(e)) if x
+        )
+        score = f" · {e['score']}" if e.get("score") else ""
+        name = degrees.entry_label({**e, "status": "Completed"})
+        extra = f" :gray[{md_escape(detail + score)}]" if detail or score else ""
+        lines.append(f"{md_escape(name)}{extra}")
+    out.append("**Education**  \n" + ("  \n".join(lines) or "—"))
     if res.get("certifications"):
         certs = "  \n".join(md_escape(c) for c in res["certifications"])
         out.append(f"**Certifications**  \n{certs}")
     return "\n\n".join(out)
+
+
+DEGREE_FIT = {
+    "now": ("done", "Your degree fits this role"),
+    "on completion": ("info", "Your degree fits once completed"),
+    "no match": ("warning", "None of your degrees fits this role"),
+}
+
+
+def degree_fit_md(fit: str) -> str:
+    """The ATS check's degree line: an icon and words, never colour alone."""
+    state, text = DEGREE_FIT[fit]
+    return status_md(state, text)
+
+
+def role_fits_md(fits: Sequence) -> str:
+    """Roles a student's degrees qualify for, grouped by domain: an icon and words say whether
+    each is open now or once the degree being pursued is completed (Markdown, escaped)."""
+    if not fits:
+        return ":gray[No role in the catalog lists this degree and specialisation yet.]"
+    by_domain: dict[str, list] = {}
+    for f in fits:
+        by_domain.setdefault(f.domain_name, []).append(f)
+    blocks = []
+    for name, items in by_domain.items():
+        rows = []
+        for f in items:
+            if f.eligible_now:
+                state = status_md("done", "Eligible now")
+            else:
+                state = status_md("info", f"On completion of {f.via}")
+            rows.append(f"- {md_escape(f.role)} {state}")
+        blocks.append(f"**{md_escape(name)}**\n\n" + "\n".join(rows))
+    return "\n\n".join(blocks)
 
 
 def versions_table(versions: Iterable, tz: str = TIMEZONE) -> pd.DataFrame:
@@ -1302,12 +1361,13 @@ def versions_table(versions: Iterable, tz: str = TIMEZONE) -> pd.DataFrame:
             "Role": v.target_role,
             "ATS score": v.ats_score,
             "Skills": len(v.resume.get("skills", [])),
+            "Jobs": len(resume_builder.experience_entries(v.resume)),
             "Projects": len(v.resume.get("projects", [])),
         }
         for v in versions
     ]
     return pd.DataFrame(
-        data, columns=["Version", "Saved", "Role", "ATS score", "Skills", "Projects"]
+        data, columns=["Version", "Saved", "Role", "ATS score", "Skills", "Jobs", "Projects"]
     ).set_index("Version")
 
 

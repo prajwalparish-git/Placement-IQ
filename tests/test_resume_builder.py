@@ -1,5 +1,9 @@
 """Tests for ATS resume builder and PDF compilation engine."""
 
+from datetime import date
+
+import pytest
+
 from piq import resume_builder, services
 
 
@@ -127,7 +131,7 @@ def test_the_builder_invents_no_skills_projects_certificates_or_education():
     assert data["skills"] == ["Embedded C"]  # the role's keywords are not merged in
     assert data["projects"] == []  # no sample project from the catalog
     assert data["certifications"] == []  # no "Certified ... Fundamentals"
-    assert data["education"] == {"degree": "", "institution": "", "year": "", "gpa": ""}
+    assert data["education"] == []  # no degree the student did not enter
     assert "RTOS" not in data["summary"] and "Embedded C" in data["summary"]
     assert data["summary"].startswith("Entry-level ")  # the fresher wording now matches
 
@@ -198,3 +202,144 @@ def test_diff_lists_what_changed_between_versions():
     )
     assert diff.ats_change == 15 and not diff.empty
     assert resume_builder.diff_resumes(old, old).empty
+
+
+# --- education and work entries -------------------------------------------------------------
+
+TODAY = date(2026, 11, 2)
+JOB = {
+    "title": "Firmware Engineer",
+    "company": "Acme Labs",
+    "type": "Full-time",
+    "location": "Pune",
+    "start": "Jul 2024",
+    "end": "",
+    "current": True,
+    "highlights": "- Built a CAN logger\nCut boot time by 40%",
+}
+INTERN = {
+    "title": "Intern",
+    "company": "Volt",
+    "type": "Internship",
+    "start": "2024-01",
+    "end": "2024-03",
+}
+DEGREES = [
+    {
+        "degree": "M.Tech",
+        "specialization": "VLSI Design",
+        "institution": "An institute",
+        "status": "Pursuing",
+        "start": "2025",
+        "end": "2027",
+    },
+    {
+        "degree": "B.E",
+        "specialization": "Electronics & Communication",
+        "institution": "A college",
+        "status": "Completed",
+        "start": "2020",
+        "end": "2024",
+        "score": "8.4 CGPA",
+    },
+    {"degree": "", "specialization": "", "institution": ""},  # an empty row is dropped
+]
+
+
+@pytest.mark.parametrize(
+    ("text", "ym"),
+    [
+        ("2024-06", (2024, 6)),
+        ("06/2024", (2024, 6)),
+        ("Jun 2024", (2024, 6)),
+        ("September 2023", (2023, 9)),
+        ("2025", (2025, 1)),
+        ("Junk 2024", None),
+        ("2024-13", None),
+        ("", None),
+    ],
+)
+def test_parse_month_reads_common_formats(text, ym):
+    assert resume_builder.parse_month(text) == ym
+
+
+def test_experience_months_merge_overlaps_and_keep_internships_apart():
+    jobs = [
+        {"type": "Full-time", "start": "Jan 2024", "end": "Dec 2024"},
+        {"type": "Part-time", "start": "Jun 2024", "end": "Mar 2025"},  # overlaps by 7 months
+        {"type": "Internship", "start": "2023-06", "end": "2023-08"},
+        {"type": "Full-time", "start": "not a date"},
+    ]
+    assert resume_builder.experience_months(jobs, TODAY) == (15, 3)
+    current = [{"type": "Full-time", "start": "Nov 2025", "current": True}]
+    assert resume_builder.experience_months(current, TODAY) == (13, 0)
+    assert resume_builder.duration_text(27) == "2 years 3 months"
+    assert resume_builder.duration_text(12) == "1 year" and resume_builder.duration_text(1) == (
+        "1 month"
+    )
+
+
+def test_entries_build_the_resume_and_years_come_from_the_dates():
+    data = _built(education=DEGREES, experience=[JOB, INTERN], today=TODAY)
+    assert [e["degree"] for e in data["education"]] == ["M.Tech", "B.E"]
+    [job, intern] = data["experience"]
+    assert job["bullets"] == ["Built a CAN logger", "Cut boot time by 40%"]
+    assert job["end"] == "" and job["current"]
+    assert "with 2 years 5 months of professional experience" in data["summary"]
+    assert "Currently pursuing M.Tech in VLSI Design, completing in 2027." in data["summary"]
+    assert data["form"]["experience"][0]["highlights"] == JOB["highlights"]
+    fresher = _built(education=DEGREES, experience=[INTERN], today=TODAY)
+    assert (
+        fresher["summary"].startswith("Entry-level ")
+        and "3 months of internships" in (fresher["summary"])
+    )
+
+
+def test_a_version_saved_before_entry_lists_still_reads():
+    old = {
+        "education": {
+            "degree": "B.E in ECE",
+            "institution": "A college",
+            "year": "2025",
+            "gpa": "8.0",
+        }
+    }
+    [entry] = resume_builder.education_entries(old)
+    assert entry["degree"] == "B.E" and entry["title"] == "B.E in ECE" and entry["end"] == "2025"
+    assert resume_builder.experience_entries(old) == []
+    form = {"degree": "B.E in ECE", "institution": "A college", "grad_year": "2025"}
+    assert resume_builder.form_education(form)[0]["institution"] == "A college"
+    assert resume_builder.education_entries({"education": {"degree": "", "institution": ""}}) == []
+
+
+def test_text_pdf_and_diff_cover_work_and_education():
+    data = _built(education=DEGREES, experience=[JOB], today=TODAY)
+    text = resume_builder.resume_text(data)
+    assert "Experience: Firmware Engineer, Acme Labs (Full-time, Jul 2024 - Present)" in text
+    assert "M.Tech in VLSI Design (pursuing, 2027) | An institute | 2025 - expected 2027" in text
+    assert resume_builder.generate_ats_pdf(data).startswith(b"%PDF")
+    before = _built(education=DEGREES[1:], today=TODAY)
+    diff = resume_builder.diff_resumes(before, data)
+    assert diff.experience_added == ["Firmware Engineer, Acme Labs"]
+    assert diff.education_added == ["M.Tech in VLSI Design (pursuing, 2027)"]
+    assert resume_builder.diff_resumes(data, before).experience_removed == [
+        "Firmware Engineer, Acme Labs"
+    ]
+
+
+def test_ats_reads_job_bullets_and_checks_the_degree_rule():
+    role = "VLSI & Chip Design Engineer"
+    data = _built(role_name=role, education=DEGREES, experience=[JOB], today=TODAY)
+    ats = resume_builder.evaluate_ats_compatibility(data, role)
+    assert ats.degree_fit == "now"
+    assert ats.action_verbs_count >= 1  # "Built" in a job bullet
+    commerce = [{"degree": "B.Com", "specialization": "Accounts", "institution": "X"}]
+    wrong = resume_builder.evaluate_ats_compatibility(
+        _built(role_name=role, education=commerce), role
+    )
+    assert wrong.degree_fit == "no match"
+    assert any("none of your degrees matches" in s for s in wrong.suggestions)
+    pursuing = [{**DEGREES[0], "specialization": "Electronics"}]
+    later = _built(role_name=role, education=pursuing)
+    assert resume_builder.evaluate_ats_compatibility(later, role).degree_fit == "on completion"
+    assert resume_builder.evaluate_ats_compatibility(_built(), role).degree_fit == ""

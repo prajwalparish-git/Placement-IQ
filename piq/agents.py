@@ -18,6 +18,7 @@ from piq.config import (
 from piq.graph import OnEvent, Task, run_or_raise
 from piq.schemas import (
     AnswerEvaluation,
+    BulletRewrite,
     InterviewTurn,
     ProfileExtraction,
     Question,
@@ -82,15 +83,29 @@ def create_profile(
     ext: ProfileExtraction = run_or_raise(
         PROFILE_TASK, {"resume_text": resume_text, "target_role": target_role}, on_event
     )
-    required = list(roles()[target_role])
+    skill_topics = roles()[target_role]
+    required = list(skill_topics)
     canon = {s.lower(): s for s in required}
-    matched = sorted({canon[s.lower()] for s in ext.matched_skills})
+    claimed = sorted({canon[s.lower()] for s in ext.matched_skills})
+    # Strict: a skill counts only if the resume names it (or an alias) in words. The model may
+    # infer a skill from context; the student still has to write it for a recruiter or an ATS.
+    words, aliases = checks.tokens(resume_text), syllabus.skill_aliases()
+    matched = [s for s in claimed if checks.evidenced(s, words, aliases.get(s, ()))]
+    unnamed = [s for s in claimed if s not in matched]
+    feedback = list(ext.resume_feedback)
+    if unnamed:
+        feedback = [
+            *feedback[:4],
+            f"Name {', '.join(unnamed)} in words, inside the project or job where you used "
+            "them: the profile counts only skills the resume states.",
+        ]
     return StudentProfile(
-        **ext.model_dump(exclude={"matched_skills"}),
+        **ext.model_dump(exclude={"matched_skills", "resume_feedback"}),
         matched_skills=matched,
+        resume_feedback=feedback,
         target_role=target_role,
         missing_skills=[s for s in required if s not in matched],
-        readiness_score=round(100 * len(matched) / len(required)),
+        readiness_score=checks.readiness_score(skill_topics, matched),
     )
 
 
@@ -349,6 +364,8 @@ def _interview_gen(inp: dict, reasons: list[str], _prev: object) -> tuple[Interv
         f"Turn {len(inp['history']) + 1} of {inp['max_turns']}.{_feedback(reasons)}"
     )
     system = prompts.INTERVIEWER.format(interview_type=inp["interview_type"])
+    if inp.get("focus"):
+        system += f"\nThis track covers: {inp['focus']}. Keep every question within it."
     return llm.call(
         InterviewTurn,
         agent="interviewer",
@@ -372,10 +389,13 @@ def next_question(
     past: list[dict],
     student_id: str | None = None,
     on_event: OnEvent | None = None,
+    focus: str = "",
 ) -> InterviewTurn:
+    """`focus`: what a domain interview track covers (data/interview_tracks.json)."""
     inp = {
         "brief": _profile_brief(profile),
         "interview_type": interview_type,
+        "focus": focus,
         "history": history,
         "past": past,
         "asked": [h["question"] for h in history + past],
@@ -413,3 +433,30 @@ def evaluate_answer(
         temperature=0.2,
     )
     return ev
+
+
+# --- Resume bullet polish -------------------------------------------------------------
+
+
+def _bullet_gen(inp: dict, reasons: list[str], _prev: object) -> tuple[BulletRewrite, int]:
+    user = f"Target role: {inp['role']}\nOriginal bullet: {inp['text']}{_feedback(reasons)}"
+    return llm.call(
+        BulletRewrite,
+        agent="bullet",
+        system=prompts.BULLET,
+        user=user,
+        context=inp,
+        size="small",
+        temperature=0.3,
+    )
+
+
+BULLET_TASK = Task(
+    "bullet", _bullet_gen, lambda inp, out: checks.check_bullet(inp["text"], out.bullet)
+)
+
+
+def enhance_bullet(text: str, role: str, on_event: OnEvent | None = None) -> str:
+    """One bullet in XYZ form, with no number the student did not write."""
+    out: BulletRewrite = run_or_raise(BULLET_TASK, {"text": text, "role": role}, on_event)
+    return out.bullet.strip().lstrip("-*• ").strip()

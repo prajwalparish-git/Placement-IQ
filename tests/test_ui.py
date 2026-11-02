@@ -92,7 +92,7 @@ def _components_page() -> None:
 
     st.session_state["clicked"] = ui.page_header("Home", "One plain sentence.", "Do it", key="go")
     ui.empty_state("inbox", "Nothing here yet", "Make the first one.")
-    ui.stat_row([ui.Stat("Readiness", "42/100", "+4"), ui.Stat("Quizzes taken", "24")])
+    ui.stat_row([ui.Stat("Readiness", "36/100", "+4"), ui.Stat("Quizzes taken", "24")])
     ui.topic_chip("<b>OS</b>")
     ui.status_badge("done", "Onboarded")
 
@@ -103,7 +103,7 @@ def test_design_system_components_render():
     assert [t.value for t in at.title] == ["Home"]
     assert [s.value for s in at.subheader] == ["Nothing here yet"]
     assert [(m.label, m.value) for m in at.metric] == [
-        ("Readiness", "42/100"),
+        ("Readiness", "36/100"),
         ("Quizzes taken", "24"),
     ]
     assert ":gray[One plain sentence.]" in _md(at)
@@ -151,7 +151,7 @@ def test_navigation_groups_pages_with_material_icons():
 def test_sidebar_shows_readiness_and_a_quiet_mock_badge(seeded):
     at = _app(seeded, "views/plan.py")
     [progress] = at.sidebar.get("progress")
-    assert progress.proto.text == "Readiness 42/100"
+    assert progress.proto.text == "Readiness 36/100"
     assert any("gray-badge[:material/science: Mock mode]" in m.value for m in at.sidebar.markdown)
     assert not at.sidebar.warning  # the loud MOCK_MODE box is gone
 
@@ -183,13 +183,15 @@ def test_onboard_profile_shows_readiness_skills_and_fixes(seeded):
     at = _app(seeded, "views/onboard.py")
     assert [s.value for s in at.subheader] == ["Demo Student", "From the resume"]
     [readiness] = [m for m in at.metric if m.label == "Readiness"]
-    assert readiness.value == "42/100"
+    assert readiness.value == "36/100"
     assert at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")  # the ring
     md = _md(at)
     # Matched and missing skills differ by icon and words, not by colour alone.
     assert ":green-badge[:material/check_circle: Java]" in md
     assert ":gray-badge[:material/radio_button_unchecked: Operating Systems]" in md
-    assert "5 of the 12 skills Java Backend Developer needs are on the resume." in _captions(at)
+    assert "5 of the 12 skills Java Backend Developer needs are named on the resume" in (
+        _captions(at)
+    )
     assert "**Internships**  \n:gray[None listed.]" in md
     assert "**Resume fixes**  \n:gray[:material/check_box_outline_blank:] Add measurable" in md
     assert at.expander[0].label == "Re-profile with a new resume"  # one click away
@@ -598,7 +600,7 @@ def test_dashboard_renders(seeded):
     # Was at.metric[1]; found by label now, so adding or reordering metrics cannot break it.
     metrics = {m.label: m.value for m in at.metric}
     assert metrics["Quizzes taken"] == "24"  # seeded quizzes
-    assert metrics["Readiness"] == "42/100" and metrics["Interview sessions"] == "2"
+    assert metrics["Readiness"] == "36/100" and metrics["Interview sessions"] == "2"
     assert metrics["Questions answered"] == "240"  # 24 seeded quizzes of 10
     charts = at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")
     # A sparkline per topic, accuracy grid, readiness (one point), interviews, plan minutes,
@@ -622,15 +624,15 @@ def test_dashboard_readiness_shows_a_delta_and_trend_only_after_a_second_profile
     at = _app(seeded, "views/dashboard.py")
     [readiness] = [m for m in at.metric if m.label == "Readiness"]
     assert readiness.proto.delta == ""  # one profile: no invented delta
-    assert "Readiness is 42/100 from your first profile" in [s.value for s in at.subheader]
+    assert "Readiness is 36/100 from your first profile" in [s.value for s in at.subheader]
     assert "One profile so far. Re-profile with an updated resume" in _captions(at)
 
     resume = services.load_sample("python_developer.txt")
-    services.onboard(seed.USN, "Python Developer", resume)  # a second profile, 73/100
+    services.onboard(seed.USN, "Python Developer", resume)  # a second profile, 68/100
     at = _app(seeded, "views/dashboard.py")
     [readiness] = [m for m in at.metric if m.label == "Readiness"]
-    assert readiness.value == "73/100"
-    assert readiness.proto.delta == "+31 since the last profile"
+    assert readiness.value == "68/100"
+    assert readiness.proto.delta == "+32 since the last profile"
     assert any(
         s.value.startswith("Readiness ") and "over 2 profiles" in s.value for s in at.subheader
     )
@@ -840,7 +842,7 @@ def test_home_shows_todays_focus_for_the_demo_student(seeded):
     assert _md(at).count(":green-badge[:material/check_circle: Done]") == 4  # icon and words
     assert at.get("arrow_vega_lite_chart") or at.get("vega_lite_chart")
     assert "Scored 90% on a medium OOP quiz" in _md(at)
-    assert [m.value for m in at.metric] == ["42/100"]
+    assert [m.value for m in at.metric] == ["36/100"]
     assert any(":material/event_available:" in m.value for m in at.markdown)  # the streak
 
 
@@ -901,7 +903,7 @@ def test_an_ece_students_home_and_quiz_show_electronics_topics():
     at = _app(sid, "views/quiz.py")
     options = _topics(at).options
     assert not any(o.split(" \u00b7 ")[0] in {"DBMS", "DSA", "OOP"} for o in options)
-    assert options[-1] == "Signals & Systems \u00b7 new"
+    assert options[-1] == "RF & Communication \u00b7 new"
 
 
 def test_project_space_is_in_the_navigation_for_computing_domains_only(seeded):
@@ -948,8 +950,10 @@ def test_resume_builder_starts_empty_for_a_new_student():
     at = _app(page="views/resume_builder.py")
     values = {t.label: t.value for t in at.text_input}
     # No one's name, college or contact details are prefilled.
-    assert values["Full name *"] == "" and values["College or university *"] == ""
-    assert values["Email *"] == "" and values["Degree and branch *"] == ""
+    assert values["Full name *"] == "" and values["College, university or school *"] == ""
+    assert values["Email *"] == ""
+    assert at.selectbox(key="edu_0_degree").value is None  # no degree chosen for them
+    assert not any(t.key and t.key.startswith("job_") for t in at.text_input)  # no jobs
     [skills] = at.multiselect
     assert skills.value == []  # no keyword is claimed on the student's behalf
 
@@ -959,8 +963,12 @@ def test_resume_builder_saves_versions_and_locks_the_domain():
     at = _app(sid, "views/resume_builder.py")
     values = {t.label: t for t in at.text_input}
     assert values["Full name *"].value == "Asha Rao"  # from the profile
+    # The profile's education line becomes the first entry: degree and branch.
+    assert at.selectbox(key="edu_0_degree").value == "B.E"
+    assert at.text_input(key="edu_0_spec").value == "Electronics"
     assert "What to add next" in [s.value for s in at.subheader]
     values["Email *"].set_value("asha@example.com")
+    at.text_input(key="edu_0_school").set_value("A college")
     values["Project title"].set_value("STM32 logger")
     _button(at, "Build resume").click().run()
     assert not at.exception and "ATS check" in [s.value for s in at.subheader]
@@ -976,3 +984,38 @@ def test_resume_builder_saves_versions_and_locks_the_domain():
     assert domain.disabled and domain.value == "Electronics & Communication"
     assert any(":material/lock:" in m for m in [m.value for m in at.markdown])
     assert "Your versions" in [s.value for s in at.subheader]
+
+
+def test_resume_builder_finds_roles_by_degree_and_lists_jobs():
+    at = _app(page="views/resume_builder.py")
+    at.selectbox(key="rb_find_degree_new").set_value("B.E")
+    at.text_input(key="rb_find_spec_new").set_value("Civil Engineering").run()
+    assert "- Structural Design Engineer " in _md(at)
+    assert "- Software Engineer " not in _md(at)  # a civil degree, not a CS one
+    pick = at.selectbox(key="rb_find_pick_new")
+    pick.select_index(next(i for i, o in enumerate(pick.options) if "Structural" in o)).run()
+    _button(at, "Use this role").click().run()
+    assert not at.exception
+    assert at.selectbox(key="rb_domain_new").value.id == "civil"
+    assert at.selectbox(key="rb_role_new_civil").value == "Structural Design Engineer"
+
+    at.number_input(key="rb_n_jobs_new").set_value(1).run()
+    fields = {
+        "edu_0_spec": "Civil Engineering",
+        "edu_0_school": "A college",
+        "job_0_title": "Site Engineer",
+        "job_0_org": "BuildCo",
+        "job_0_s": "Jun 2024",
+        "job_0_e": "Dec 2024",
+    }
+    for k, v in fields.items():
+        at.text_input(key=k).set_value(v)
+    at.selectbox(key="edu_0_degree").set_value("B.E")
+    at.text_area(key="job_0_hl").set_value("Designed RCC slabs\nCut steel use by 8%")
+    next(t for t in at.text_input if t.label == "Full name *").set_value("Ravi")
+    next(t for t in at.text_input if t.label == "Email *").set_value("ravi@example.com")
+    _button(at, "Build resume").click().run()
+    assert not at.exception and "ATS check" in [s.value for s in at.subheader]
+    md = _md(at)
+    assert "**Work experience**" in md and "Site Engineer, BuildCo" in md
+    assert "Your degree fits this role" in md

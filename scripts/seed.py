@@ -8,7 +8,7 @@ All data is fictional.
 
 from datetime import UTC, datetime, timedelta
 
-from piq import agents, db, mock
+from piq import agents, checks, db, mock
 from piq.config import TOPICS
 from piq.schemas import AnswerEvaluation, Question, QuizSet, StudentProfile, WeeklyPlan
 
@@ -89,7 +89,7 @@ def main() -> None:
         resume_feedback=["Add measurable results to each project."],
         target_role=ROLE,
         missing_skills=[s for s in required if s not in matched],
-        readiness_score=round(100 * len(matched) / len(required)),
+        readiness_score=checks.readiness_score(agents.roles()[ROLE], matched),
     )
     start = datetime.now(UTC) - timedelta(days=28)  # UTC, like SQLite CURRENT_TIMESTAMP
     sid = db.save_profile(USN, profile, at=_ts(start))

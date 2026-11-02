@@ -67,7 +67,12 @@ def test_an_ece_students_pages_show_only_their_domains_topics(ece):
     assert not set(services.plan_overview(ece).weakness) & cs_only
     setup = services.quiz_setup(ece)
     assert not set(setup.topics) & cs_only
-    assert setup.others == ["Analog Electronics", "VLSI & Verilog", "Signals & Systems"]
+    assert setup.others == [
+        "Analog Electronics",
+        "VLSI & Verilog",
+        "Signals & Systems",
+        "RF & Communication",
+    ]
     plan = services.generate_next_plan(ece)
     assert {d.topic for d in plan.days} <= set(home.weakness)  # the planner stays inside
 
@@ -344,3 +349,40 @@ def test_project_names_are_unique_per_student_and_owned(cs, ece):
         services.log_project_update(ece, pid, "not mine")
     services.delete_project(ece, pid)  # not theirs: nothing happens
     assert [p["name"] for p in services.project_space(cs).projects] == ["Same"]
+
+
+# --- degrees and work dates ---------------------------------------------------------------
+
+
+def test_save_rejects_unreadable_or_reversed_dates():
+    job = {"title": "Intern", "company": "Volt", "type": "Internship", "start": "Jun 2024"}
+    with pytest.raises(ServiceError, match="dates like"):
+        services.save_resume(None, "ece", _resume(experience=[{**job, "end": "soon"}]))
+    with pytest.raises(ServiceError, match="before the start"):
+        services.save_resume(None, "ece", _resume(experience=[{**job, "end": "Jan 2024"}]))
+    with pytest.raises(ServiceError, match="month you started"):
+        services.save_resume(None, "ece", _resume(experience=[{**job, "start": ""}]))
+    bad_year = [{"degree": "B.E", "specialization": "ECE", "institution": "X", "end": "26"}]
+    with pytest.raises(ServiceError, match="four digits"):
+        services.save_resume(None, "ece", _resume(education=bad_year))
+    sid, n = services.save_resume(None, "ece", _resume(experience=[{**job, "end": "Aug 2024"}]))
+    assert n == 1 and services.resume_history(sid)[0].resume["experience"][0]["company"] == "Volt"
+
+
+def test_roles_for_degree_validates_and_lists_roles():
+    fits = services.roles_for_degree("B.E", "Civil Engineering", "Pursuing")
+    assert any(f.role == "Structural Design Engineer" and not f.eligible_now for f in fits)
+    with pytest.raises(ServiceError):
+        services.roles_for_degree("B.Magic", "", "Completed")
+    with pytest.raises(ServiceError):
+        services.roles_for_degree("B.E", "", "Dropped")
+
+
+def test_education_from_text_prefills_the_form():
+    assert services.education_from_text("B.E in Electronics & Communication, 2026") == {
+        "degree": "B.E",
+        "specialization": "Electronics & Communication",
+        "status": "Completed",
+    }
+    assert services.education_from_text("Some diploma course")["degree"] == "Diploma"
+    assert services.education_from_text("Self-taught")["degree"] == "Other"

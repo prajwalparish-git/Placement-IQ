@@ -1,4 +1,9 @@
-"""Verify, clean, balance, and ingest MCQ.csv into data/questions/mcq_bank.csv."""
+"""Verify, clean, balance, and ingest MCQ.csv into data/questions/mcq_bank.csv.
+
+`python -m scripts.verify_and_ingest_mcq` ingests MCQ.csv; with `--normalise` it cleans the
+existing bank in place (role names as data/career_catalog.json spells them, stray topic labels
+fixed, questions whose options repeat dropped). MCQ.csv stays local; the bank is committed.
+"""
 
 import csv
 import random
@@ -15,6 +20,20 @@ CATEGORY_FIXES = {
     " Electronics & Communication Engineering": "Electronics & Communication Engineering",
     "Corporate Management, Finance & Investment Associate": "Corporate Management, Finance & Law",
 }
+
+# Bank role names -> the catalog's role names (data/career_catalog.json).
+ROLE_ALIASES = {
+    "Backend Developer (Java/Python/C++)": "Backend Developer",
+    "Corporate Legal Counsel / Associate": "Corporate Legal Counsel",
+    "Financial Analyst & Investment Associate": "Financial Analyst",
+    "Public Sector Bank PO (SBI / IBPS PO)": "Public Sector Bank PO (SBI / IBPS)",
+    "UPSC Civil Services Officer (IAS/IPS/IFS)": "UPSC Civil Services Aspirant",
+    "State Civil Service Officer (KAS / PCS)": "State Administrative Officer (KAS / PCS)",
+    "Hospital_Operations_Administrator": "Hospital Operations Administrator",
+}
+# Roles the catalog files under another domain than the bank's category.
+CATEGORY_BY_ROLE = {"Embedded Software Engineer": "Electronics & Communication Engineering"}
+TOPIC_FIXES = {"Intellectual_IPR": "Intellectual_Property_Rights_IPR"}
 
 HEADER = [
     "category",
@@ -89,14 +108,19 @@ def clean_and_ingest():
 
             category = row[0].strip()
             category = CATEGORY_FIXES.get(category, category)
-            role = row[1].strip()
-            topic = row[2].strip()
+            role = ROLE_ALIASES.get(row[1].strip(), row[1].strip())
+            category = CATEGORY_BY_ROLE.get(role, category)
+            topic = TOPIC_FIXES.get(row[2].strip(), row[2].strip())
             difficulty = row[3].strip().lower()
             if difficulty not in ("easy", "medium", "hard"):
                 difficulty = "medium"
 
             question = row[4].strip()
             raw_options = [row[5].strip(), row[6].strip(), row[7].strip(), row[8].strip()]
+            if len({o.lower() for o in raw_options}) < 4:  # no single correct answer
+                print(f"Warning: Line {line_no} repeats an option, skipping.")
+                skipped_rows += 1
+                continue
             correct_opt = row[9].strip().upper()
             explanation = row[10].strip()
             bloom = row[11].strip().lower()
@@ -172,5 +196,43 @@ def clean_and_ingest():
         print(f"  {diff.capitalize()}: {count} ({pct:.1f}%)")
 
 
+def normalise_bank(path: Path = TARGET_CSV) -> Counter:
+    """Clean the existing bank in place (no reshuffle): catalog role names, fixed topic
+    labels, rows whose options repeat dropped. Returns what changed, by kind."""
+    changes: Counter = Counter()
+    with open(path, encoding="utf-8", newline="") as f:
+        rows = list(csv.DictReader(f))
+    kept = []
+    for row in rows:
+        options = [row[f"option_{c}"].strip().lower() for c in "abcd"]
+        if len(set(options)) < 4:
+            changes["dropped: repeated option"] += 1
+            continue
+        role = ROLE_ALIASES.get(row["role_or_stream"], row["role_or_stream"])
+        if role != row["role_or_stream"]:
+            changes["role renamed"] += 1
+            row["role_or_stream"] = role
+        category = CATEGORY_BY_ROLE.get(role, row["category"])
+        if category != row["category"]:
+            changes["category moved"] += 1
+            row["category"] = category
+        topic = TOPIC_FIXES.get(row["topic"], row["topic"])
+        if topic != row["topic"]:
+            changes["topic fixed"] += 1
+            row["topic"] = topic
+        kept.append(row)
+    with open(path, mode="w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=HEADER, quoting=csv.QUOTE_MINIMAL)
+        writer.writeheader()
+        writer.writerows(kept)
+    return changes
+
+
 if __name__ == "__main__":
-    clean_and_ingest()
+    import sys
+
+    if "--normalise" in sys.argv:
+        for kind, n in sorted(normalise_bank().items()):
+            print(f"  {kind}: {n}")
+    else:
+        clean_and_ingest()

@@ -163,3 +163,33 @@ def test_a_plan_topic_outside_the_students_syllabus_is_rejected():
 def test_weakness_covers_exactly_the_topics_given():
     w = checks.topic_weakness({"RTOS": 30.0}, {"Embedded C"}, ["Aptitude", "Embedded C", "RTOS"])
     assert w == {"Aptitude": 0.4, "Embedded C": 0.7, "RTOS": 0.7}
+
+
+# --- readiness: evidence in words, weighted by syllabus ---------------------------------
+
+
+def test_evidence_needs_the_skill_named_as_whole_words():
+    words = checks.tokens("Built REST APIs in Node.js; used C++ and object-oriented design.")
+    assert checks.evidenced("REST APIs", words)
+    assert checks.evidenced("Node.js", words) and checks.evidenced("C++", words)
+    assert checks.evidenced("Object-Oriented Programming", words, ["object oriented"])
+    assert not checks.evidenced("Object-Oriented Programming", words)  # no alias, no match
+    assert not checks.evidenced("Java", checks.tokens("Learnt JavaScript"))
+    assert not checks.evidenced("Git", checks.tokens("digital logic"))
+
+
+def test_evidence_accepts_plurals_and_aliases():
+    words = checks.tokens("Studied the algorithm behind DSA problems")
+    assert checks.evidenced("Algorithms", words)
+    assert checks.evidenced("Data Structures", words, ["DSA"])
+    assert not checks.evidenced("Operating Systems", words, ["OS"])
+
+
+def test_readiness_weighs_syllabus_skills_double():
+    required = {"SQL": "DBMS", "Java": "OOP", "Git": None, "Docker": None}
+    assert checks.readiness_score(required, []) == 0
+    assert checks.readiness_score(required, ["SQL"]) == round(100 * 2 / 6)
+    assert checks.readiness_score(required, ["Git"]) == round(100 * 1 / 6)
+    assert checks.readiness_score(required, list(required)) == 100
+    assert checks.readiness_score(required, ["SQL", "Not required"]) == 33
+    assert checks.readiness_score({}, ["SQL"]) == 0

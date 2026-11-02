@@ -6,9 +6,9 @@ The reasons are fed back verbatim into the regeneration prompt.
 
 import hashlib
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 
-from piq.config import TOPICS, WEAK_MIN_SHARE, WEAK_THRESHOLD
+from piq.config import SYLLABUS_SKILL_WEIGHT, TOPICS, WEAK_MIN_SHARE, WEAK_THRESHOLD
 from piq.schemas import InterviewTurn, ProfileExtraction, QuizSet, WeeklyPlan
 
 _QUESTION_REASON = re.compile(r"^question (\d+): (.*)$", re.S)
@@ -32,6 +32,41 @@ def question_issues(reasons: list[str]) -> dict[int, list[str]] | None:
 def text_hash(text: str) -> str:
     norm = re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
     return hashlib.sha1(norm.encode()).hexdigest()[:16]
+
+
+_WORD_BREAK = re.compile(r"[^a-z0-9+#]+")  # "C++" and "C#" keep their symbols
+
+
+def tokens(text: str) -> list[str]:
+    """Lower-case words, splitting on everything but letters, digits, "+" and "#", so
+    "Node.js", "CI/CD" and "Object-Oriented" compare word by word."""
+    return [t for t in _WORD_BREAK.split(text.lower()) if t]
+
+
+def _same_word(a: str, b: str) -> bool:
+    """Equal, or one is the other's plural ("algorithm" / "algorithms")."""
+    return a == b or a + "s" == b or b + "s" == a or a + "es" == b or b + "es" == a
+
+
+def evidenced(skill: str, words: list[str], aliases: Iterable[str] = ()) -> bool:
+    """Does the text (as `tokens`) name `skill` or one of its aliases, as whole words?"""
+    for phrase in (skill, *aliases):
+        p = tokens(phrase)
+        if not p:
+            continue
+        for i in range(len(words) - len(p) + 1):
+            if all(_same_word(p[j], words[i + j]) for j in range(len(p))):
+                return True
+    return False
+
+
+def readiness_score(required: Mapping[str, str | None], matched: Iterable[str]) -> int:
+    """0-100: the weighted share of the role's required skills that are matched. A skill
+    practised under a syllabus topic weighs SYLLABUS_SKILL_WEIGHT, a tool skill 1."""
+    weight = {s: SYLLABUS_SKILL_WEIGHT if t else 1 for s, t in required.items()}
+    total = sum(weight.values())
+    got = sum(weight[s] for s in set(matched) if s in weight)
+    return round(100 * got / total) if total else 0
 
 
 def topic_weakness(
@@ -133,6 +168,26 @@ def check_quiz(
                 question_reason(i, f"duplicate of an earlier question ({q.text[:60]!r})")
             )
         seen.add(h)
+    return reasons
+
+
+_NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
+
+
+def check_bullet(original: str, rewrite: str) -> list[str]:
+    """A rewrite may rephrase, never invent: every number in it must be in the original."""
+    reasons = []
+    known = {n.replace(",", "") for n in _NUMBER.findall(original)}
+    invented = sorted({n for n in _NUMBER.findall(rewrite) if n.replace(",", "") not in known})
+    if invented:
+        reasons.append(
+            f"numbers {invented} are not in the original bullet; use only its numbers or "
+            "write [metric] where a measure belongs"
+        )
+    if "\n" in rewrite.strip():
+        reasons.append("return one bullet on one line")
+    if text_hash(rewrite) == text_hash(original):
+        reasons.append("rewrite the bullet in XYZ form; it came back unchanged")
     return reasons
 
 

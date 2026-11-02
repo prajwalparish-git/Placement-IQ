@@ -1,0 +1,88 @@
+{
+  "_comment": "Mock interview tracks. `domains`: five per career domain (career_catalog.json ids). `degree_tracks`: extra tracks offered when the student's education names one of the degrees (degrees.json codes). Each track's focus is given to the interviewer. The generic HR / Technical / Project types stay for the frozen evaluation.",
+  "domains": {
+    "cs": [
+      {"name": "System Design", "focus": "designing scalable services: requirements, APIs, data stores, caching, queues, trade-offs and failure handling"},
+      {"name": "Algorithm Walkthrough", "focus": "solving a data-structures or algorithms problem aloud: approach, complexity, edge cases and testing"},
+      {"name": "Frameworks", "focus": "the frameworks and tools on the resume: how they work inside, when not to use them, debugging them"},
+      {"name": "Behavioral STAR", "focus": "teamwork, conflict, ownership and failure, answered with situation, task, action and a measurable result"},
+      {"name": "Project Defense", "focus": "defending the candidate's own project: architecture, choices made, what broke, how it was tested and measured"}
+    ],
+    "ece": [
+      {"name": "VLSI", "focus": "digital design, Verilog, timing analysis, CMOS and the ASIC or FPGA flow"},
+      {"name": "Embedded Systems", "focus": "microcontrollers, embedded C, interrupts, RTOS tasks, memory and peripheral protocols"},
+      {"name": "Signal Processing", "focus": "sampling, transforms, filter design and real-time DSP trade-offs"},
+      {"name": "Circuit Debugging", "focus": "finding faults in analog and digital circuits with instruments: a methodical debugging story"},
+      {"name": "Techno-HR", "focus": "motivation for core electronics, teamwork in labs and projects, and how the candidate learns new hardware"}
+    ],
+    "mech": [
+      {"name": "Thermal & Fluids", "focus": "thermodynamic cycles, heat transfer, fluid flow and their use in real equipment"},
+      {"name": "CAD & GD&T", "focus": "3D modelling practice, drawings, tolerances, datums and design intent"},
+      {"name": "Manufacturing & Six Sigma", "focus": "processes, process planning, quality tools, lean and DMAIC improvement"},
+      {"name": "EV Systems", "focus": "electric powertrains, batteries and thermal management, vehicle dynamics"},
+      {"name": "Industrial Case Study", "focus": "a shop-floor or design problem to analyse aloud: root cause, options, cost and safety"}
+    ],
+    "civil": [
+      {"name": "Structural Design", "focus": "loads, analysis, RCC and steel design to Indian codes, detailing"},
+      {"name": "Geotechnical", "focus": "soil properties, site investigation, foundations, slopes and retaining structures"},
+      {"name": "Construction Management", "focus": "estimation, scheduling with CPM and PERT, quality, contracts and site coordination"},
+      {"name": "Highway & Transport", "focus": "geometric design, pavements, traffic engineering and IRC practice"},
+      {"name": "Site Safety", "focus": "hazards on site, safety plans, permits, incident handling and codes of practice"}
+    ],
+    "eee": [
+      {"name": "Power Systems", "focus": "transmission, distribution, load flow, faults and protection"},
+      {"name": "Machines & Drives", "focus": "motors, generators, transformers and their control with drives"},
+      {"name": "Power Electronics", "focus": "converters, inverters, switching devices and their control"},
+      {"name": "Automation & PLC", "focus": "PLC programming, SCADA, sensors and industrial networks"},
+      {"name": "Renewables & EV", "focus": "solar and wind systems, storage, grid integration and EV charging"}
+    ],
+    "biotech": [
+      {"name": "Molecular Biology", "focus": "DNA, RNA and protein techniques and how experiments are designed"},
+      {"name": "Bioinformatics", "focus": "sequence analysis, genomics tools, scripting and interpreting results"},
+      {"name": "Bioprocess", "focus": "fermentation, scale-up, downstream processing and GMP"},
+      {"name": "Clinical Research", "focus": "trial phases, GCP, consent, safety reporting and regulators"},
+      {"name": "Lab Case Study", "focus": "an experiment that went wrong: troubleshooting, controls and documentation"}
+    ],
+    "health": [
+      {"name": "Clinical Scenario", "focus": "a patient case: history, differential diagnosis, investigations and management"},
+      {"name": "Pharmacology", "focus": "drug choice, dosing, interactions and adverse effects"},
+      {"name": "Hospital Operations", "focus": "patient flow, accreditation, inventory, billing and quality indicators"},
+      {"name": "Public Health", "focus": "surveillance, national programmes, outbreaks and community interventions"},
+      {"name": "Ethics & Communication", "focus": "consent, confidentiality, breaking bad news and difficult conversations"}
+    ],
+    "corp": [
+      {"name": "Financial Modeling", "focus": "statements, valuation, ratios and building a model with stated assumptions"},
+      {"name": "Supply Chain", "focus": "inventory, forecasting, procurement and logistics decisions"},
+      {"name": "Business Case Study", "focus": "a business problem to structure aloud: framework, numbers and a recommendation"},
+      {"name": "HR Analytics", "focus": "recruitment, attrition, engagement and performance data used for decisions"},
+      {"name": "Leadership", "focus": "leading people and stakeholders: influence, conflict, decisions under uncertainty"}
+    ],
+    "govt_central": [
+      {"name": "Personality Test", "focus": "the candidate's background, motivation for public service and balanced views"},
+      {"name": "Polity & Governance", "focus": "the Constitution, institutions, policy and current governance issues"},
+      {"name": "Economy & Current Affairs", "focus": "the Indian economy, budgets, schemes and recent national events"},
+      {"name": "Situational Judgement", "focus": "an administrative dilemma: options, ethics, stakeholders and the decision"},
+      {"name": "Department Technical", "focus": "the knowledge the chosen service or department tests, at the level of the post"}
+    ],
+    "govt_state": [
+      {"name": "Personality Test", "focus": "the candidate's background, local knowledge and motivation for state service"},
+      {"name": "State Administration", "focus": "state government structure, districts, schemes and service delivery"},
+      {"name": "Rural Development", "focus": "panchayats, rural schemes, social audit and implementation problems"},
+      {"name": "Law & Order", "focus": "policing, criminal law basics, crowd management and public order"},
+      {"name": "Situational Judgement", "focus": "a field problem in district administration: options, ethics and the decision"}
+    ]
+  },
+  "degree_tracks": {
+    "applied_computing": {
+      "degrees": ["BCA", "MCA", "B.Sc", "M.Sc", "M.S (Engineering)"],
+      "label": "Applied Sciences & Computing (BCA / MCA / MSc / MSE)",
+      "tracks": [
+        {"name": "Software Architecture", "focus": "layering, modules, patterns and the trade-offs in an application the candidate built"},
+        {"name": "Data Modeling", "focus": "entities, relationships, normalisation and schema choices for a real problem"},
+        {"name": "Database Optimization", "focus": "indexes, query plans, transactions and tuning a slow query"},
+        {"name": "Security", "focus": "authentication, common web vulnerabilities, secure coding and data protection"},
+        {"name": "Research", "focus": "a research or dissertation topic: question, method, results, limitations and next steps"}
+      ]
+    }
+  }
+}

@@ -6,9 +6,8 @@ docs/REDESIGN_BRIEF.md
 REDESIGN_PROGRESS.md
 docs/REDESIGN_PROGRESS.md
 
-# Question bank datasets (personal / local only)
+# Raw question-bank source; the cleaned bank (data/questions/mcq_bank.csv) is committed
 MCQ.csv*
-data/questions/
 
 # Secrets
 .env

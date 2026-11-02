@@ -42,6 +42,13 @@ def role_skills() -> dict[str, dict[str, str | None]]:
 
 
 @lru_cache(maxsize=1)
+def skill_aliases() -> dict[str, tuple[str, ...]]:
+    """skill -> other names a resume may use for it (role_skills.json "aliases")."""
+    raw = json.loads(ROLE_SKILLS.read_text(encoding="utf-8")).get("aliases", {})
+    return {s: tuple(a) for s, a in raw.items()}
+
+
+@lru_cache(maxsize=1)
 def domains() -> tuple[Domain, ...]:
     out = []
     for d in catalog()["domains"]:

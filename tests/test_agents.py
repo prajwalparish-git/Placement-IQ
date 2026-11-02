@@ -31,7 +31,7 @@ def test_profile_scores_are_computed_in_code(profile):
     required = agents.roles()[ROLE]
     assert set(profile.matched_skills) | set(profile.missing_skills) == set(required)
     assert not set(profile.matched_skills) & set(profile.missing_skills)
-    assert profile.readiness_score == round(100 * len(profile.matched_skills) / len(required))
+    assert profile.readiness_score == checks.readiness_score(required, profile.matched_skills)
     assert "Java" in profile.matched_skills and "Operating Systems" in profile.missing_skills
     assert agents.missing_topics(profile) >= {"OS", "DSA"}
 
@@ -249,3 +249,35 @@ def test_unknown_role_is_rejected_before_any_llm_call():
     with pytest.raises(ValueError, match="unknown target role"):
         agents.create_profile(RESUME, "Astronaut")
     assert db.agent_stats() == []
+
+
+def test_a_claimed_skill_the_resume_never_names_does_not_count(monkeypatch):
+    # Strict readiness: the model may infer "Operating Systems" from context, but the resume
+    # has to say it for a recruiter or an ATS to see it.
+    real = mock._HANDLERS["profile"]
+
+    def infers(ctx):
+        out = real(ctx)
+        out["matched_skills"] = [*out["matched_skills"], "Operating Systems"]
+        return out
+
+    monkeypatch.setitem(mock._HANDLERS, "profile", infers)
+    p = agents.create_profile(RESUME, ROLE)
+    assert "Operating Systems" not in p.matched_skills
+    assert "Operating Systems" in p.missing_skills
+    assert any("Operating Systems" in f and "in words" in f for f in p.resume_feedback)
+    assert len(p.resume_feedback) <= 5
+    assert p.readiness_score == checks.readiness_score(agents.roles()[ROLE], p.matched_skills)
+
+
+def test_an_alias_on_the_resume_counts_as_the_skill(monkeypatch):
+    real = mock._HANDLERS["profile"]
+
+    def claims_ds(ctx):
+        out = real(ctx)
+        out["matched_skills"] = [*out["matched_skills"], "Data Structures"]
+        return out
+
+    monkeypatch.setitem(mock._HANDLERS, "profile", claims_ds)
+    p = agents.create_profile(RESUME + "\nPractised DSA daily for a year.", ROLE)
+    assert "Data Structures" in p.matched_skills

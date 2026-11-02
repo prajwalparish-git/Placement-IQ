@@ -49,6 +49,9 @@ LAYERS = {
     "test_summary_pdf": ("Unit", "Summary PDF builder"),
     "test_resume_builder": ("Unit", "ATS resume builder and PDF compilation"),
     "test_scorecard": ("Unit", "Evaluation scorecard parameters and ratings"),
+    "test_degrees": ("Unit", "Degrees and the roles they qualify for"),
+    "test_question_bank": ("Integration", "Local question bank and its share of quizzes"),
+    "test_server": ("Integration", "HTTP API for the Next.js frontend"),
     "test_ui": ("System (UI)", "Streamlit pages, headless"),
 }
 ORDER = list(LAYERS)

@@ -5,7 +5,10 @@
       "name": "Computer Science & IT",
       "icon": "computer",
       "description": "Software architecture, full stack web development, cloud computing, AI, and cybersecurity systems.",
-      "topics": ["Aptitude", "DBMS", "OS", "CN", "DSA", "OOP", "System Design", "Web Development", "DevOps & Cloud", "ML & Data Science"],
+      "topics": [
+        "Aptitude", "DBMS", "OS", "CN", "DSA", "OOP", "System Design", "Web Development",
+        "DevOps & Cloud", "ML & Data Science"
+      ],
       "core_topics": 6,
       "code_space": true,
       "roles": [
@@ -14,9 +17,18 @@
           "category": "Computer Science",
           "description": "Designs, develops, tests, and deploys high-scale software applications and robust distributed systems.",
           "recommended_degree": "B.E / B.Tech in CS/IT/ECE or MCA",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "@computing", "B.Sc", "M.Sc"],
+            "fields": [
+              "computer", "information technology", "information science", "IT", "software",
+              "data science", "artificial intelligence", "machine learning",
+              "computer applications", "cyber security", "electronics"
+            ]
+          },
           "ats_keywords": [
             "Python", "Java", "C++", "Data Structures", "Algorithms", "System Design", "SQL",
-            "Git", "Docker", "REST APIs", "Unit Testing", "CI/CD", "Object-Oriented Programming", "Linux", "Microservices"
+            "Git", "Docker", "REST APIs", "Unit Testing", "CI/CD", "Object-Oriented Programming",
+            "Linux", "Microservices"
           ],
           "sample_projects": [
             {
@@ -34,9 +46,19 @@
           "category": "Computer Science",
           "description": "Applies statistical modeling, machine learning, and deep predictive analytics to solve complex industry problems.",
           "recommended_degree": "B.E / B.Tech / M.Tech in CS/Data Science/Maths/Stats",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "@computing", "B.Sc", "M.Sc"],
+            "fields": [
+              "computer", "information technology", "information science", "IT", "software",
+              "data science", "artificial intelligence", "machine learning",
+              "computer applications", "cyber security", "electronics", "statistics",
+              "mathematics", "maths"
+            ]
+          },
           "ats_keywords": [
-            "Python", "Machine Learning", "Pandas", "NumPy", "Scikit-Learn", "SQL", "Deep Learning",
-            "TensorFlow", "PyTorch", "Data Visualization", "Statistics", "Model Deployment", "Git"
+            "Python", "Machine Learning", "Pandas", "NumPy", "Scikit-Learn", "SQL",
+            "Deep Learning", "TensorFlow", "PyTorch", "Data Visualization", "Statistics",
+            "Model Deployment", "Git"
           ],
           "sample_projects": [
             {
@@ -54,9 +76,18 @@
           "category": "Computer Science",
           "description": "Architects responsive, accessible, and high-performance user interfaces using modern web frameworks.",
           "recommended_degree": "B.E / B.Tech in CS/IT or BCA/MCA",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "@computing", "B.Sc", "M.Sc"],
+            "fields": [
+              "computer", "information technology", "information science", "IT", "software",
+              "data science", "artificial intelligence", "machine learning",
+              "computer applications", "cyber security", "electronics"
+            ]
+          },
           "ats_keywords": [
             "React", "TypeScript", "JavaScript", "HTML5", "CSS3", "Next.js", "Redux Toolkit",
-            "Tailwind CSS", "REST APIs", "Webpack", "Vite", "Responsive Design", "Jest", "Git", "Web Vitals", "CI/CD"
+            "Tailwind CSS", "REST APIs", "Webpack", "Vite", "Responsive Design", "Jest", "Git",
+            "Web Vitals", "CI/CD"
           ],
           "sample_projects": [
             {
@@ -74,9 +105,18 @@
           "category": "Computer Science",
           "description": "Develops resilient microservices, business logic, scalable APIs, and database transactions.",
           "recommended_degree": "B.E / B.Tech in CS/IT",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "@computing", "B.Sc", "M.Sc"],
+            "fields": [
+              "computer", "information technology", "information science", "IT", "software",
+              "data science", "artificial intelligence", "machine learning",
+              "computer applications", "cyber security", "electronics"
+            ]
+          },
           "ats_keywords": [
             "Java", "Python", "Spring Boot", "Django", "SQL", "PostgreSQL", "MongoDB", "Redis",
-            "Microservices", "RESTful APIs", "Docker", "Apache Kafka", "System Design", "Unit Testing", "Git"
+            "Microservices", "RESTful APIs", "Docker", "Apache Kafka", "System Design",
+            "Unit Testing", "Git"
           ],
           "sample_projects": [
             {
@@ -94,6 +134,14 @@
           "category": "Computer Science",
           "description": "Bridges frontend client interfaces and backend distributed cloud architectures.",
           "recommended_degree": "B.E / B.Tech in CS/IT",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "@computing", "B.Sc", "M.Sc"],
+            "fields": [
+              "computer", "information technology", "information science", "IT", "software",
+              "data science", "artificial intelligence", "machine learning",
+              "computer applications", "cyber security", "electronics"
+            ]
+          },
           "ats_keywords": [
             "JavaScript", "TypeScript", "React", "Node.js", "Express.js", "PostgreSQL", "MongoDB",
             "REST APIs", "GraphQL", "Docker", "AWS", "Git", "Agile", "Tailwind CSS", "Jest"
@@ -114,6 +162,14 @@
           "category": "Computer Science",
           "description": "Automates cloud infrastructure, continuous delivery pipelines, and container orchestration.",
           "recommended_degree": "B.E / B.Tech in CS/IT/ECE",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "@computing", "B.Sc", "M.Sc"],
+            "fields": [
+              "computer", "information technology", "information science", "IT", "software",
+              "data science", "artificial intelligence", "machine learning",
+              "computer applications", "cyber security", "electronics"
+            ]
+          },
           "ats_keywords": [
             "AWS", "Docker", "Kubernetes", "Terraform", "CI/CD", "Linux", "Bash", "GitHub Actions",
             "Prometheus", "Grafana", "Ansible", "CloudFormation", "Networking", "IAM", "Helm"
@@ -134,6 +190,19 @@
           "category": "Computer Science",
           "description": "Extracts actionable business intelligence through statistical modeling, SQL transformations, and BI dashboards.",
           "recommended_degree": "B.E / B.Tech in CS/IT/Stats or B.Sc/B.Com",
+          "eligibility": {
+            "degrees": [
+              "@engineering_ug", "@engineering_pg", "@computing", "B.Sc", "M.Sc", "@commerce",
+              "@management", "@arts"
+            ],
+            "fields": [
+              "computer", "information technology", "information science", "IT", "software",
+              "data science", "artificial intelligence", "machine learning",
+              "computer applications", "cyber security", "electronics", "statistics",
+              "mathematics", "maths", "economics", "commerce", "finance", "business analytics",
+              "analytics"
+            ]
+          },
           "ats_keywords": [
             "SQL", "Python", "Pandas", "Power BI", "Tableau", "Excel", "Data Modeling", "ETL",
             "Statistics", "Hypothesis Testing", "Data Visualization", "DAX", "BigQuery", "Git"
@@ -154,9 +223,17 @@
           "category": "Computer Science",
           "description": "Trains predictive models, deep neural networks, and integrates AI inference endpoints into products.",
           "recommended_degree": "B.E / B.Tech in CS/AI/DS",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "MCA", "M.Sc"],
+            "fields": [
+              "computer", "information technology", "IT", "artificial intelligence",
+              "machine learning", "data science", "computer applications", "mathematics"
+            ]
+          },
           "ats_keywords": [
-            "Python", "PyTorch", "TensorFlow", "Scikit-Learn", "Machine Learning", "Deep Learning", "NLP",
-            "Computer Vision", "Transformers", "Data Preprocessing", "Feature Engineering", "MLOps", "Docker", "Git"
+            "Python", "PyTorch", "TensorFlow", "Scikit-Learn", "Machine Learning", "Deep Learning",
+            "NLP", "Computer Vision", "Transformers", "Data Preprocessing", "Feature Engineering",
+            "MLOps", "Docker", "Git"
           ],
           "sample_projects": [
             {
@@ -168,6 +245,157 @@
               ]
             }
           ]
+        },
+        {
+          "name": "Cybersecurity Analyst",
+          "category": "Computer Science",
+          "description": "Monitors, tests and hardens networks, hosts and web applications, and investigates incidents and vulnerabilities.",
+          "recommended_degree": "B.E / B.Tech in CS/IT/ECE, BCA/MCA or B.Sc/M.Sc Cyber Security",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "@computing", "B.Sc", "M.Sc"],
+            "fields": [
+              "computer", "information technology", "information science", "IT", "software",
+              "data science", "artificial intelligence", "machine learning",
+              "computer applications", "cyber security", "electronics", "security", "networking"
+            ]
+          },
+          "ats_keywords": [
+            "Network Security", "Penetration Testing", "Vulnerability Assessment", "OWASP Top 10",
+            "SIEM", "Splunk", "Wireshark", "Nmap", "Burp Suite", "Linux", "Firewalls",
+            "Incident Response", "Cryptography", "Python"
+          ],
+          "sample_projects": [
+            {
+              "title": "Home-Lab SOC with SIEM Alerting",
+              "tech": "Splunk, Suricata, Linux, Python",
+              "bullets": [
+                "Built a three-VM lab that forwards IDS and host logs to Splunk and raises alerts for brute-force and port-scan patterns.",
+                "Wrote 12 detection rules mapped to MITRE ATT&CK and cut false positives by 40% through threshold tuning."
+              ]
+            },
+            {
+              "title": "Web Application Vulnerability Assessment",
+              "tech": "Burp Suite, OWASP ZAP, Nmap",
+              "bullets": [
+                "Assessed a deliberately vulnerable web app against the OWASP Top 10 and documented 15 findings with CVSS scores.",
+                "Wrote remediation guidance and verified fixes for SQL injection, XSS and broken access control."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Database Administrator (DBA)",
+          "category": "Computer Science",
+          "description": "Installs, tunes, secures and backs up production databases, and owns availability, replication and query performance.",
+          "recommended_degree": "B.E / B.Tech in CS/IT, BCA/MCA or B.Sc Computer Science",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "@computing", "B.Sc", "M.Sc"],
+            "fields": [
+              "computer", "information technology", "information science", "IT", "software",
+              "data science", "artificial intelligence", "machine learning",
+              "computer applications", "cyber security", "electronics"
+            ]
+          },
+          "ats_keywords": [
+            "SQL", "PostgreSQL", "MySQL", "Oracle Database", "Indexing", "Query Optimization",
+            "Backup and Recovery", "Replication", "Sharding", "Transactions", "Performance Tuning",
+            "Linux", "Shell Scripting"
+          ],
+          "sample_projects": [
+            {
+              "title": "PostgreSQL Replication and Point-in-Time Recovery",
+              "tech": "PostgreSQL, Linux, Bash",
+              "bullets": [
+                "Configured streaming replication with automatic failover and measured a 9-second recovery time in drills.",
+                "Automated nightly base backups with WAL archiving and restored to any point in the last 7 days."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Mobile App Developer",
+          "category": "Computer Science",
+          "description": "Builds, tests and ships Android, iOS and cross-platform apps with clean architecture and offline-ready data.",
+          "recommended_degree": "B.E / B.Tech in CS/IT or BCA/MCA",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "@computing", "B.Sc", "M.Sc"],
+            "fields": [
+              "computer", "information technology", "information science", "IT", "software",
+              "data science", "artificial intelligence", "machine learning",
+              "computer applications", "cyber security", "electronics"
+            ]
+          },
+          "ats_keywords": [
+            "Kotlin", "Android SDK", "Flutter", "Dart", "Jetpack Compose", "MVVM", "REST APIs",
+            "SQLite", "Firebase", "Git", "Unit Testing", "Play Store"
+          ],
+          "sample_projects": [
+            {
+              "title": "Offline-First Expense Tracker App",
+              "tech": "Flutter, Dart, SQLite, Firebase",
+              "bullets": [
+                "Built a cross-platform app with local SQLite storage that syncs to Firebase when the device reconnects.",
+                "Reduced cold-start time by 35% by deferring chart rendering and caching the dashboard query."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "QA & Test Automation Engineer",
+          "category": "Computer Science",
+          "description": "Designs test strategies and automates UI and API tests so releases ship with measurable quality.",
+          "recommended_degree": "B.E / B.Tech in CS/IT, BCA/MCA or B.Sc Computer Science",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "@computing", "B.Sc", "M.Sc"],
+            "fields": [
+              "computer", "information technology", "information science", "IT", "software",
+              "data science", "artificial intelligence", "machine learning",
+              "computer applications", "cyber security", "electronics"
+            ]
+          },
+          "ats_keywords": [
+            "Selenium", "Cypress", "Test Automation", "Manual Testing", "Test Cases",
+            "API Testing", "Postman", "JIRA", "Java", "Python", "SQL", "Regression Testing",
+            "CI/CD", "Agile"
+          ],
+          "sample_projects": [
+            {
+              "title": "Automated Regression Suite for an E-commerce Site",
+              "tech": "Selenium, Java, TestNG, Jenkins",
+              "bullets": [
+                "Automated 120 regression cases with the page-object pattern and ran them on every merge in Jenkins.",
+                "Cut the regression cycle from two days of manual testing to 25 minutes."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Site Reliability Engineer (SRE)",
+          "category": "Computer Science",
+          "description": "Keeps production services reliable through monitoring, automation, capacity planning and blameless incident response.",
+          "recommended_degree": "B.E / B.Tech in CS/IT/ECE or MCA",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "@computing", "B.Sc", "M.Sc"],
+            "fields": [
+              "computer", "information technology", "information science", "IT", "software",
+              "data science", "artificial intelligence", "machine learning",
+              "computer applications", "cyber security", "electronics"
+            ]
+          },
+          "ats_keywords": [
+            "Linux", "Kubernetes", "Docker", "Prometheus", "Grafana", "Terraform", "AWS", "Python",
+            "Go", "SLOs", "Incident Management", "Distributed Systems", "Networking", "CI/CD"
+          ],
+          "sample_projects": [
+            {
+              "title": "SLO Dashboard and Alerting for a Microservice Stack",
+              "tech": "Kubernetes, Prometheus, Grafana, Python",
+              "bullets": [
+                "Defined latency and availability SLOs for four services and alerted on error-budget burn rate.",
+                "Cut mean time to detect from 15 minutes to under 2 minutes in game-day drills."
+              ]
+            }
+          ]
         }
       ]
     },
@@ -176,7 +404,11 @@
       "name": "Electronics & Communication",
       "icon": "memory",
       "description": "Semiconductor VLSI design, embedded firmware, IoT edge hardware, and telecommunications.",
-      "topics": ["Aptitude", "Embedded C", "Microcontrollers", "Digital Electronics", "Communication Protocols", "RTOS", "Analog Electronics", "VLSI & Verilog", "Signals & Systems"],
+      "topics": [
+        "Aptitude", "Embedded C", "Microcontrollers", "Digital Electronics",
+        "Communication Protocols", "RTOS", "Analog Electronics", "VLSI & Verilog",
+        "Signals & Systems", "RF & Communication"
+      ],
       "core_topics": 1,
       "code_space": true,
       "roles": [
@@ -185,9 +417,17 @@
           "category": "Electronics & Communication Engineering",
           "description": "Designs digital logic, synthesizes RTL code, and performs Static Timing Analysis (STA) on silicon chips.",
           "recommended_degree": "B.E / B.Tech in ECE/EEE",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg"],
+            "fields": [
+              "electronics", "electrical", "VLSI", "microelectronics", "telecommunication",
+              "instrumentation"
+            ]
+          },
           "ats_keywords": [
-            "Verilog", "VHDL", "Digital Electronics", "Static Timing Analysis (STA)", "CMOS", "RTL Design",
-            "ASIC Design Flow", "FPGA", "Xilinx Vivado", "ModelSim", "Logic Synthesis", "Clock Domain Crossing", "Low Power Design"
+            "Verilog", "VHDL", "Digital Electronics", "Static Timing Analysis (STA)", "CMOS",
+            "RTL Design", "ASIC Design Flow", "FPGA", "Xilinx Vivado", "ModelSim",
+            "Logic Synthesis", "Clock Domain Crossing", "Low Power Design"
           ],
           "sample_projects": [
             {
@@ -205,9 +445,17 @@
           "category": "Electronics & Communication Engineering",
           "description": "Programs bare-metal and RTOS microcontrollers, writes hardware drivers, and debugs serial protocols.",
           "recommended_degree": "B.E / B.Tech in ECE/EEE/CS",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg"],
+            "fields": [
+              "electronics", "electrical", "computer", "instrumentation", "mechatronics",
+              "embedded", "telecommunication"
+            ]
+          },
           "ats_keywords": [
-            "Embedded C", "ARM Cortex-M", "RTOS", "Microcontrollers", "I2C", "SPI", "UART", "CAN Bus",
-            "Device Drivers", "Oscilloscope", "FreeRTOS", "Memory Management", "Firmware Debugging", "Hardware Interfacing"
+            "Embedded C", "ARM Cortex-M", "RTOS", "Microcontrollers", "I2C", "SPI", "UART",
+            "CAN Bus", "Device Drivers", "Oscilloscope", "FreeRTOS", "Memory Management",
+            "Firmware Debugging", "Hardware Interfacing"
           ],
           "sample_projects": [
             {
@@ -219,6 +467,141 @@
               ]
             }
           ]
+        },
+        {
+          "name": "Embedded Software Engineer",
+          "category": "Electronics & Communication Engineering",
+          "description": "Writes C firmware, device drivers and RTOS tasks for microcontroller-based products.",
+          "recommended_degree": "B.E / B.Tech in ECE/EEE/CS/IT",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg"],
+            "fields": [
+              "electronics", "electrical", "computer", "information technology", "IT",
+              "instrumentation", "mechatronics", "embedded", "telecommunication"
+            ]
+          },
+          "ats_keywords": [
+            "Embedded C", "C++", "RTOS", "FreeRTOS", "Device Drivers", "ARM Cortex-M",
+            "Microcontrollers", "I2C", "SPI", "UART", "Debugging", "Memory Management", "Git",
+            "Linux"
+          ],
+          "sample_projects": [
+            {
+              "title": "FreeRTOS Sensor Hub with a Custom I2C Driver",
+              "tech": "STM32, FreeRTOS, Embedded C",
+              "bullets": [
+                "Wrote an interrupt-driven I2C driver and three RTOS tasks that sample, filter and log sensor data.",
+                "Cut RAM use by 30% by replacing dynamic allocation with static task stacks and message queues."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "IoT & Edge Hardware Engineer",
+          "category": "Electronics & Communication Engineering",
+          "description": "Builds connected sensor devices: sensor interfacing, low-power firmware and wireless links to the cloud.",
+          "recommended_degree": "B.E / B.Tech in ECE/EEE/CS or Diploma in Electronics",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "Diploma"],
+            "fields": [
+              "electronics", "electrical", "computer", "instrumentation", "telecommunication",
+              "mechatronics", "IoT"
+            ]
+          },
+          "ats_keywords": [
+            "IoT", "ESP32", "Arduino", "Raspberry Pi", "MQTT", "BLE", "Wi-Fi",
+            "Sensor Interfacing", "ADC", "Embedded C", "Low-Power Design", "PCB Design", "Python"
+          ],
+          "sample_projects": [
+            {
+              "title": "Solar-Powered Air Quality Node",
+              "tech": "ESP32, MQTT, BME680, KiCad",
+              "bullets": [
+                "Designed a two-layer PCB and firmware that publishes air-quality readings over MQTT every five minutes.",
+                "Extended battery life from 4 to 21 days with deep-sleep scheduling and batched Wi-Fi uploads."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Robotics & Control Systems Engineer",
+          "category": "Electronics & Communication Engineering",
+          "description": "Models, tunes and implements feedback controllers for robots, drives and electromechanical systems.",
+          "recommended_degree": "B.E / B.Tech in ECE/EEE/Instrumentation/Mechatronics",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg"],
+            "fields": [
+              "electronics", "electrical", "instrumentation", "mechatronics", "robotics",
+              "control", "mechanical", "automation"
+            ]
+          },
+          "ats_keywords": [
+            "Control Systems", "PID Control", "MATLAB", "Simulink", "State Space", "Bode Plot",
+            "ROS", "Sensors", "Actuators", "Motor Control", "PWM", "Embedded C", "Kinematics"
+          ],
+          "sample_projects": [
+            {
+              "title": "Self-Balancing Robot with a Tuned PID Loop",
+              "tech": "STM32, MPU6050, MATLAB",
+              "bullets": [
+                "Modelled the inverted-pendulum plant in MATLAB and tuned a PID loop that holds balance within 2 degrees.",
+                "Ran the controller at 200 Hz on an STM32 with complementary-filtered IMU readings."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Signal Processing Engineer",
+          "category": "Electronics & Communication Engineering",
+          "description": "Designs filters, transforms and real-time DSP algorithms for audio, radar, communication and biomedical signals.",
+          "recommended_degree": "B.E / B.Tech / M.Tech in ECE/EEE",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg"],
+            "fields": [
+              "electronics", "electrical", "telecommunication", "instrumentation",
+              "signal processing", "communication"
+            ]
+          },
+          "ats_keywords": [
+            "Digital Signal Processing", "MATLAB", "Python", "FFT", "FIR Filters", "IIR Filters",
+            "Z-Transform", "Sampling", "Fixed-Point Arithmetic", "DSP Processors", "NumPy",
+            "SciPy"
+          ],
+          "sample_projects": [
+            {
+              "title": "Real-Time Audio Noise Reduction",
+              "tech": "Python, NumPy, SciPy, MATLAB",
+              "bullets": [
+                "Designed FIR and IIR filters and an FFT-based spectral-subtraction stage for speech recordings.",
+                "Improved signal-to-noise ratio by 9 dB on 40 test clips with latency below 20 ms."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Telecommunications & RF Engineer",
+          "category": "Electronics & Communication Engineering",
+          "description": "Plans, tests and optimises radio, microwave and cellular networks, from antennas to 4G/5G cores.",
+          "recommended_degree": "B.E / B.Tech in ECE / Telecommunication",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "Diploma"],
+            "fields": ["electronics", "telecommunication", "communication", "electrical"]
+          },
+          "ats_keywords": [
+            "RF Engineering", "Antenna Design", "4G LTE", "5G NR", "Modulation", "OFDM",
+            "Microwave Engineering", "Transmission Lines", "Spectrum Analyzer", "Link Budget",
+            "Drive Testing", "RF Planning", "MATLAB"
+          ],
+          "sample_projects": [
+            {
+              "title": "2.4 GHz Microstrip Patch Antenna",
+              "tech": "HFSS, Vector Network Analyzer",
+              "bullets": [
+                "Designed and simulated a patch antenna, then fabricated it and measured -22 dB return loss at 2.42 GHz.",
+                "Matched simulated and measured bandwidth within 4% after correcting the feed-line inset."
+              ]
+            }
+          ]
         }
       ]
     },
@@ -227,7 +610,11 @@
       "name": "Mechanical Engineering",
       "icon": "precision_manufacturing",
       "description": "Automotive systems, thermal design, FEA stress analysis, CAD product engineering, and mechatronics.",
-      "topics": ["Aptitude", "Thermodynamics", "Strength of Materials", "Theory of Machines", "Manufacturing Processes", "CAD & Engineering Drawing", "Fluid Mechanics", "EV & Battery Systems"],
+      "topics": [
+        "Aptitude", "Thermodynamics", "Strength of Materials", "Theory of Machines",
+        "Manufacturing Processes", "CAD & Engineering Drawing", "Fluid Mechanics",
+        "EV & Battery Systems", "Robotics & Mechatronics", "Heat Transfer & HVAC"
+      ],
       "core_topics": 1,
       "code_space": false,
       "roles": [
@@ -236,9 +623,14 @@
           "category": "Mechanical Engineering",
           "description": "Engineers vehicle dynamics, electric vehicle battery pack cooling, and chassis structural components.",
           "recommended_degree": "B.E / B.Tech in Mechanical / Automobile",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "Diploma"],
+            "fields": ["mechanical", "automobile", "automotive", "mechatronics", "electrical"]
+          },
           "ats_keywords": [
-            "Automotive Dynamics", "Battery Management Systems", "Powertrain Design", "Thermal Management", "SolidWorks",
-            "ANSYS FEA", "GD&T", "Matlab Simulink", "Chassis Design", "DFM/DFA", "Braking Systems", "Vehicle Safety"
+            "Automotive Dynamics", "Battery Management Systems", "Powertrain Design",
+            "Thermal Management", "SolidWorks", "ANSYS FEA", "GD&T", "Matlab Simulink",
+            "Chassis Design", "DFM/DFA", "Braking Systems", "Vehicle Safety"
           ],
           "sample_projects": [
             {
@@ -256,9 +648,17 @@
           "category": "Mechanical Engineering",
           "description": "Creates 3D parametric components, drafts production drawings with GD&T, and conducts finite element analysis.",
           "recommended_degree": "B.E / B.Tech in Mechanical Engineering",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "Diploma", "B.Des", "M.Des"],
+            "fields": [
+              "mechanical", "production", "industrial", "automobile", "design", "mechatronics",
+              "manufacturing"
+            ]
+          },
           "ats_keywords": [
-            "SolidWorks", "CATIA", "AutoCAD", "GD&T", "FEA Stress Analysis", "ANSYS", "Injection Molding",
-            "Sheet Metal Design", "Design for Manufacturing (DFM)", "Tolerance Stackup", "Prototyping", "3D Printing"
+            "SolidWorks", "CATIA", "AutoCAD", "GD&T", "FEA Stress Analysis", "ANSYS",
+            "Injection Molding", "Sheet Metal Design", "Design for Manufacturing (DFM)",
+            "Tolerance Stackup", "Prototyping", "3D Printing"
           ],
           "sample_projects": [
             {
@@ -270,6 +670,86 @@
               ]
             }
           ]
+        },
+        {
+          "name": "Manufacturing & Production Engineer",
+          "category": "Mechanical Engineering",
+          "description": "Plans machining, casting and welding processes and improves quality, cost and throughput on the shop floor.",
+          "recommended_degree": "B.E / B.Tech or Diploma in Mechanical / Production / Industrial Engineering",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "Diploma"],
+            "fields": [
+              "mechanical", "production", "industrial", "manufacturing", "automobile",
+              "mechatronics"
+            ]
+          },
+          "ats_keywords": [
+            "CNC Programming", "G-Code", "Lean Manufacturing", "Six Sigma", "Process Planning",
+            "Casting", "Welding", "Sheet Metal", "Metrology", "Quality Control", "Kaizen", "5S",
+            "AutoCAD"
+          ],
+          "sample_projects": [
+            {
+              "title": "Cycle-Time Reduction on a CNC Turning Cell",
+              "tech": "CNC, G-Code, Value Stream Mapping",
+              "bullets": [
+                "Mapped the value stream of a turning cell and removed two non-value-adding setups.",
+                "Reduced cycle time by 18% and scrap by 6% after re-sequencing operations and fixturing."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Robotics & Mechatronics Engineer",
+          "category": "Mechanical Engineering",
+          "description": "Integrates mechanisms, actuators, sensors and controllers into robotic and automated machines.",
+          "recommended_degree": "B.E / B.Tech in Mechanical / Mechatronics / Robotics",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg"],
+            "fields": [
+              "mechanical", "mechatronics", "robotics", "automation", "electrical", "electronics",
+              "production"
+            ]
+          },
+          "ats_keywords": [
+            "Robotics", "Kinematics", "Mechatronics", "PLC", "Pneumatics", "Hydraulics",
+            "Servo Motors", "Sensors", "SolidWorks", "ROS", "MATLAB", "Arduino", "Automation"
+          ],
+          "sample_projects": [
+            {
+              "title": "Pick-and-Place Arm with Inverse Kinematics",
+              "tech": "SolidWorks, Arduino, Python",
+              "bullets": [
+                "Designed a 4-DOF arm in SolidWorks and solved inverse kinematics for target points in its workspace.",
+                "Achieved 3 mm repeatability over 100 pick-and-place cycles after calibrating servo offsets."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Thermal & HVAC Design Engineer",
+          "category": "Mechanical Engineering",
+          "description": "Sizes heating, ventilation and cooling systems and analyses heat transfer for buildings and equipment.",
+          "recommended_degree": "B.E / B.Tech in Mechanical Engineering",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "Diploma"],
+            "fields": ["mechanical", "thermal", "automobile", "production", "energy"]
+          },
+          "ats_keywords": [
+            "HVAC Design", "Heat Load Calculation", "Thermodynamics", "Heat Transfer",
+            "Refrigeration", "Psychrometry", "Duct Design", "ASHRAE", "HAP", "AutoCAD", "CFD",
+            "Chillers"
+          ],
+          "sample_projects": [
+            {
+              "title": "HVAC Design for a Three-Floor Office",
+              "tech": "HAP, AutoCAD, ASHRAE standards",
+              "bullets": [
+                "Calculated cooling loads for 24 zones and sized a 90 TR chilled-water system.",
+                "Laid out ducts with the equal-friction method and kept noise below NC-35 in work areas."
+              ]
+            }
+          ]
         }
       ]
     },
@@ -278,7 +758,11 @@
       "name": "Civil Engineering",
       "icon": "apartment",
       "description": "Reinforced concrete design, geotechnical foundations, highway transport, and construction management.",
-      "topics": ["Aptitude", "Structural Analysis", "RCC Design", "Steel Design", "Geotechnical Engineering", "Surveying", "Construction Management", "Civil CAD Tools"],
+      "topics": [
+        "Aptitude", "Structural Analysis", "RCC Design", "Steel Design",
+        "Geotechnical Engineering", "Surveying", "Construction Management", "Civil CAD Tools",
+        "Transportation Engineering", "Water Resources & Environment"
+      ],
       "core_topics": 1,
       "code_space": false,
       "roles": [
@@ -287,9 +771,14 @@
           "category": "Civil Engineering",
           "description": "Performs load calculations, structural framing analysis, and designs RCC and steel structures adhering to IS codes.",
           "recommended_degree": "B.E / B.Tech in Civil Engineering",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg"],
+            "fields": ["civil", "structural"]
+          },
           "ats_keywords": [
             "RCC Design", "Steel Structures", "STAAD.Pro", "ETABS", "AutoCAD", "IS 456", "IS 800",
-            "Structural Analysis", "Foundation Design", "Seismic Engineering", "Bending Moment Calculations", "Rebar Detailing"
+            "Structural Analysis", "Foundation Design", "Seismic Engineering",
+            "Bending Moment Calculations", "Rebar Detailing"
           ],
           "sample_projects": [
             {
@@ -301,6 +790,109 @@
               ]
             }
           ]
+        },
+        {
+          "name": "Construction Project Manager",
+          "category": "Civil Engineering",
+          "description": "Plans, schedules, estimates and supervises construction projects to deliver on time, on budget and safely.",
+          "recommended_degree": "B.E / B.Tech in Civil Engineering, or a construction management postgraduate",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "Diploma", "MBA", "PGDM", "B.Arch", "M.Arch"],
+            "fields": [
+              "civil", "construction", "structural", "architecture", "infrastructure",
+              "project management"
+            ]
+          },
+          "ats_keywords": [
+            "Project Planning", "Primavera P6", "MS Project", "Quantity Surveying", "Estimation",
+            "Costing", "CPM", "PERT", "Site Supervision", "Quality Control", "Safety Management",
+            "Contract Management", "AutoCAD"
+          ],
+          "sample_projects": [
+            {
+              "title": "Schedule and Cost Plan for a G+4 Residential Block",
+              "tech": "Primavera P6, MS Excel, AutoCAD",
+              "bullets": [
+                "Built a 180-activity CPM schedule and identified the critical path for the structural works.",
+                "Prepared a bill of quantities and estimate within 5% of the contractor's final bid."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Geotechnical & Foundation Engineer",
+          "category": "Civil Engineering",
+          "description": "Investigates soils and designs shallow and deep foundations, retaining walls and slopes.",
+          "recommended_degree": "B.E / B.Tech / M.Tech in Civil / Geotechnical Engineering",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg"],
+            "fields": ["civil", "geotechnical", "structural"]
+          },
+          "ats_keywords": [
+            "Soil Mechanics", "Foundation Design", "Pile Foundations", "SPT", "Bearing Capacity",
+            "Slope Stability", "Retaining Walls", "Consolidation", "PLAXIS", "GEO5",
+            "Site Investigation", "IS 6403"
+          ],
+          "sample_projects": [
+            {
+              "title": "Foundation Design from SPT Borehole Data",
+              "tech": "Excel, GEO5, IS 6403",
+              "bullets": [
+                "Interpreted six SPT borehole logs and computed safe bearing capacity for isolated and raft footings.",
+                "Recommended a raft after settlement checks, cutting differential settlement by 60%."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Transportation & Highway Engineer",
+          "category": "Civil Engineering",
+          "description": "Designs highways, pavements, junctions and traffic systems to IRC standards.",
+          "recommended_degree": "B.E / B.Tech / M.Tech in Civil / Transportation Engineering",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "Diploma"],
+            "fields": ["civil", "transportation", "highway", "infrastructure"]
+          },
+          "ats_keywords": [
+            "Highway Design", "Pavement Design", "IRC Codes", "Traffic Engineering",
+            "Geometric Design", "Bitumen Testing", "Civil 3D", "AutoCAD", "MX Road",
+            "Traffic Surveys", "Drainage Design"
+          ],
+          "sample_projects": [
+            {
+              "title": "Flexible Pavement Design for a District Road",
+              "tech": "IRC 37, Excel, AutoCAD Civil 3D",
+              "bullets": [
+                "Designed a flexible pavement for 20 msa traffic using IRC 37 and CBR test values.",
+                "Reduced crust thickness by 12% with a cement-treated sub-base after checking fatigue strain."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Water Resources & Environmental Engineer",
+          "category": "Civil Engineering",
+          "description": "Designs water supply, sewage treatment, drainage and irrigation systems and studies hydrology.",
+          "recommended_degree": "B.E / B.Tech / M.Tech in Civil / Environmental Engineering",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg"],
+            "fields": ["civil", "environmental", "water resources", "hydraulics"]
+          },
+          "ats_keywords": [
+            "Hydrology", "Hydraulics", "Water Treatment", "Wastewater Treatment",
+            "Open Channel Flow", "Irrigation Engineering", "EPANET", "HEC-RAS", "GIS",
+            "Environmental Impact Assessment", "BOD", "COD"
+          ],
+          "sample_projects": [
+            {
+              "title": "Water Distribution Network for a Township",
+              "tech": "EPANET, QGIS, Excel",
+              "bullets": [
+                "Modelled a 14 km distribution network in EPANET and sized pipes for a 30-year design population.",
+                "Kept residual pressure above 12 m at every node at peak demand while trimming pipe cost by 9%."
+              ]
+            }
+          ]
         }
       ]
     },
@@ -309,7 +901,11 @@
       "name": "Electrical Engineering",
       "icon": "bolt",
       "description": "Grid power systems, industrial PLC automation, motor drives, and solar/wind renewable integrations.",
-      "topics": ["Aptitude", "Electrical Machines", "Power Systems", "Control Systems", "PLC & SCADA", "Power Electronics", "Sensors & Instrumentation", "Electrical Safety & Standards"],
+      "topics": [
+        "Aptitude", "Electrical Machines", "Power Systems", "Control Systems", "PLC & SCADA",
+        "Power Electronics", "Sensors & Instrumentation", "Electrical Safety & Standards",
+        "Renewable Energy", "Electric Vehicles"
+      ],
       "core_topics": 1,
       "code_space": false,
       "roles": [
@@ -318,9 +914,14 @@
           "category": "Electrical & Electronics Engineering",
           "description": "Programs PLCs, configures SCADA interfaces, and synchronizes industrial VFD motor drives.",
           "recommended_degree": "B.E / B.Tech in EEE/ECE",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "Diploma"],
+            "fields": ["electrical", "electronics", "instrumentation", "mechatronics", "automation"]
+          },
           "ats_keywords": [
-            "PLC Programming", "Ladder Logic", "SCADA", "HMI", "Variable Frequency Drives (VFD)", "Siemens TIA Portal",
-            "Modbus", "Industrial Sensors", "Relay Control", "Panel Wiring", "Instrumentation", "Safety Circuits"
+            "PLC Programming", "Ladder Logic", "SCADA", "HMI", "Variable Frequency Drives (VFD)",
+            "Siemens TIA Portal", "Modbus", "Industrial Sensors", "Relay Control", "Panel Wiring",
+            "Instrumentation", "Safety Circuits"
           ],
           "sample_projects": [
             {
@@ -332,6 +933,84 @@
               ]
             }
           ]
+        },
+        {
+          "name": "EV Powertrain & Battery Engineer",
+          "category": "Electrical & Electronics Engineering",
+          "description": "Develops battery packs, battery management, motor drives and charging systems for electric vehicles.",
+          "recommended_degree": "B.E / B.Tech in EEE/ECE/Mechanical/Automobile",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg"],
+            "fields": [
+              "electrical", "electronics", "mechanical", "automobile", "automotive",
+              "mechatronics", "power"
+            ]
+          },
+          "ats_keywords": [
+            "Battery Management System", "Lithium-ion Batteries", "Motor Control", "BLDC", "PMSM",
+            "Inverters", "DC-DC Converters", "Regenerative Braking", "EV Charging", "CAN Bus",
+            "MATLAB", "Simulink", "Thermal Management"
+          ],
+          "sample_projects": [
+            {
+              "title": "Battery Management System for a 48 V Pack",
+              "tech": "MATLAB, Simulink, STM32, CAN",
+              "bullets": [
+                "Implemented cell balancing and Coulomb-counting state-of-charge estimation for a 13S lithium-ion pack.",
+                "Held state-of-charge error under 3% across drive-cycle tests and reported faults over CAN."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Power Systems & Grid Engineer",
+          "category": "Electrical & Electronics Engineering",
+          "description": "Plans and protects transmission and distribution networks: load flow, fault studies, switchgear and relays.",
+          "recommended_degree": "B.E / B.Tech in Electrical / EEE",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "Diploma"],
+            "fields": ["electrical", "power", "power systems"]
+          },
+          "ats_keywords": [
+            "Power Systems", "Load Flow Analysis", "Short Circuit Analysis", "Protection Relays",
+            "Switchgear", "Substation Design", "ETAP", "PSCAD", "Transmission Lines",
+            "Distribution Systems", "High Voltage Engineering", "SCADA"
+          ],
+          "sample_projects": [
+            {
+              "title": "Load Flow and Fault Study of an IEEE 14-Bus System",
+              "tech": "ETAP, MATLAB",
+              "bullets": [
+                "Ran Newton-Raphson load flow and symmetrical and unsymmetrical fault studies on the IEEE 14-bus system.",
+                "Set relay coordination for 8 feeders and cleared every simulated fault within 0.4 seconds."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Renewable Energy Systems Engineer",
+          "category": "Electrical & Electronics Engineering",
+          "description": "Designs and commissions solar, wind and storage systems and their grid connection.",
+          "recommended_degree": "B.E / B.Tech in EEE / Electrical / Energy Engineering",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "Diploma"],
+            "fields": ["electrical", "electronics", "energy", "renewable", "power"]
+          },
+          "ats_keywords": [
+            "Solar PV Design", "PVsyst", "Wind Energy", "Inverters", "MPPT",
+            "Battery Energy Storage", "Grid Integration", "Microgrid", "Power Quality", "AutoCAD",
+            "Energy Audit", "Net Metering"
+          ],
+          "sample_projects": [
+            {
+              "title": "Rooftop Solar Plant Design (50 kW)",
+              "tech": "PVsyst, AutoCAD, Excel",
+              "bullets": [
+                "Designed a 50 kW rooftop plant with string sizing, shading analysis and inverter selection.",
+                "Simulated 71,000 kWh yearly yield and a 4.8-year payback at the client's tariff."
+              ]
+            }
+          ]
         }
       ]
     },
@@ -340,7 +1019,11 @@
       "name": "Biotech & Biomedical",
       "icon": "biotech",
       "description": "Genomics bioinformatics, biosensor instrumentation, bioprocess scale-up, and clinical research.",
-      "topics": ["Aptitude", "Molecular Biology", "Genomics", "Bioinformatics Algorithms", "Biostatistics", "Python for Biology", "Lab Techniques"],
+      "topics": [
+        "Aptitude", "Molecular Biology", "Genomics", "Bioinformatics Algorithms", "Biostatistics",
+        "Python for Biology", "Lab Techniques", "Biomedical Instrumentation",
+        "Bioprocess Engineering", "Clinical Research"
+      ],
       "core_topics": 1,
       "code_space": false,
       "roles": [
@@ -349,9 +1032,17 @@
           "category": "Biotechnology & Biomedical Engineering",
           "description": "Analyzes genomic sequencing data, performs molecular docking simulations, and develops biological pipelines.",
           "recommended_degree": "B.E / B.Tech in Biotechnology or Bioinformatics",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "B.Sc", "M.Sc"],
+            "fields": [
+              "biotechnology", "bioinformatics", "biology", "life science", "microbiology",
+              "genetics", "biochemistry", "computational biology"
+            ]
+          },
           "ats_keywords": [
-            "Bioinformatics", "Python", "R", "BLAST", "Sequence Alignment", "Genomics", "Molecular Docking",
-            "AutoDock", "PyMOL", "Biopython", "NGS Data Analysis", "Biostatistics", "Drug Discovery"
+            "Bioinformatics", "Python", "R", "BLAST", "Sequence Alignment", "Genomics",
+            "Molecular Docking", "AutoDock", "PyMOL", "Biopython", "NGS Data Analysis",
+            "Biostatistics", "Drug Discovery"
           ],
           "sample_projects": [
             {
@@ -363,6 +1054,91 @@
               ]
             }
           ]
+        },
+        {
+          "name": "Biomedical Instrumentation Engineer",
+          "category": "Biotechnology & Biomedical Engineering",
+          "description": "Designs, tests and maintains medical devices such as patient monitors, imaging systems and biosensors.",
+          "recommended_degree": "B.E / B.Tech in Biomedical / Medical Electronics / Instrumentation",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "Diploma"],
+            "fields": ["biomedical", "medical electronics", "instrumentation", "electronics", "electrical"]
+          },
+          "ats_keywords": [
+            "Medical Devices", "Biomedical Instrumentation", "Biosensors", "ECG", "EEG",
+            "Patient Monitoring", "IEC 60601", "Signal Processing", "MATLAB", "Embedded C",
+            "Equipment Calibration", "ISO 13485"
+          ],
+          "sample_projects": [
+            {
+              "title": "Low-Cost Portable ECG Monitor",
+              "tech": "AD8232, ESP32, MATLAB",
+              "bullets": [
+                "Built a 3-lead ECG front end with right-leg drive and a 0.5-40 Hz band-pass filter.",
+                "Detected R-peaks with 97% sensitivity on 20 MIT-BIH records and streamed heart rate to a phone."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Bioprocess / Fermentation Engineer",
+          "category": "Biotechnology & Biomedical Engineering",
+          "description": "Scales up fermentation and downstream purification for enzymes, vaccines, biologics and biofuels.",
+          "recommended_degree": "B.E / B.Tech / M.Tech in Biotechnology or Chemical Engineering, or M.Sc Microbiology",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "B.Sc", "M.Sc"],
+            "fields": [
+              "biotechnology", "chemical", "bioprocess", "microbiology", "biochemistry",
+              "industrial biotechnology"
+            ]
+          },
+          "ats_keywords": [
+            "Fermentation", "Bioreactor Design", "Scale-Up", "Downstream Processing",
+            "Chromatography", "Sterilization", "Media Optimization", "GMP", "Microbial Kinetics",
+            "Process Validation", "HPLC", "SOPs"
+          ],
+          "sample_projects": [
+            {
+              "title": "Fed-Batch Fermentation Scale-Up (1 L to 20 L)",
+              "tech": "Bioreactor, HPLC, Design of Experiments",
+              "bullets": [
+                "Optimised media with a 12-run design of experiments and raised enzyme titre by 35%.",
+                "Scaled from 1 L to 20 L at constant oxygen transfer rate with yield within 5% of bench scale."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Clinical Research Associate (CRA)",
+          "category": "Biotechnology & Biomedical Engineering",
+          "description": "Monitors clinical trial sites for protocol, GCP and regulatory compliance and keeps trial data accurate.",
+          "recommended_degree": "B.Pharm / M.Pharm / Pharm.D, B.Sc / M.Sc Life Sciences, MBBS or BDS",
+          "eligibility": {
+            "degrees": [
+              "@pharmacy", "B.Sc", "M.Sc", "@medicine", "BDS", "@nursing", "MPH",
+              "@engineering_ug"
+            ],
+            "fields": [
+              "pharmacy", "life science", "biotechnology", "microbiology", "biochemistry",
+              "clinical research", "medicine", "nursing", "dental", "zoology", "public health",
+              "biomedical"
+            ]
+          },
+          "ats_keywords": [
+            "Clinical Trials", "ICH-GCP", "Site Monitoring", "Informed Consent",
+            "Protocol Compliance", "Pharmacovigilance", "Adverse Event Reporting", "CDSCO",
+            "Case Report Forms", "EDC", "Regulatory Affairs", "SOPs"
+          ],
+          "sample_projects": [
+            {
+              "title": "Mock Site Monitoring Visit Report",
+              "tech": "ICH E6 (R2), CRF templates, Excel",
+              "bullets": [
+                "Reviewed 30 mock case report forms against source documents and logged 14 queries by severity.",
+                "Wrote a monitoring visit report and corrective action plan aligned with ICH-GCP."
+              ]
+            }
+          ]
         }
       ]
     },
@@ -371,7 +1147,11 @@
       "name": "Healthcare & Medicine",
       "icon": "medical_services",
       "description": "Hospital operations management, clinical pharmacy, medical records, and public health policy.",
-      "topics": ["Aptitude", "Hospital Administration", "Healthcare Quality", "Medical Ethics & Law", "Health Informatics", "Patient Communication", "Healthcare Finance"],
+      "topics": [
+        "Aptitude", "Hospital Administration", "Healthcare Quality", "Medical Ethics & Law",
+        "Health Informatics", "Patient Communication", "Healthcare Finance",
+        "Clinical Medicine & Diagnostics", "Pharmacology", "Public Health"
+      ],
       "core_topics": 1,
       "code_space": false,
       "roles": [
@@ -380,9 +1160,14 @@
           "category": "Healthcare & Medical Sciences",
           "description": "Optimizes patient workflows, clinical accreditations, biomedical inventory, and emergency department throughput.",
           "recommended_degree": "MHA / MBA Healthcare / MBBS / B.Sc Nursing",
+          "eligibility": {
+            "degrees": ["MHA", "MPH", "MBA", "PGDM", "@medicine", "BDS", "@nursing", "B.Pharm"],
+            "fields": ["hospital", "healthcare", "health", "medicine", "nursing", "dental", "pharmacy"]
+          },
           "ats_keywords": [
-            "Hospital Administration", "NABH Accreditation", "Patient Flow Optimization", "Healthcare Quality", "HIS Systems",
-            "Biomedical Waste Management", "Bed Turnover Rate", "Clinical Governance", "Inventory Control", "Patient Safety"
+            "Hospital Administration", "NABH Accreditation", "Patient Flow Optimization",
+            "Healthcare Quality", "HIS Systems", "Biomedical Waste Management",
+            "Bed Turnover Rate", "Clinical Governance", "Inventory Control", "Patient Safety"
           ],
           "sample_projects": [
             {
@@ -394,6 +1179,110 @@
               ]
             }
           ]
+        },
+        {
+          "name": "Clinical Pharmacist",
+          "category": "Healthcare & Medical Sciences",
+          "description": "Reviews prescriptions, dosing and drug interactions and supports safe medication use in hospitals.",
+          "recommended_degree": "Pharm.D / B.Pharm / M.Pharm (Pharmacy Practice)",
+          "eligibility": {
+            "degrees": ["@pharmacy"]
+          },
+          "ats_keywords": [
+            "Clinical Pharmacy", "Prescription Review", "Drug Interactions", "Pharmacokinetics",
+            "Dosage Calculation", "Pharmacovigilance", "Hospital Formulary", "Patient Counselling",
+            "Therapeutic Drug Monitoring", "Medication Reconciliation"
+          ],
+          "sample_projects": [
+            {
+              "title": "Drug Interaction Audit in a Medicine Ward",
+              "tech": "Drug interaction database, Excel",
+              "bullets": [
+                "Screened 250 inpatient prescriptions and flagged 38 clinically significant interactions.",
+                "Physicians accepted 82% of the recommendations, and the audit fed the ward's formulary update."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "General Medical Officer (Resident Doctor)",
+          "category": "Healthcare & Medical Sciences",
+          "description": "Diagnoses and treats patients in OPD, wards and emergency, following clinical protocols and national programmes.",
+          "recommended_degree": "MBBS with internship and registration; MD / MS for specialist posts",
+          "eligibility": {
+            "degrees": ["@medicine"]
+          },
+          "ats_keywords": [
+            "Clinical Diagnosis", "Patient Management", "Emergency Medicine", "BLS", "ACLS",
+            "Triage", "Prescribing", "Infectious Diseases", "Medical Records", "Medical Ethics",
+            "National Health Programmes"
+          ],
+          "sample_projects": [
+            {
+              "title": "Emergency Triage Protocol Audit",
+              "tech": "Triage scale, Excel",
+              "bullets": [
+                "Audited 200 emergency arrivals against the triage scale and found 11% under-triaged.",
+                "Introduced a vital-sign checklist that cut under-triage to 4% in the follow-up month."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Medical Lab Technologist (MLT)",
+          "category": "Healthcare & Medical Sciences",
+          "description": "Runs haematology, biochemistry, microbiology and serology tests with quality control in clinical labs.",
+          "recommended_degree": "B.Sc / M.Sc MLT, DMLT, or B.Sc Microbiology / Biochemistry",
+          "eligibility": {
+            "degrees": ["@lab_technology", "B.Sc", "M.Sc"],
+            "fields": [
+              "medical laboratory", "laboratory technology", "MLT", "microbiology", "biochemistry",
+              "life science", "biotechnology"
+            ]
+          },
+          "ats_keywords": [
+            "Hematology", "Clinical Biochemistry", "Microbiology", "Serology", "ELISA",
+            "Blood Smear", "Gram Staining", "Sample Collection", "Lab Quality Control", "NABL",
+            "Laboratory Information System", "Biomedical Waste"
+          ],
+          "sample_projects": [
+            {
+              "title": "Internal Quality Control Charting for a Biochemistry Lab",
+              "tech": "Levey-Jennings charts, Westgard rules, Excel",
+              "bullets": [
+                "Plotted 60 days of glucose and creatinine control data and applied Westgard rules.",
+                "Traced two rule violations to a reagent lot change and cut repeat runs by 20%."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Public Health Program Coordinator",
+          "category": "Healthcare & Medical Sciences",
+          "description": "Plans, runs and evaluates community health programmes such as surveillance, immunisation and sanitation.",
+          "recommended_degree": "MPH, or MBBS / B.Sc Nursing / BDS / B.Pharm with public health experience, or MSW",
+          "eligibility": {
+            "degrees": ["MPH", "MHA", "@medicine", "@nursing", "BDS", "B.Pharm", "MSW", "M.Sc", "MA"],
+            "fields": [
+              "public health", "health", "healthcare", "medicine", "nursing", "dental", "pharmacy",
+              "social work", "epidemiology", "statistics", "community"
+            ]
+          },
+          "ats_keywords": [
+            "Public Health", "Epidemiology", "Disease Surveillance", "Immunization", "NHM",
+            "Program Management", "Data Analysis", "Biostatistics", "Community Health",
+            "Health Education", "Monitoring and Evaluation", "IDSP"
+          ],
+          "sample_projects": [
+            {
+              "title": "Immunisation Coverage Gap Analysis for a Block",
+              "tech": "Excel, HMIS data, QGIS",
+              "bullets": [
+                "Analysed HMIS data for 42 villages and mapped sub-centres below 80% full immunisation coverage.",
+                "Proposed outreach sessions for the 9 lowest villages and a tracking sheet for dropouts."
+              ]
+            }
+          ]
         }
       ]
     },
@@ -402,7 +1291,11 @@
       "name": "Corporate, Finance & Law",
       "icon": "gavel",
       "description": "Corporate legal counsel, financial valuation modeling, human resources, and product management.",
-      "topics": ["Aptitude", "Accounting", "Financial Modelling", "Corporate Law", "Contract Drafting", "Business Communication", "Excel & SQL", "Economics"],
+      "topics": [
+        "Aptitude", "Accounting", "Financial Modelling", "Corporate Law", "Contract Drafting",
+        "Business Communication", "Excel & SQL", "Economics", "Marketing & Product",
+        "HR & Operations"
+      ],
       "core_topics": 1,
       "code_space": false,
       "roles": [
@@ -411,9 +1304,14 @@
           "category": "Corporate Management, Finance & Law",
           "description": "Drafts commercial contracts, assesses corporate regulatory compliance, and advises on intellectual property.",
           "recommended_degree": "LL.B / B.A. LL.B / LL.M",
+          "eligibility": {
+            "degrees": ["@law"]
+          },
           "ats_keywords": [
-            "Contract Drafting", "Indian Contract Act", "Companies Act 2013", "Intellectual Property Rights", "Due Diligence",
-            "Commercial Agreements", "Non-Disclosure Agreements (NDA)", "Legal Research", "Dispute Resolution", "Regulatory Compliance"
+            "Contract Drafting", "Indian Contract Act", "Companies Act 2013",
+            "Intellectual Property Rights", "Due Diligence", "Commercial Agreements",
+            "Non-Disclosure Agreements (NDA)", "Legal Research", "Dispute Resolution",
+            "Regulatory Compliance"
           ],
           "sample_projects": [
             {
@@ -431,9 +1329,18 @@
           "category": "Corporate Management, Finance & Law",
           "description": "Builds financial models, analyzes three-statement balance sheets, and conducts DCF investment valuations.",
           "recommended_degree": "B.Com / BBA / MBA Finance",
+          "eligibility": {
+            "degrees": ["@commerce", "@management", "BA", "MA", "B.Sc", "M.Sc"],
+            "fields": [
+              "finance", "commerce", "accounting", "economics", "statistics", "mathematics",
+              "banking", "chartered accountancy"
+            ]
+          },
           "ats_keywords": [
-            "Financial Modeling", "DCF Valuation", "Excel Financial Functions", "Three Statement Modeling", "Ratio Analysis",
-            "Capital Budgeting", "Working Capital Management", "Variance Analysis", "Corporate Finance", "PowerPoint Pitch Deck"
+            "Financial Modeling", "DCF Valuation", "Excel Financial Functions",
+            "Three Statement Modeling", "Ratio Analysis", "Capital Budgeting",
+            "Working Capital Management", "Variance Analysis", "Corporate Finance",
+            "PowerPoint Pitch Deck"
           ],
           "sample_projects": [
             {
@@ -445,6 +1352,106 @@
               ]
             }
           ]
+        },
+        {
+          "name": "Digital Marketing & Brand Strategist",
+          "category": "Corporate Management, Finance & Law",
+          "description": "Plans and runs SEO, paid search, social and email campaigns and measures funnel conversion.",
+          "recommended_degree": "BBA / MBA Marketing, BMS, BJMC, or any graduate with digital marketing training",
+          "eligibility": {
+            "degrees": ["@any_graduate"]
+          },
+          "ats_keywords": [
+            "Digital Marketing", "SEO", "SEM", "Google Ads", "Meta Ads", "Social Media Marketing",
+            "Content Marketing", "Email Marketing", "Google Analytics",
+            "Conversion Rate Optimization", "Marketing Funnel", "Brand Strategy", "A/B Testing"
+          ],
+          "sample_projects": [
+            {
+              "title": "SEO and Paid Search Plan for a Local Business",
+              "tech": "Google Search Console, Google Ads, GA4",
+              "bullets": [
+                "Audited 40 pages, fixed metadata and internal links, and lifted organic clicks by 48% in 10 weeks.",
+                "Ran a search campaign at Rs 180 per lead, 30% under the target cost."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Human Resources (HR) Specialist",
+          "category": "Corporate Management, Finance & Law",
+          "description": "Runs recruitment, onboarding, payroll compliance, performance reviews and employee engagement.",
+          "recommended_degree": "MBA / PGDM in HR, MSW (HR / Labour Welfare), BBA, or any graduate",
+          "eligibility": {
+            "degrees": ["@any_graduate"]
+          },
+          "ats_keywords": [
+            "Talent Acquisition", "Recruitment", "Onboarding", "HRMS", "Payroll",
+            "Statutory Compliance", "PF", "ESI", "POSH", "Performance Management", "OKR",
+            "Employee Engagement", "Labour Laws"
+          ],
+          "sample_projects": [
+            {
+              "title": "Onboarding Process Redesign",
+              "tech": "Google Forms, Excel, HRMS",
+              "bullets": [
+                "Mapped a 14-step onboarding flow and replaced paper forms with one digital checklist.",
+                "Cut time-to-productive for new joiners from 12 to 7 working days in a pilot of 25 hires."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Product Manager",
+          "category": "Corporate Management, Finance & Law",
+          "description": "Decides what to build and why: discovers user needs, writes requirements, prioritises the roadmap and tracks product metrics.",
+          "recommended_degree": "B.E / B.Tech with an MBA, MBA / PGDM, or any graduate with product experience",
+          "eligibility": {
+            "degrees": ["@any_graduate"]
+          },
+          "ats_keywords": [
+            "Product Management", "Product Roadmap", "User Research", "A/B Testing", "Agile",
+            "Scrum", "User Stories", "PRD", "Product Metrics", "SQL", "JIRA", "Go-to-Market",
+            "Stakeholder Management", "Wireframing"
+          ],
+          "sample_projects": [
+            {
+              "title": "Product Teardown and Feature Proposal",
+              "tech": "Figma, SQL, Mixpanel",
+              "bullets": [
+                "Interviewed 15 users of a food-delivery app and prioritised 3 problems with the RICE framework.",
+                "Wrote a PRD and wireframes for a group-order feature with retention and order-value success metrics."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Supply Chain & Logistics Specialist",
+          "category": "Corporate Management, Finance & Law",
+          "description": "Plans inventory, forecasts demand, manages vendors and optimises warehousing and transport.",
+          "recommended_degree": "MBA / PGDM Operations or Supply Chain, B.E / B.Tech (Industrial / Mechanical), BBA or B.Com",
+          "eligibility": {
+            "degrees": ["@management", "@engineering_ug", "@engineering_pg", "B.Com", "M.Com"],
+            "fields": [
+              "operations", "supply chain", "logistics", "industrial", "mechanical", "production",
+              "commerce", "business", "management"
+            ]
+          },
+          "ats_keywords": [
+            "Supply Chain Management", "Inventory Management", "Demand Forecasting", "Procurement",
+            "Vendor Management", "Logistics", "Warehouse Management", "SAP MM", "EOQ", "Incoterms",
+            "Excel", "Power BI"
+          ],
+          "sample_projects": [
+            {
+              "title": "Inventory Policy Redesign with EOQ and Safety Stock",
+              "tech": "Excel, Python, Power BI",
+              "bullets": [
+                "Classified 600 SKUs by ABC-XYZ analysis and set EOQ and safety-stock levels per class.",
+                "Simulated a 22% cut in holding cost while keeping a 97% service level."
+              ]
+            }
+          ]
         }
       ]
     },
@@ -453,7 +1460,10 @@
       "name": "Central Government",
       "icon": "account_balance",
       "description": "UPSC Civil Services, SSC CGL administration, Public Sector Banking, defense and railways careers.",
-      "topics": ["Aptitude", "Reasoning", "Indian Polity", "History", "Geography", "Economy", "Current Affairs", "English", "Banking Awareness", "Data Interpretation"],
+      "topics": [
+        "Aptitude", "Reasoning", "Indian Polity", "History", "Geography", "Economy",
+        "Current Affairs", "English", "Banking Awareness", "Data Interpretation"
+      ],
       "core_topics": 1,
       "code_space": false,
       "roles": [
@@ -462,9 +1472,13 @@
           "category": "Indian Central Government Services",
           "description": "Prepares for administrative leadership, constitutional governance, policy analysis, and public delivery systems.",
           "recommended_degree": "Any Graduate Degree",
+          "eligibility": {
+            "degrees": ["@any_graduate"]
+          },
           "ats_keywords": [
-            "Indian Polity", "Constitution of India", "Governance & Public Policy", "Modern Indian History", "Indian Economy",
-            "Physical Geography", "Ethics & Integrity", "Administrative Decision Making", "Analytical Writing", "General Studies"
+            "Indian Polity", "Constitution of India", "Governance & Public Policy",
+            "Modern Indian History", "Indian Economy", "Physical Geography", "Ethics & Integrity",
+            "Administrative Decision Making", "Analytical Writing", "General Studies"
           ],
           "sample_projects": [
             {
@@ -482,9 +1496,14 @@
           "category": "Indian Central Government Services",
           "description": "Handles retail banking operations, credit appraisal, financial compliance, and commercial customer services.",
           "recommended_degree": "Any Graduate Degree",
+          "eligibility": {
+            "degrees": ["@any_graduate"]
+          },
           "ats_keywords": [
-            "Banking Awareness", "RBI Regulations", "Credit Risk Appraisal", "Quantitative Aptitude", "Data Interpretation",
-            "Financial Inclusion", "KYC / AML Compliance", "Retail Lending", "Priority Sector Lending", "Logical Reasoning"
+            "Banking Awareness", "RBI Regulations", "Credit Risk Appraisal",
+            "Quantitative Aptitude", "Data Interpretation", "Financial Inclusion",
+            "KYC / AML Compliance", "Retail Lending", "Priority Sector Lending",
+            "Logical Reasoning"
           ],
           "sample_projects": [
             {
@@ -496,6 +1515,106 @@
               ]
             }
           ]
+        },
+        {
+          "name": "DRDO / ISRO Scientist-Engineer",
+          "category": "Indian Central Government Services",
+          "description": "Prepares for scientist and engineer recruitment in defence and space research: core engineering, mathematics and technical aptitude.",
+          "recommended_degree": "B.E / B.Tech (first class) or M.Sc in the relevant discipline; GATE score for many posts",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "M.Sc"]
+          },
+          "ats_keywords": [
+            "Engineering Mathematics", "Core Engineering", "GATE", "Research", "MATLAB",
+            "Technical Aptitude", "Signals and Systems", "Circuit Theory", "Applied Mechanics",
+            "Instrumentation", "Technical Writing"
+          ],
+          "sample_projects": [
+            {
+              "title": "Satellite Link Budget Calculator",
+              "tech": "Python, MATLAB",
+              "bullets": [
+                "Modelled free-space path loss, antenna gain and noise temperature to compute link margin for low-earth-orbit passes.",
+                "Matched a published reference case within 0.5 dB and documented the assumptions in a technical note."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Defense Accounts & Audit Officer (CAG/DAD)",
+          "category": "Indian Central Government Services",
+          "description": "Prepares for accounts and audit posts: government accounting and financial rules, auditing and the Constitution's finance provisions.",
+          "recommended_degree": "Any Graduate Degree (Commerce or Economics preferred)",
+          "eligibility": {
+            "degrees": ["@any_graduate"]
+          },
+          "ats_keywords": [
+            "Government Accounting", "General Financial Rules", "Auditing", "Bookkeeping",
+            "Public Finance", "Indian Constitution", "Budgeting", "Reconciliation", "MS Excel",
+            "Report Writing"
+          ],
+          "sample_projects": [
+            {
+              "title": "Budget vs Actual Variance Review of a Department",
+              "tech": "Excel, public budget documents",
+              "bullets": [
+                "Compared three years of a state department's budget and actuals and flagged heads with more than 15% variance.",
+                "Wrote an audit-style note linking the variances to GFR provisions on re-appropriation."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Railway Recruitment Board (RRB) SSE",
+          "category": "Indian Central Government Services",
+          "description": "Prepares for Senior Section Engineer posts: general engineering, drawing, general science and aptitude.",
+          "recommended_degree": "Diploma or B.E / B.Tech in Civil, Mechanical, Electrical or Electronics",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "Diploma"],
+            "fields": [
+              "civil", "mechanical", "electrical", "electronics", "instrumentation", "automobile",
+              "production"
+            ]
+          },
+          "ats_keywords": [
+            "Railway Engineering", "General Engineering", "Engineering Drawing", "General Science",
+            "Quantitative Aptitude", "Reasoning", "General Awareness", "Technical Abilities",
+            "Measurements", "Safety Procedures"
+          ],
+          "sample_projects": [
+            {
+              "title": "Track Maintenance Schedule Model",
+              "tech": "Excel",
+              "bullets": [
+                "Built a maintenance schedule for a 25 km section from inspection frequencies in published railway manuals.",
+                "Flagged 6 overlapping block requirements and cut planned blocks by 2 per month."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "SSC CGL Assistant Section Officer (ASO)",
+          "category": "Indian Central Government Services",
+          "description": "Prepares for SSC CGL: quantitative aptitude, reasoning, English and general awareness for central ministry posts.",
+          "recommended_degree": "Any Graduate Degree",
+          "eligibility": {
+            "degrees": ["@any_graduate"]
+          },
+          "ats_keywords": [
+            "Quantitative Aptitude", "Logical Reasoning", "English Comprehension",
+            "General Awareness", "Data Interpretation", "Computer Proficiency", "MS Office",
+            "Noting and Drafting", "Office Procedure"
+          ],
+          "sample_projects": [
+            {
+              "title": "Mock Test Tracker and Error Log",
+              "tech": "Excel",
+              "bullets": [
+                "Logged 40 timed mock tests by section and tagged every wrong answer by concept.",
+                "Raised the quantitative section score from 98 to 156 of 200 by drilling the three weakest concepts."
+              ]
+            }
+          ]
         }
       ]
     },
@@ -504,7 +1623,11 @@
       "name": "State Government",
       "icon": "shield",
       "description": "State administrative civil service (KAS/PCS), police law & order, public works, and rural development.",
-      "topics": ["Aptitude", "Reasoning", "Indian Polity", "History", "Geography", "State Administration", "Current Affairs", "Rural Development"],
+      "topics": [
+        "Aptitude", "Reasoning", "Indian Polity", "History", "Geography", "State Administration",
+        "Current Affairs", "Rural Development", "Revenue, Tax & Land Records",
+        "Law & Police Administration"
+      ],
       "core_topics": 1,
       "code_space": false,
       "roles": [
@@ -513,9 +1636,14 @@
           "category": "Indian State Government Services",
           "description": "Directs taluk/sub-division civil administration, revenue collection, land records, and welfare implementation.",
           "recommended_degree": "Any Graduate Degree",
+          "eligibility": {
+            "degrees": ["@any_graduate"]
+          },
           "ats_keywords": [
-            "State Administration", "Land Revenue Codes", "Panchayati Raj Act", "State History & Geography", "Public Grievance Redressal",
-            "Rural Development Schemes", "Disaster Management", "Magisterial Duties", "Executive Governance", "Citizen Charters"
+            "State Administration", "Land Revenue Codes", "Panchayati Raj Act",
+            "State History & Geography", "Public Grievance Redressal", "Rural Development Schemes",
+            "Disaster Management", "Magisterial Duties", "Executive Governance",
+            "Citizen Charters"
           ],
           "sample_projects": [
             {
@@ -524,6 +1652,102 @@
               "bullets": [
                 "Surveyed 12 village administrative centers evaluating turnaround times for caste and income certificate issuances.",
                 "Drafted administrative recommendations reducing citizen processing delays from 14 days to under 48 hours."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Assistant Engineer (PWD / Irrigation)",
+          "category": "Indian State Government Services",
+          "description": "Prepares for state engineering service posts: the civil technical syllabus, PWD codes, irrigation works and general studies.",
+          "recommended_degree": "B.E / B.Tech in Civil Engineering (Diploma for junior posts)",
+          "eligibility": {
+            "degrees": ["@engineering_ug", "@engineering_pg", "Diploma"],
+            "fields": ["civil"]
+          },
+          "ats_keywords": [
+            "Civil Engineering", "Estimation and Costing", "PWD Code", "Measurement Book",
+            "Irrigation Structures", "Road Works", "Tendering", "Quality Control", "AutoCAD",
+            "General Studies"
+          ],
+          "sample_projects": [
+            {
+              "title": "Estimate and Measurement Book for a Village Road",
+              "tech": "Excel, AutoCAD, state schedule of rates",
+              "bullets": [
+                "Prepared a detailed estimate for a 1.2 km rural road from the state schedule of rates.",
+                "Kept a mock measurement book and reconciled quantities within 2% of the estimate."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Commercial Tax / Revenue Inspector",
+          "category": "Indian State Government Services",
+          "description": "Prepares for state revenue and tax inspector posts: land revenue law, land records, GST basics and accounting.",
+          "recommended_degree": "Any Graduate Degree (Commerce preferred)",
+          "eligibility": {
+            "degrees": ["@any_graduate"]
+          },
+          "ats_keywords": [
+            "Land Revenue Act", "Land Records", "Mutation", "GST", "SGST", "Tax Assessment",
+            "Accounting", "Revenue Administration", "Survey and Settlement", "MS Excel"
+          ],
+          "sample_projects": [
+            {
+              "title": "GST Return Reconciliation Exercise",
+              "tech": "Excel, GST return formats",
+              "bullets": [
+                "Reconciled 3 months of a small trader's purchase register against GSTR-2B and found 9 mismatches.",
+                "Wrote a one-page checklist for input-tax-credit eligibility under the CGST Act."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Panchayat Development Officer (PDO)",
+          "category": "Indian State Government Services",
+          "description": "Prepares for PDO posts: Panchayati Raj law, gram panchayat functions, rural schemes and social audit.",
+          "recommended_degree": "Any Graduate Degree",
+          "eligibility": {
+            "degrees": ["@any_graduate"]
+          },
+          "ats_keywords": [
+            "Panchayati Raj", "Rural Development", "MGNREGA", "Gram Sabha", "Social Audit",
+            "Rural Water Supply", "Sanitation", "Local Governance", "Scheme Implementation",
+            "Public Accountability"
+          ],
+          "sample_projects": [
+            {
+              "title": "Social Audit Walkthrough of a MGNREGA Work",
+              "tech": "Field survey, Excel",
+              "bullets": [
+                "Verified muster rolls and work-site measurements for one MGNREGA work against public records.",
+                "Summarised 5 discrepancies and presented them in a mock gram sabha format."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "State Police Sub-Inspector (PSI / DySP)",
+          "category": "Indian State Government Services",
+          "description": "Prepares for police officer posts: the Constitution, criminal law, police administration and reasoning.",
+          "recommended_degree": "Any Graduate Degree",
+          "eligibility": {
+            "degrees": ["@any_graduate"]
+          },
+          "ats_keywords": [
+            "Criminal Law", "Bharatiya Nyaya Sanhita", "BNSS", "Police Administration",
+            "Law and Order", "Crowd Control", "Fundamental Rights", "Investigation",
+            "Physical Fitness", "Logical Reasoning"
+          ],
+          "sample_projects": [
+            {
+              "title": "Crowd Management Plan for a Festival",
+              "tech": "Maps, published police SOPs",
+              "bullets": [
+                "Drafted a crowd-management plan with entry and exit routes, barricading and staff deployment for 20,000 visitors.",
+                "Mapped 4 high-risk choke points with a contingency plan based on published SOPs."
               ]
             }
           ]

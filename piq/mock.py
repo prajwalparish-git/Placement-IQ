@@ -10,6 +10,7 @@ Deliberate exception: the quiz agent's FIRST attempt contains one flawed questio
 
 import re
 
+from piq import degrees
 from piq.checks import text_hash, weak_topics
 from piq.config import TOPICS
 
@@ -41,6 +42,22 @@ _INTERVIEW_BANK = {
 }
 
 
+# A domain track (data/interview_tracks.json) has no fixed bank: questions from its focus.
+_TRACK_TEMPLATES = [
+    "In {track}, walk me through how you would approach {focus}.",
+    "Tell me about a time your work touched {focus}. What did you do?",
+    "What is the hardest {track} problem you have solved, and how did you know it worked?",
+    "Which {track} concept do people most often get wrong, and why?",
+    "How would you explain {focus} to a new team member?",
+    "What would you study next to get stronger at {track}?",
+]
+
+
+def _bullet(ctx: dict) -> dict:
+    text = ctx["text"].strip().rstrip(".")
+    return {"bullet": f"Delivered {text[0].lower()}{text[1:]}, measured by [metric]."}
+
+
 def _profile(ctx: dict) -> dict:
     text = ctx["resume_text"]
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
@@ -48,6 +65,7 @@ def _profile(ctx: dict) -> dict:
         s for s in ctx["required_skills"] if re.search(rf"(?<!\w){re.escape(s)}(?!\w)", text, re.I)
     ]
     edu = next((ln for ln in lines if re.search(r"b\.?e\b|b\.?tech|bachelor", ln, re.I)), "")
+    edu = edu or next((ln for ln in lines[1:] if degrees.parse(ln)), "")  # any other degree
     return {
         "name": lines[0] if lines else "Unknown",
         "education": edu or "Not stated",
@@ -125,7 +143,10 @@ def _interviewer(ctx: dict) -> dict:
                     "is_followup": True,
                     "is_final": final,
                 }
-    bank = _INTERVIEW_BANK[ctx["interview_type"]]
+    bank = _INTERVIEW_BANK.get(ctx["interview_type"]) or [
+        t.format(track=ctx["interview_type"], focus=ctx.get("focus") or "this area")
+        for t in _TRACK_TEMPLATES
+    ]
     q = next((q for q in bank if text_hash(q) not in asked), f"{bank[0]} (round {len(asked)})")
     return {"question": q, "intent": "new area", "is_followup": bool(history), "is_final": final}
 
@@ -176,6 +197,7 @@ _HANDLERS = {
     "baseline": _baseline,
     "baseline_quiz": _quiz,
     "judge": _judge,
+    "bullet": _bullet,
 }
 
 

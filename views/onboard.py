@@ -144,7 +144,10 @@ def _readiness_card(profile: services.StudentProfile) -> None:
             st.metric(
                 "Readiness",
                 f"{score}/100",
-                help="How much of the target role's skill list the resume shows.",
+                help=(
+                    "How much of the target role's skill list the resume names in words. "
+                    "Skills the syllabus tests count double; tools count once."
+                ),
                 width="content",
             )
             st.vega_lite_chart(

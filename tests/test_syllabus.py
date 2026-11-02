@@ -80,3 +80,38 @@ def test_skills_for_a_topic_come_from_the_role_map():
 
 def test_the_builder_reads_the_same_catalog():
     assert resume_builder.load_catalog() is syllabus.catalog()
+
+
+def test_every_catalog_role_is_complete_for_the_builder():
+    for d in syllabus.catalog()["domains"]:
+        for r in d["roles"]:
+            assert r["description"] and r["recommended_degree"], r["name"]
+            assert len(r["ats_keywords"]) >= 8, r["name"]
+            assert len(set(r["ats_keywords"])) == len(r["ats_keywords"]), r["name"]
+            for p in r["sample_projects"]:
+                assert p["title"] and p["tech"] and len(p["bullets"]) >= 2, r["name"]
+
+
+def test_the_question_bank_roles_are_in_the_catalog():
+    roles = set(resume_builder.all_role_names())
+    for role in (
+        "Cybersecurity Analyst",
+        "Embedded Software Engineer",
+        "Telecommunications & RF Engineer",
+        "Thermal & HVAC Design Engineer",
+        "Water Resources & Environmental Engineer",
+        "Renewable Energy Systems Engineer",
+        "Clinical Research Associate (CRA)",
+        "Medical Lab Technologist (MLT)",
+        "Product Manager",
+        "SSC CGL Assistant Section Officer (ASO)",
+        "State Police Sub-Inspector (PSI / DySP)",
+    ):
+        assert role in roles, role
+    assert syllabus.domain_of_role("Embedded Software Engineer").id == "ece"
+    assert "RF & Communication" in syllabus.focus_topics("Telecommunications & RF Engineer")
+
+
+def test_skill_aliases_name_real_skills():
+    skills = {s for r in syllabus.role_skills().values() for s in r}
+    assert set(syllabus.skill_aliases()) <= skills

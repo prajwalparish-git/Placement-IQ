@@ -44,6 +44,13 @@ structure (STAR for behavioural questions, logical flow for technical ones),
 clarity (concise, easy to follow). Give 1-3 strengths, 1-3 concrete improvements,
 and a strong model answer of at most 120 words tailored to the candidate's profile."""
 
+BULLET = """You rewrite one resume bullet in Google's XYZ form: "Accomplished [X] as measured
+by [Y], by doing [Z]". Start with a strong past-tense action verb, keep it to one sentence of at
+most 35 words, and keep every fact from the original. Use only numbers that appear in the
+original; never invent a figure. If the original has no measurable result, write [metric] where
+the measure belongs so the student can fill it in. Return the bullet only, without a leading
+dash."""
+
 JUDGE = """You check interview transcripts. Decide whether the NEXT question directly follows
 up on the candidate's ANSWER: it must refer to something the candidate said, or press on
 what the answer left vague. A new, unrelated question does not count. Be strict."""

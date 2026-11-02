@@ -57,7 +57,7 @@ def live(monkeypatch):
 
     def install(*replies) -> FakeGroq:
         fake = FakeGroq(*replies)
-        monkeypatch.setattr(llm, "_client", lambda: fake)
+        monkeypatch.setattr(llm, "_client", lambda *_: fake)
         return fake
 
     return install
@@ -170,3 +170,62 @@ def test_live_rate_limit_without_hint(live):
     with pytest.raises(llm.RateLimited, match="Try again shortly") as exc:
         _call()
     assert exc.value.retry_after is None
+
+
+# --- the two-key pool: lanes and failover ------------------------------------------------
+
+
+@pytest.fixture
+def pool(monkeypatch):
+    monkeypatch.setenv("MOCK_MODE", "false")
+    monkeypatch.setenv("GROQ_API_KEY_1", "key-one")
+    monkeypatch.setenv("GROQ_API_KEY_2", "key-two")
+    monkeypatch.setenv("GROQ_MODEL_LARGE", "large-model")
+    monkeypatch.setenv("GROQ_MODEL_SMALL", "small-model")
+    settings.cache_clear()
+    used: list[str] = []
+
+    def install(*replies) -> FakeGroq:
+        fake = FakeGroq(*replies)
+
+        def client(key):
+            used.append(key)
+            return fake
+
+        monkeypatch.setattr(llm, "_client", client)
+        return fake
+
+    return install, used
+
+
+def test_interactive_agents_use_key_one_and_background_agents_key_two(pool):
+    install, used = pool
+    install(json.dumps(VALID), json.dumps(VALID))
+    _call()  # the interviewer: a student is waiting
+    llm.call(InterviewTurn, agent="planner", system="s", user="u", context={})
+    assert used == ["key-one", "key-two"]
+    assert settings().groq_api_key == "key-one"
+
+
+def test_a_rate_limited_key_fails_over_to_the_other(pool):
+    install, used = pool
+    install(_status_error(groq.RateLimitError, 429, "limit"), json.dumps(VALID))
+    out, _ = _call()
+    assert out.question == "Tell me more?" and used == ["key-one", "key-two"]
+
+
+def test_both_keys_rate_limited_raises_rate_limited(pool):
+    install, used = pool
+    install(
+        _status_error(groq.RateLimitError, 429, "limit"),
+        _status_error(groq.RateLimitError, 429, "limit"),
+    )
+    with pytest.raises(llm.RateLimited):
+        _call()
+    assert used == ["key-one", "key-two"]
+
+
+def test_one_key_still_works_and_needs_no_numbered_keys(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "only")
+    settings.cache_clear()
+    assert settings().groq_api_keys == ("only",) and llm.keys_for("interviewer") == ["only"]

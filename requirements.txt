@@ -9,3 +9,5 @@ python-dotenv==1.2.4   # .env loading
 pandas==3.0.6          # imported directly for chart frames; already a streamlit dependency
 altair==6.3.0          # imported directly by piq/charts.py; already a streamlit dependency
 fpdf2==2.8.2           # pure-python high-speed ATS resume PDF generation
+fastapi==0.162.0       # server.py: HTTP API for the Next.js frontend (frontend/)
+uvicorn==0.54.0        # runs server.py; already installed as a streamlit dependency

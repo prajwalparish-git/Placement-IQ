@@ -3,14 +3,15 @@ from html import escape
 
 import pytest
 
-from piq import formatter
+from piq import formatter, resume_builder
 from tests import factories as f
 
 
 def test_profile_pieces_show_counts_and_handle_empty_sections():
     p = f.profile(projects=[], internships=[])
     assert formatter.readiness_summary(p) == (
-        "2 of the 4 skills Java Backend Developer needs are on the resume."
+        "2 of the 4 skills Java Backend Developer needs are named on the resume; "
+        "skills the syllabus tests count double."
     )
     assert formatter.skill_chips(["Java"], present=True) == (
         ":green-badge[:material/check_circle: Java]"
@@ -805,3 +806,40 @@ def test_accuracy_headline_compares_easy_with_hard():
         "You get 80% of easy questions right and 20% of hard ones"
     )
     assert formatter.accuracy_headline([]).startswith("Answer a quiz")
+
+
+def test_role_fits_group_by_domain_with_words_and_escape_names():
+    from piq.degrees import RoleFit
+
+    fits = [
+        RoleFit("Role *a*", "cs", "Computer Science & IT", True, "B.E in CS"),
+        RoleFit("<script>", "cs", "Computer Science & IT", False, "M.Tech in CS (pursuing)"),
+    ]
+    md = formatter.role_fits_md(fits)
+    assert md.count(r"**Computer Science \& IT**") == 1
+    assert "Eligible now" in md and r"On completion of M\.Tech in CS \(pursuing\)" in md
+    assert "<script>" not in md and "*a*" not in md
+    assert "No role" in formatter.role_fits_md([])
+    assert "fits this role" in formatter.degree_fit_md("now")
+    assert ":material/warning:" in formatter.degree_fit_md("no match")
+
+
+def test_resume_preview_shows_jobs_and_every_degree_escaped():
+    res = resume_builder.build_ats_resume_data(
+        full_name="A",
+        email="a@b.co",
+        phone="",
+        location="",
+        linkedin_url="",
+        role_name="Software Engineer",
+        selected_skills=[],
+        education=[
+            {"degree": "B.E", "specialization": "CS *x*", "institution": "C", "end": "2026"}
+        ],
+        experience=[
+            {"title": "<b>Dev</b>", "company": "Co", "start": "Jan 2025", "highlights": "Built"}
+        ],
+    )
+    md = formatter.resume_preview_md(res)
+    assert "**Work experience**" in md and "<b>" not in md and "- Built" in md
+    assert r"B\.E in CS \*x\*" in md and "2026" in md

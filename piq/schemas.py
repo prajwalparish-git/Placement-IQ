@@ -113,6 +113,12 @@ class AnswerEvaluation(BaseModel):
         return round(sum(self.scores.values()) / 4, 2)
 
 
+class BulletRewrite(BaseModel):
+    """One resume bullet in Google's XYZ form: accomplished X, measured by Y, by doing Z."""
+
+    bullet: str = Field(min_length=10, max_length=320)
+
+
 class FollowUpJudgement(BaseModel):
     """Evaluation only: does an interview question actually follow up on the last answer?"""
 

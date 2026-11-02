@@ -21,14 +21,31 @@ TOPICS = ("Aptitude", "DBMS", "OS", "CN", "DSA", "OOP")
 DEFAULT_DOMAIN = "cs"  # the domain of a role the catalog does not list (the original CS roles)
 MAX_DOMAIN_TOPICS = 10  # one topic colour each; tests/test_syllabus.py enforces it
 DIFFICULTIES = ("easy", "medium", "hard")
-INTERVIEW_TYPES = ("HR", "Technical", "Project")
+INTERVIEW_TYPES = ("HR", "Technical", "Project")  # generic types; the frozen evaluation uses them
+INSTANT_QUIZ_SIZE = 5  # questions in a quiz served straight from the question bank
+BULLET_MAX_CHARS = 400  # a resume bullet sent for an XYZ rewrite
 
 QUIZ_SIZE = 5  # questions per topic when a quiz is first set up
 QUIZ_MAX_PER_TOPIC = 50
 QUIZ_MAX_TOTAL = 100
 QUIZ_BATCH = 10  # questions per generation call; each batch is checked by the critic
+# Share of each quiz part (one topic at one difficulty) drawn from the local question bank
+# (piq/question_bank.py) when it has unseen questions; the LLM writes the rest, through the
+# critic. Half keeps the critic visible on every quiz while halving its token cost.
+QUIZ_BANK_SHARE = 0.5
 DEFAULT_MIX = {"easy": (60, 90), "medium": (20, 80), "hard": (10, 40)}  # slider handles per level
 RESUME_REVIEW_DAYS = 14  # a resume version this old is due for review
+RESUME_MAX_EDUCATION = 6  # education entries a resume can list (Class 10 to a doctorate)
+RESUME_MAX_EXPERIENCE = 8  # jobs, internships and other work a resume can list
+# Kinds of work; every kind but an internship counts towards years of experience.
+EXPERIENCE_TYPES = (
+    "Full-time",
+    "Internship",
+    "Part-time",
+    "Contract",
+    "Freelance",
+    "Apprenticeship",
+)
 RESUME_MASTERY_AT = 70  # recent quiz average (%) at which a topic's skills belong on the resume
 PROJECT_STATUSES = ("Idea", "In progress", "Done")
 INTERVIEW_MAX_TURNS = 5
@@ -43,6 +60,10 @@ INTERVIEW_TIPS = {
     ),
     "clarity": "Use short sentences with one idea each, and end by restating your main point.",
 }
+# Readiness weighs a required skill practised under a syllabus topic (role_skills.json maps it to
+# a topic) this many times a tool skill (mapped to null): the topics are what recruitment tests
+# examine, a tool is learnt in days.
+SYLLABUS_SKILL_WEIGHT = 2
 WEAK_THRESHOLD = 0.5  # weakness above this marks a topic as weak
 WEAK_MIN_SHARE = 0.5  # weak topics must get at least this share of weekly minutes
 DIFFICULTY_UP_AT = 80  # a quiz score (%) at or above this suggests the next difficulty up
@@ -136,13 +157,16 @@ class ConfigError(RuntimeError):
 
 @dataclass(frozen=True)
 class Settings:
-    groq_api_key: str
+    groq_api_key: str  # the first key of the pool (scripts/check_models.py checks it)
     model_large: str
     model_small: str
     db_path: Path
     max_critic_retries: int
     mock_mode: bool
     seed_demo: bool = False  # recreate the demo student on start when the DB is empty
+    # GROQ_API_KEY_1 (interactive lane) and GROQ_API_KEY_2 (background lane); GROQ_API_KEY alone
+    # still works as a one-key pool. See piq/llm.py for the lanes and failover.
+    groq_api_keys: tuple[str, ...] = ()
 
 
 def _flag(name: str, default: str) -> bool:
@@ -153,8 +177,16 @@ def _flag(name: str, default: str) -> bool:
 def settings() -> Settings:
     # PIQ_DOTENV lets tests point at a non-existent file so the developer's .env never leaks in.
     load_dotenv(os.getenv("PIQ_DOTENV", ROOT / ".env"))
+    pool = tuple(
+        dict.fromkeys(
+            k
+            for k in (os.getenv("GROQ_API_KEY_1", ""), os.getenv("GROQ_API_KEY_2", ""))
+            if k.strip()
+        )
+    ) or tuple(k for k in (os.getenv("GROQ_API_KEY", ""),) if k.strip())
     s = Settings(
-        groq_api_key=os.getenv("GROQ_API_KEY", ""),
+        groq_api_key=pool[0] if pool else "",
+        groq_api_keys=pool,
         model_large=os.getenv("GROQ_MODEL_LARGE", ""),
         model_small=os.getenv("GROQ_MODEL_SMALL", ""),
         db_path=Path(os.getenv("DB_PATH", str(DATA_DIR / "placementiq.db"))),
@@ -166,7 +198,7 @@ def settings() -> Settings:
         missing = [
             k
             for k, v in {
-                "GROQ_API_KEY": s.groq_api_key,
+                "GROQ_API_KEY_1 (or GROQ_API_KEY)": s.groq_api_key,
                 "GROQ_MODEL_LARGE": s.model_large,
                 "GROQ_MODEL_SMALL": s.model_small,
             }.items()

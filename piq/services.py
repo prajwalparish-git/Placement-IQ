@@ -20,14 +20,17 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel
 
-from piq import agents, checks, db, resume_builder, scorecard, syllabus
+from piq import agents, checks, db, degrees, question_bank, resume_builder, scorecard, syllabus
 from piq.config import (
+    BULLET_MAX_CHARS,
     CRITERION_WEAK_BELOW,
     DATA_DIR,
     DIFFICULTIES,
+    INSTANT_QUIZ_SIZE,
     INTERVIEW_TIPS,
     INTERVIEW_TYPES,
     PROJECT_STATUSES,
+    QUIZ_BANK_SHARE,
     QUIZ_BATCH,
     QUIZ_MAX_PER_TOPIC,
     QUIZ_MAX_TOTAL,
@@ -385,6 +388,64 @@ def submit_quiz(student_id: str, quiz: QuizSet, chosen: list[int | None]) -> Qui
     return QuizResult(quiz, list(chosen), pct, agents.suggest_difficulty(pct, quiz.difficulty))
 
 
+# --- instant quizzes: straight from the question bank, no LLM call ------------------------
+
+
+def instant_quiz(
+    topic: str,
+    difficulty: str,
+    count: int = INSTANT_QUIZ_SIZE,
+    student_id: str | None = None,
+) -> QuizSet:
+    """Up to `count` bank questions on `topic` at `difficulty`. With a student: only topics of
+    their domain, and none they have answered before. Raises when the bank has none left."""
+    _check_quiz_params(topic, difficulty)
+    if not 1 <= count <= QUIZ_MAX_PER_TOPIC:
+        raise ServiceError(f"Choose 1 to {QUIZ_MAX_PER_TOPIC} questions.")
+    seen: list[str] = []
+    if student_id:
+        profile = _require_profile(student_id)
+        if topic not in syllabus.domain_of_role(profile.target_role).topics:
+            raise ServiceError(f"{topic} is not in your domain's syllabus.")
+        seen = db.asked_questions(student_id, topic)
+    seed = f"{student_id or 'guest'}|{topic}|{difficulty}|{len(seen)}|{uuid.uuid4().hex}"
+    questions = question_bank.draw(topic, difficulty, count, seen, seed)
+    if not questions:
+        raise ServiceError(
+            f"The question bank has no new {difficulty} {topic} questions. Try another "
+            "difficulty or topic."
+        )
+    return QuizSet(topic=topic, difficulty=difficulty, questions=questions)
+
+
+def grade_instant_quiz(
+    student_id: str | None, topic: str, difficulty: str, answers: Sequence[tuple[str, int | None]]
+) -> QuizResult:
+    """Grade (question id, chosen option or None) pairs against the bank. With a student the
+    attempt is saved, so their weakness, plan and next difficulty follow it."""
+    _check_quiz_params(topic, difficulty)
+    if not answers or len(answers) > QUIZ_MAX_PER_TOPIC:
+        raise ServiceError("Send between 1 and 50 answers.")
+    questions = []
+    for question_id, _ in answers:
+        found = question_bank.get(question_id)
+        if found is None or found[:2] != (topic, difficulty):
+            raise ServiceError("An answer does not match a question of this quiz.")
+        questions.append(found[2])
+    if len({question_bank.qid(q) for q in questions}) != len(questions):
+        raise ServiceError("A question is answered twice.")
+    quiz = QuizSet(topic=topic, difficulty=difficulty, questions=questions)
+    chosen = [c for _, c in answers]
+    if student_id is None:
+        if any(c is not None and c not in range(4) for c in chosen):
+            raise ServiceError("Invalid answer choice.")
+        right = sum(c == q.correct_index for q, c in zip(questions, chosen, strict=True))
+        pct = round(100 * right / len(questions), 1)
+        return QuizResult(quiz, chosen, pct, agents.suggest_difficulty(pct, difficulty))
+    _require_profile(student_id)
+    return submit_quiz(student_id, quiz, chosen)
+
+
 # --- quizzes over several topics and difficulties -------------------------------------
 
 
@@ -485,35 +546,58 @@ class QuizRun(BaseModel):
         return checks.text_hash("".join(q.text for _, q in self.questions[:3]))
 
 
+def bank_share(n: int) -> int:
+    """How many of a part's `n` questions may come from the question bank."""
+    return math.floor(n * QUIZ_BANK_SHARE)
+
+
 def start_quiz_run(student_id: str, spec: QuizSpec, on_event: OnEvent | None = None) -> QuizRun:
-    """Generate every part in batches of up to QUIZ_BATCH questions, each through the critic.
-    A batch avoids the student's earlier questions on the topic and those already in this
-    quiz. Raises like start_quiz when a batch cannot be approved."""
+    """Each part takes up to `bank_share(n)` unseen questions from the local question bank;
+    the rest are generated in batches of up to QUIZ_BATCH questions, each through the critic.
+    Generated questions come first, so the critic's numbering matches the quiz's within a
+    part's first batch. Nothing repeats a question the student has seen on the topic or one
+    already in this quiz. Raises like start_quiz when a batch cannot be approved."""
     profile = _require_profile(student_id)
     syl = student_syllabus(student_id, profile)
     spec = quiz_spec(spec.counts, spec.mix, syl.domain.topics)
-    parts: list[QuizSet] = []
-    batch, batches = 0, spec.batches
+    seen: dict[str, list[str]] = {}  # topic -> texts the student saw before, plus this quiz's
+    plan = []
     for topic, difficulty, n in spec.parts():
-        earlier = db.asked_questions(student_id, topic)
-        earlier += [q.text for p in parts if p.topic == topic for q in p.questions]
+        if topic not in seen:
+            seen[topic] = db.asked_questions(student_id, topic)
+        banked = question_bank.draw(
+            topic,
+            difficulty,
+            bank_share(n),
+            seen[topic],
+            seed=f"{student_id}|{topic}|{len(seen[topic])}",
+        )
+        seen[topic] += [q.text for q in banked]
+        plan.append((topic, difficulty, n, banked))
+    parts: list[QuizSet] = []
+    batch = 0
+    batches = sum(math.ceil((n - len(b)) / QUIZ_BATCH) for _, _, n, b in plan)
+    for topic, difficulty, n, banked in plan:
+        if banked and on_event:
+            on_event(f"{len(banked)} {difficulty} {topic} questions from the question bank")
         questions: list[Question] = []
-        while len(questions) < n:
-            k = min(QUIZ_BATCH, n - len(questions))
+        while len(questions) < n - len(banked):
+            k = min(QUIZ_BATCH, n - len(banked) - len(questions))
             batch += 1
             if on_event and batches > 1:
                 on_event(f"Batch {batch} of {batches}: {k} {difficulty} {topic} questions")
             made = agents.make_quiz(
                 topic,
                 difficulty,
-                earlier + [q.text for q in questions],
+                seen[topic],
                 count=k,
                 student_id=student_id,
                 on_event=on_event,
                 area=syl.area,
             )
             questions += made.questions
-        parts.append(QuizSet(topic=topic, difficulty=difficulty, questions=questions))
+            seen[topic] += [q.text for q in made.questions]
+        parts.append(QuizSet(topic=topic, difficulty=difficulty, questions=questions + banked))
     return QuizRun(parts=parts)
 
 
@@ -707,15 +791,56 @@ def interview_summary(session: InterviewSession) -> InterviewSummary:
     )
 
 
+@dataclass(frozen=True)
+class InterviewTrack:
+    name: str
+    focus: str
+    group: str  # the domain's name, the degree set's label, or "General"
+
+
+@lru_cache(maxsize=1)
+def _tracks_data() -> dict:
+    return json.loads((DATA_DIR / "interview_tracks.json").read_text(encoding="utf-8"))
+
+
+def interview_tracks(profile: StudentProfile | None) -> list[InterviewTrack]:
+    """The tracks a student can choose: their domain's five, any their degree adds (for
+    example BCA, MCA, MSc or MSE), then the generic HR, Technical and Project types."""
+    data = _tracks_data()
+    out: list[InterviewTrack] = []
+    if profile is not None:
+        domain = syllabus.domain_of_role(profile.target_role)
+        for t in data["domains"].get(domain.id, []):
+            out.append(InterviewTrack(t["name"], t["focus"], domain.name))
+        degree = degrees.parse(profile.education or "")
+        for extra in data.get("degree_tracks", {}).values():
+            if degree and degree.code in extra["degrees"]:
+                out += [
+                    InterviewTrack(t["name"], t["focus"], extra["label"]) for t in extra["tracks"]
+                ]
+    seen = {t.name for t in out}
+    out += [InterviewTrack(t, "", "General") for t in INTERVIEW_TYPES if t not in seen]
+    return out
+
+
+def _track_focus(profile: StudentProfile, name: str) -> str:
+    track = next((t for t in interview_tracks(profile) if t.name == name), None)
+    if track is None:
+        raise ServiceError(f"Unknown interview type {name!r}.")
+    return track.focus
+
+
 def start_interview(
     student_id: str, interview_type: str, on_event: OnEvent | None = None
 ) -> InterviewSession:
+    """`interview_type`: a generic type or one of the student's tracks (interview_tracks)."""
     profile = _require_profile(student_id)
-    if interview_type not in INTERVIEW_TYPES:
-        raise ServiceError(f"Unknown interview type {interview_type!r}.")
+    focus = _track_focus(profile, interview_type)
     session_id = uuid.uuid4().hex
     past = db.past_turns(student_id, exclude_session=session_id)
-    first = agents.next_question(profile, interview_type, [], past, student_id, on_event)
+    first = agents.next_question(
+        profile, interview_type, [], past, student_id, on_event, focus=focus
+    )
     return InterviewSession(
         session_id=session_id, interview_type=interview_type, past=past, current=first
     )
@@ -751,7 +876,13 @@ def continue_interview(
         raise ServiceError("This session is not waiting for a new question.")
     profile = _require_profile(student_id)
     nxt = agents.next_question(
-        profile, session.interview_type, session.qa(), session.past, student_id, on_event
+        profile,
+        session.interview_type,
+        session.qa(),
+        session.past,
+        student_id,
+        on_event,
+        focus=_track_focus(profile, session.interview_type),
     )
     return session.model_copy(update={"current": nxt})
 
@@ -1188,6 +1319,7 @@ def save_resume(
     email = str((resume.get("form") or {}).get("email", "")).strip()
     if not EMAIL_RE.match(email):
         raise ServiceError("Enter a valid email address.")
+    check_resume_dates(resume)
     text = resume_builder.resume_text(resume)
     if student_id:
         lock = locked_domain(student_id)
@@ -1202,6 +1334,76 @@ def save_resume(
     ats = resume_builder.evaluate_ats_compatibility(resume, role)
     db.save_resume_version(sid, domain_id, role, resume, ats.score)
     return sid, len(db.resume_versions(sid))
+
+
+def enhance_bullet(text: str, role: str, on_event: OnEvent | None = None) -> str:
+    """One resume bullet rewritten in XYZ form by the LLM; numbers are never invented."""
+    text = (text or "").strip()
+    if len(text) < 5:
+        raise ServiceError("Write a few words about what you did first.")
+    if len(text) > BULLET_MAX_CHARS:
+        raise ServiceError(f"A bullet is limited to {BULLET_MAX_CHARS} characters.")
+    if resume_builder.get_role_info(role) is None and role not in syllabus.role_skills():
+        raise ServiceError(f"Unknown role {role!r}.")
+    return agents.enhance_bullet(text, role, on_event)
+
+
+def check_resume_dates(resume: Mapping) -> None:
+    """Every work date reads as a month and no entry ends before it starts; every education
+    year is a year. Raises ServiceError naming the entry."""
+    parse = resume_builder.parse_month
+    for e in resume_builder.experience_entries(resume):
+        name = resume_builder.job_label(e)
+        start, end = e.get("start", ""), "" if e.get("current") else e.get("end", "")
+        for value in (start, end):
+            if value and parse(value) is None:
+                raise ServiceError(
+                    f"{name}: write dates like 'Jun 2024' or '2024-06' (got {value!r})."
+                )
+        if not start:
+            raise ServiceError(f"{name}: add the month you started.")
+        if end and parse(end) < parse(start):
+            raise ServiceError(f"{name}: the end date is before the start date.")
+    for e in resume_builder.education_entries(resume):
+        for value in (e.get("start", ""), e.get("end", "")):
+            if value and not re.fullmatch(r"(19|20)\d\d", str(value).strip()):
+                raise ServiceError(
+                    f"{degrees.entry_label(e)}: write years as four digits, e.g. 2026."
+                )
+        if e.get("start") and e.get("end") and int(e["end"]) < int(e["start"]):
+            raise ServiceError(f"{degrees.entry_label(e)}: the end year is before the start.")
+
+
+DEGREE_STATUSES = degrees.STATUSES
+
+
+def degree_codes() -> list[str]:
+    """Every qualification a student can list, lowest level first."""
+    return degrees.codes()
+
+
+def degree_label(code: str) -> str:
+    return degrees.label(code)
+
+
+def roles_for_degree(code: str, specialization: str, status: str) -> list[degrees.RoleFit]:
+    """Catalog roles one degree qualifies for (completed: now; pursuing: on completion)."""
+    if code not in degrees.codes():
+        raise ServiceError(f"Unknown degree {code!r}.")
+    if status not in degrees.STATUSES:
+        raise ServiceError(f"Status must be one of {', '.join(degrees.STATUSES)}.")
+    entry = {"degree": code, "specialization": specialization.strip(), "status": status}
+    return degrees.roles_for([entry])
+
+
+def education_from_text(text: str) -> dict:
+    """A form entry from a free-text education line (the profile's): the degree it names and
+    the branch after "in", or the whole line as an "Other" qualification."""
+    d = degrees.parse(text)
+    if d is None:
+        return {"degree": "Other", "specialization": text.strip(), "status": "Completed"}
+    m = re.search(r"\bin\s+([^,(|;]+)", text)
+    return {"degree": d.code, "specialization": m[1].strip() if m else "", "status": "Completed"}
 
 
 @dataclass(frozen=True)
