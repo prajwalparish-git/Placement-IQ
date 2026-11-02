@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design tokens, mirroring piq/config.py PALETTE and SEMANTIC_COLORS (as "r g b" triples so
+   Tailwind can apply opacity). Light by default; dark follows the system setting. */
+:root {
+  --bg: 251 251 250; /* #FBFBFA */
+  --surface: 240 242 240; /* #F0F2F0 */
+  --ink: 26 35 38; /* #1A2326 */
+  --muted: 86 100 97; /* #566461 */
+  --line: 122 133 130; /* #7A8582, >= 3:1 */
+  --hair: 220 225 222; /* #DCE1DE, decorative */
+  --primary: 13 102 112; /* #0D6670 */
+  --primary-ink: 13 102 112;
+  --ok: 27 111 54;
+  --warn: 120 78 0;
+  --bad: 149 27 44;
+  --info: 0 69 210;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: 17 26 28; /* #111A1C */
+    --surface: 26 37 40;
+    --ink: 227 234 232;
+    --muted: 160 174 171;
+    --line: 100 113 110;
+    --hair: 44 56 59;
+    --primary: 31 127 134;
+    --primary-ink: 108 203 196;
+    --ok: 91 191 122;
+    --warn: 240 212 92;
+    --bad: 255 134 117;
+    --info: 169 188 245;
+    color-scheme: dark;
+  }
+}
+
+html,
+body {
+  background: rgb(var(--bg));
+  color: rgb(var(--ink));
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .card {
+    @apply rounded-card border border-hair bg-bg p-5;
+  }
+  .input {
+    @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink
+      placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/60;
+  }
+  .label {
+    @apply mb-1 block text-sm font-medium text-ink;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
+      transition-colors disabled:cursor-not-allowed disabled:opacity-50
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60;
+  }
+  .btn-primary {
+    @apply btn bg-primary text-white hover:bg-primary/90;
+  }
+  .btn-ghost {
+    @apply btn border border-line bg-bg text-ink hover:bg-surface;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium;
+  }
+  .h1 {
+    @apply text-2xl font-semibold tracking-tight text-ink sm:text-3xl;
+  }
+  .lead {
+    @apply mt-2 max-w-2xl text-sm text-muted;
+  }
+}
