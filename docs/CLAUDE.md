@@ -26,6 +26,10 @@ tests); Pillow compresses its PNGs and is the version Streamlit already installs
 ## Directory structure
 ```
 app.py              Entry point: theme CSS, logo, settings check, DB init, sidebar, grouped navigation
+server.py           FastAPI over piq.services for the Next.js app: catalog, instant quizzes, plan,
+                    dashboard, interview turns (server-sent events), resume ATS/PDF/bullet polish
+frontend/          Next.js 14 (App Router) + Tailwind + lucide-react: /, /resume-builder, /quiz,
+                    /interview, /plan, /dashboard. Talks only to server.py (NEXT_PUBLIC_API_URL)
 views/              One file per page. Calls piq.services, piq.formatter, piq.charts and piq.ui
   home.py           Default page: the loop explained, or readiness, streak and today's focus
   onboard.py        Resume (upload or sample) -> profile; taken-USN confirmation; delete student
@@ -41,6 +45,8 @@ piq/                Application package. Only ui.py imports Streamlit
   services.py       Controllers: every user operation; validates, runs agents, persists, typed state
   config.py         Env settings (cached) and constants: CS core topics, thresholds, sizes
   syllabus.py       Domain topics, role focus topics, topic colour slots (career_catalog.json)
+  degrees.py        Qualifications (degrees.json) and the catalog roles a degree qualifies for
+  question_bank.py  Local MCQ bank -> syllabus topics (bank_topics.json); a share of each quiz
   scorecard.py      Evaluation parameters from summary.json + CSVs, scores and ratings (pure)
   resume_builder.py Resume data, ATS audit, version diff, Latin-1-safe PDF (fpdf2)
   schemas.py        Pydantic models for every LLM output and derived objects
@@ -57,9 +63,14 @@ piq/                Application package. Only ui.py imports Streamlit
   charts.py         Altair chart builders (pure, tested) + cached Vega-Lite specs for the views
   ui.py             Streamlit helpers: student selector, critic trail, design-system components
 static/             Served at app/static: app.css, brand/ (mark, wordmark), fonts/ (OFL woff2)
+data/interview_tracks.json  Five interview tracks per domain, plus tracks a degree adds (BCA/MCA/MSc/MSE)
 data/
   career_catalog.json Domains: ordered topics (<= 10), core topics, code_space, roles
-  role_skills.json  Role -> required skill -> its domain's topic (drives readiness and weakness)
+  role_skills.json  Role -> required skill -> its domain's topic (drives readiness and weakness);
+                    "aliases": other names a resume may use for a skill
+  degrees.json      Class 10 to doctorate: code, level, field; groups roles' eligibility uses
+  bank_topics.json  Question-bank topic -> the syllabus topic it serves (or null)
+  questions/        mcq_bank.csv: the question bank (committed; the raw MCQ.csv source is not)
   sample_resumes/   Three fictional resumes (TXT)
   placementiq.db    Runtime database (git-ignored; created on first run)
 evaluation/
@@ -92,6 +103,8 @@ copy .env.example .env                  # then add GROQ_API_KEY; without .env th
 python -m scripts.check_models          # before a demo: models served, JSON mode, quota left
 python -m scripts.seed                  # demo student with 4 weeks of history
 streamlit run app.py                    # dev server, http://localhost:8501
+uvicorn server:app --port 8000          # API for the Next.js frontend
+cd frontend ; npm install ; npm run dev # Next.js on http://localhost:3000 (npm run build to check types)
 pytest                                  # all tests, offline, about 2 min
 ruff format . ; ruff check .            # format + lint (must be clean)
 python -m evaluation.run_eval --consecutive 5 --interviews   # live; ~360k tokens = 2 days of quota
@@ -137,10 +150,17 @@ There is no build step. `.env.example` already contains the verified model IDs. 
 - `.env` must never be committed or printed. Never echo `GROQ_API_KEY`.
 - **Never put model IDs in code.** They come only from `.env`, because Groq renames and retires models. `scripts/check_models.py` detects a retired ID.
 - `evaluation/test_cases.json` is frozen. Editing it invalidates all earlier results.
+- Readiness is strict: a required skill counts only if the resume names it (or an alias) in words, and a skill mapped to a syllabus topic weighs `SYLLABUS_SKILL_WEIGHT` times a tool (`checks.readiness_score`).
+- Every catalog role has `eligibility` (degree codes or `@group`s from `data/degrees.json`, optional `fields`); a test checks every code exists.
+- `data/questions/mcq_bank.csv` is committed; the app must still work without it, and `tests/conftest.py` points the bank at a missing file so tests never depend on its contents. Normalise a new bank with `python -m scripts.verify_and_ingest_mcq --normalise`; every bank topic needs a line in `data/bank_topics.json`.
 - `data/role_skills.json` changes readiness and weakness for every student. Edit it only on purpose, and keep each role's topics within its domain's topics in `data/career_catalog.json` (a test enforces this). The five roles the frozen evaluation uses keep the six CS core topics; a student tracks their role's focus topics plus domain topics they quiz.
 - The `scripts/seed.py` trajectory (OS and DBMS start weak) is what the demo depends on. Do not change it casually.
 - `students.usn` is required (`NOT NULL UNIQUE`). Never drop it or make it optional.
 - `schema.sql` has no migrations. A new table (`CREATE TABLE IF NOT EXISTS`, as `plan_progress`) is safe for existing databases; changing an existing table is not, so ask first, and afterwards delete `data/placementiq.db` and reseed.
 - Fonts in `static/fonts/` are OFL, self-hosted (no font CDN at runtime: the app must work offline) and keep their licence files next to them.
 - Groq's free tier is the only external service: each model allows 8,000 tokens/minute and 1,000 requests/day (from the response headers), and about 200,000 tokens/day (the full evaluation hit it after 15 of 20 cases). Batch questions into one call, use the small model for extraction, never re-judge questions that were already approved, and keep MOCK_MODE as the default in `.env.example`.
-- Out of scope: auth, voice/video, a code judge, scraping, a vector database or embeddings, async, a separate HTTP backend (services are the API surface).
+- Two front ends share one core. The Streamlit app and the Next.js app (`frontend/`, through `server.py`) both call `piq.services`; `server.py` only serialises. Its routes are plain `def`s, so the code stays synchronous; the one `async` is FastAPI's lifespan hook. Interview turns stream critic steps as server-sent events, never unchecked tokens.
+- Groq keys: `GROQ_API_KEY_1` serves agents a student waits on (interviewer, evaluator, bullet), `GROQ_API_KEY_2` background agents; a 429 fails over once (`piq/llm.py`). `GROQ_API_KEY` alone still works.
+- Quizzes in the Next.js app come straight from the question bank (`services.instant_quiz`), with no LLM call; answers stay on the server until `/api/quiz/submit` grades them. The Streamlit quiz keeps the generate -> critic loop with its bank share.
+- The bullet polish (`agents.enhance_bullet`) may not invent numbers: `checks.check_bullet` rejects any figure absent from the student's text.
+- Out of scope: auth, voice/video, a code judge, scraping, a vector database or embeddings, async business logic.

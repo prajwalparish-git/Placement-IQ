@@ -2,6 +2,23 @@
 
 This document outlines the expanded multi-disciplinary architecture for **PlacementIQ**, scaling beyond Computer Science to encompass all major engineering branches, medical/healthcare, business/law, and Indian government sectors (Central & State).
 
+## As built (November 2026)
+
+- The catalog (`data/career_catalog.json`) lists **60 roles across 10 domains**: every role in the
+  question bank plus Software Engineer, Data Scientist and Machine Learning / AI Engineer. Each
+  role has ATS keywords, sample projects, a recommended degree and an `eligibility` rule
+  (degree codes and branches) that the resume builder's degree search uses.
+- Bank role names were normalised to the catalog's (for example *Backend Developer (Java/Python/C++)*
+  is *Backend Developer*); *Embedded Software Engineer* sits in the ECE domain for its topics.
+- Each bank topic maps to one syllabus topic (`data/bank_topics.json`); 223 questions (Flutter,
+  Android, test life cycle, general science and similar) map to none and are not used.
+- Quizzes draw **up to half** of each topic-and-difficulty part from the bank (questions the student
+  has not seen), not all of it: the rest are generated and checked by the critic, so the critic
+  stays part of every quiz while token use halves.
+- The cleaned bank is committed (`data/questions/mcq_bank.csv`); the app still works without it.
+
+The plan below is the original design and is kept for reference.
+
 ---
 
 ## 1. Executive Summary & Design Principles

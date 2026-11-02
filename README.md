@@ -12,6 +12,19 @@ streamlit run app.py
 ```
 Without a `.env` file the app runs in **MOCK_MODE**: canned responses and no network.
 
+## Next.js app (fast front end)
+The same services behind a FastAPI server and a Next.js 14 + Tailwind front end: instant quizzes from
+the question bank (no LLM call), domain interview tracks (five per domain, plus BCA/MCA/MSc/MSE
+tracks), a resume builder with a live ATS score, PDF export and an AI bullet polish.
+```
+uvicorn server:app --port 8000          # the API (reads the same .env and database)
+cd frontend
+copy .env.example .env.local            # NEXT_PUBLIC_API_URL=http://localhost:8000
+npm install
+npm run dev                             # http://localhost:3000
+```
+Choose a candidate in the menu; new candidates are onboarded in the Streamlit app.
+
 ## Live mode (Groq free tier)
 1. Copy `.env.example` to `.env` and set `GROQ_API_KEY`.
 2. Set `MOCK_MODE=false`. The model IDs are already filled in (`openai/gpt-oss-120b` and `openai/gpt-oss-20b`, verified 2026-10-19).
@@ -50,7 +63,13 @@ when the demo ends.
   file (.ics) or a CSV.
 - **Quiz**: topics ranked by weakness with a suggested difficulty, five questions checked
   by a critic (the step-by-step trail shows every rejection), a warning before submitting
-  blanks, and a review with each answer marked, downloadable as notes.
+  blanks, and a review with each answer marked, downloadable as notes. With the local
+  question bank present, up to half of each topic's questions come from it (unseen ones
+  only); the rest are generated and checked.
+- **Resume builder**: any number of degrees (Class 10 to a doctorate, completed or being
+  pursued) and jobs or internships with dates, so years of experience are computed; an ATS
+  check against the role's keywords and degree rule; **Find roles for your degree** lists
+  the 60 catalog roles a degree and branch qualify for, now or on completion.
 - **Mock interview**: HR, technical or project interviews with follow-ups on vague
   answers, scored feedback per answer, a session summary with tips, and notes to keep.
 - **Dashboard**: readiness over time, study streak and a 12-week activity calendar, topic
