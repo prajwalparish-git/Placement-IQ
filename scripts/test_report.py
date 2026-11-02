@@ -52,6 +52,7 @@ LAYERS = {
     "test_degrees": ("Unit", "Degrees and the roles they qualify for"),
     "test_question_bank": ("Integration", "Local question bank and its share of quizzes"),
     "test_server": ("Integration", "HTTP API for the Next.js frontend"),
+    "test_all_domains": ("Integration", "Every role and domain, resume to interview"),
     "test_ui": ("System (UI)", "Streamlit pages, headless"),
 }
 ORDER = list(LAYERS)

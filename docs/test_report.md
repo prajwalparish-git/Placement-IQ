@@ -1,8 +1,8 @@
 # Test report
 
-Generated 2026-11-02 09:11 UTC by `python -m scripts.test_report` from a real run of the suite (offline: MOCK_MODE, temporary databases, fake Groq clients for live code paths).
+Generated 2026-11-02 16:29 UTC by `python -m scripts.test_report` from a real run of the suite (offline: MOCK_MODE, temporary databases, fake Groq clients for live code paths).
 
-**582 tests: 582 passed, 0 failed, 0 skipped** (420 s of test time).
+**652 tests: 652 passed, 0 failed, 0 skipped** (405 s of test time).
 
 ## By module
 
@@ -38,6 +38,7 @@ Generated 2026-11-02 09:11 UTC by `python -m scripts.test_report` from a real ru
 | Unit | Degrees and the roles they qualify for | `test_degrees` | 16 | 16 |
 | Integration | Local question bank and its share of quizzes | `test_question_bank` | 6 | 6 |
 | Integration | HTTP API for the Next.js frontend | `test_server` | 12 | 12 |
+| Integration | Every role and domain, resume to interview | `test_all_domains` | 70 | 70 |
 | System (UI) | Streamlit pages, headless | `test_ui` | 67 | 67 |
 
 ## Test cases
@@ -559,70 +560,140 @@ Generated 2026-11-02 09:11 UTC by `python -m scripts.test_report` from a real ru
 | TC-513 | Integration | HTTP API for the Next.js frontend | Resume ats and pdf | Pass |
 | TC-514 | Integration | HTTP API for the Next.js frontend | Enhance bullet rewrites without inventing numbers | Pass |
 | TC-515 | Integration | HTTP API for the Next.js frontend | Check bullet rejects invented numbers | Pass |
-| TC-516 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/onboard.py] | Pass |
-| TC-517 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/plan.py] | Pass |
-| TC-518 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/quiz.py] | Pass |
-| TC-519 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/interview.py] | Pass |
-| TC-520 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/dashboard.py] | Pass |
-| TC-521 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/results.py] | Pass |
-| TC-522 | System (UI) | Streamlit pages, headless | Onboard prefills the selected students usn | Pass |
-| TC-523 | System (UI) | Streamlit pages, headless | Design system components render | Pass |
-| TC-524 | System (UI) | Streamlit pages, headless | Navigation groups pages with material icons | Pass |
-| TC-525 | System (UI) | Streamlit pages, headless | Sidebar shows readiness and a quiet mock badge | Pass |
-| TC-526 | System (UI) | Streamlit pages, headless | Onboard with sample resume | Pass |
-| TC-527 | System (UI) | Streamlit pages, headless | Onboard without a student explains what happens next | Pass |
-| TC-528 | System (UI) | Streamlit pages, headless | Onboard profile shows readiness skills and fixes | Pass |
-| TC-529 | System (UI) | Streamlit pages, headless | Onboard reprofile without a resume shows the error | Pass |
-| TC-530 | System (UI) | Streamlit pages, headless | Onboarding a usn that is taken asks before replacing that student | Pass |
-| TC-531 | System (UI) | Streamlit pages, headless | Reprofiling the selected student closes their open quiz and interview | Pass |
-| TC-532 | System (UI) | Streamlit pages, headless | Reprofiling the selected student needs no confirmation | Pass |
-| TC-533 | System (UI) | Streamlit pages, headless | Deleting a student needs their usn then returns home | Pass |
-| TC-534 | System (UI) | Streamlit pages, headless | Onboard rejects missing usn | Pass |
-| TC-535 | System (UI) | Streamlit pages, headless | Pages require a student [views/plan.py] | Pass |
-| TC-536 | System (UI) | Streamlit pages, headless | Pages require a student [views/quiz.py] | Pass |
-| TC-537 | System (UI) | Streamlit pages, headless | Pages require a student [views/interview.py] | Pass |
-| TC-538 | System (UI) | Streamlit pages, headless | Pages require a student [views/dashboard.py] | Pass |
-| TC-539 | System (UI) | Streamlit pages, headless | The empty state points to the sidebar when students exist | Pass |
-| TC-540 | System (UI) | Streamlit pages, headless | Plan generates next week and compares | Pass |
-| TC-541 | System (UI) | Streamlit pages, headless | Plan shows the latest week day by day with why and the shift | Pass |
-| TC-542 | System (UI) | Streamlit pages, headless | Plan week one has no shift and table view shows the table | Pass |
-| TC-543 | System (UI) | Streamlit pages, headless | Plan days marked done are saved and counted on home and dashboard | Pass |
-| TC-544 | System (UI) | Streamlit pages, headless | Plan week exports as calendar and table | Pass |
-| TC-545 | System (UI) | Streamlit pages, headless | Plan export files are built only when downloaded | Pass |
-| TC-546 | System (UI) | Streamlit pages, headless | Plan without a plan yet invites week one | Pass |
-| TC-547 | System (UI) | Streamlit pages, headless | Quiz generate answer and review | Pass |
-| TC-548 | System (UI) | Streamlit pages, headless | Quiz setup offers the syllabus counts and a mix that adds to 100 | Pass |
-| TC-549 | System (UI) | Streamlit pages, headless | Quiz over several topics caps the total | Pass |
-| TC-550 | System (UI) | Streamlit pages, headless | Quiz review shows a score card breakdowns and mistakes | Pass |
-| TC-551 | System (UI) | Streamlit pages, headless | Quiz with blank answers asks before submitting | Pass |
-| TC-552 | System (UI) | Streamlit pages, headless | Critic log numbers questions like the quiz | Pass |
-| TC-553 | System (UI) | Streamlit pages, headless | Quiz text and options are shown literally | Pass |
-| TC-554 | System (UI) | Streamlit pages, headless | Interview answer is shown literally | Pass |
-| TC-555 | System (UI) | Streamlit pages, headless | Interview session runs to completion | Pass |
-| TC-556 | System (UI) | Streamlit pages, headless | Interview setup describes each type | Pass |
-| TC-557 | System (UI) | Streamlit pages, headless | Interview shows progress scored feedback and the critic trail | Pass |
-| TC-558 | System (UI) | Streamlit pages, headless | Dashboard renders | Pass |
-| TC-559 | System (UI) | Streamlit pages, headless | Dashboard readiness shows a delta and trend only after a second profile | Pass |
-| TC-560 | System (UI) | Streamlit pages, headless | Dashboard keeps system telemetry in its own section | Pass |
-| TC-561 | System (UI) | Streamlit pages, headless | Dashboard for a new student explains each empty section | Pass |
-| TC-562 | System (UI) | Streamlit pages, headless | Dashboard error state offers a retry | Pass |
-| TC-563 | System (UI) | Streamlit pages, headless | Onboard requires a resume or sample | Pass |
-| TC-564 | System (UI) | Streamlit pages, headless | Onboarding another student drops the previous students session | Pass |
-| TC-565 | System (UI) | Streamlit pages, headless | Failed follow up offers retry without reanswering | Pass |
-| TC-566 | System (UI) | Streamlit pages, headless | Failed quiz generation stays visible | Pass |
-| TC-567 | System (UI) | Streamlit pages, headless | Results page without and with results | Pass |
-| TC-568 | System (UI) | Streamlit pages, headless | Results note mentions the duplicate rate only when it is shown | Pass |
-| TC-569 | System (UI) | Streamlit pages, headless | Seed demo fills an empty database on start | Pass |
-| TC-570 | System (UI) | Streamlit pages, headless | Home without a student explains the loop | Pass |
-| TC-571 | System (UI) | Streamlit pages, headless | Home quick start opens onboard with a sample | Pass |
-| TC-572 | System (UI) | Streamlit pages, headless | Home shows todays focus for the demo student | Pass |
-| TC-573 | System (UI) | Streamlit pages, headless | Todays focus opens the page it names | Pass |
-| TC-574 | System (UI) | Streamlit pages, headless | Todays focus preselects the quiz topic | Pass |
-| TC-575 | System (UI) | Streamlit pages, headless | Home error state offers a retry | Pass |
-| TC-576 | System (UI) | Streamlit pages, headless | An ece students home and quiz show electronics topics | Pass |
-| TC-577 | System (UI) | Streamlit pages, headless | Project space is in the navigation for computing domains only | Pass |
-| TC-578 | System (UI) | Streamlit pages, headless | Project space creates a repository and logs work | Pass |
-| TC-579 | System (UI) | Streamlit pages, headless | Project space shows a bad link as an error | Pass |
-| TC-580 | System (UI) | Streamlit pages, headless | Resume builder starts empty for a new student | Pass |
-| TC-581 | System (UI) | Streamlit pages, headless | Resume builder saves versions and locks the domain | Pass |
-| TC-582 | System (UI) | Streamlit pages, headless | Resume builder finds roles by degree and lists jobs | Pass |
+| TC-516 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Software Engineer] | Pass |
+| TC-517 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Data Scientist] | Pass |
+| TC-518 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Frontend Engineer] | Pass |
+| TC-519 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Backend Developer] | Pass |
+| TC-520 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Full Stack Developer] | Pass |
+| TC-521 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [DevOps & Cloud Engineer] | Pass |
+| TC-522 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Data Analyst & BI Specialist] | Pass |
+| TC-523 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Machine Learning / AI Engineer] | Pass |
+| TC-524 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Cybersecurity Analyst] | Pass |
+| TC-525 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Database Administrator (DBA)] | Pass |
+| TC-526 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Mobile App Developer] | Pass |
+| TC-527 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [QA & Test Automation Engineer] | Pass |
+| TC-528 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Site Reliability Engineer (SRE)] | Pass |
+| TC-529 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [VLSI & Chip Design Engineer] | Pass |
+| TC-530 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Embedded Systems & Firmware Engineer] | Pass |
+| TC-531 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Embedded Software Engineer] | Pass |
+| TC-532 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [IoT & Edge Hardware Engineer] | Pass |
+| TC-533 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Robotics & Control Systems Engineer] | Pass |
+| TC-534 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Signal Processing Engineer] | Pass |
+| TC-535 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Telecommunications & RF Engineer] | Pass |
+| TC-536 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Automotive & EV Systems Engineer] | Pass |
+| TC-537 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [CAD/CAM & Product Design Engineer] | Pass |
+| TC-538 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Manufacturing & Production Engineer] | Pass |
+| TC-539 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Robotics & Mechatronics Engineer] | Pass |
+| TC-540 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Thermal & HVAC Design Engineer] | Pass |
+| TC-541 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Structural Design Engineer] | Pass |
+| TC-542 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Construction Project Manager] | Pass |
+| TC-543 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Geotechnical & Foundation Engineer] | Pass |
+| TC-544 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Transportation & Highway Engineer] | Pass |
+| TC-545 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Water Resources & Environmental Engineer] | Pass |
+| TC-546 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Industrial Automation & PLC Engineer] | Pass |
+| TC-547 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [EV Powertrain & Battery Engineer] | Pass |
+| TC-548 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Power Systems & Grid Engineer] | Pass |
+| TC-549 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Renewable Energy Systems Engineer] | Pass |
+| TC-550 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Bioinformatics Analyst] | Pass |
+| TC-551 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Biomedical Instrumentation Engineer] | Pass |
+| TC-552 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Bioprocess / Fermentation Engineer] | Pass |
+| TC-553 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Clinical Research Associate (CRA)] | Pass |
+| TC-554 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Hospital Operations Administrator] | Pass |
+| TC-555 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Clinical Pharmacist] | Pass |
+| TC-556 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [General Medical Officer (Resident Doctor)] | Pass |
+| TC-557 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Medical Lab Technologist (MLT)] | Pass |
+| TC-558 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Public Health Program Coordinator] | Pass |
+| TC-559 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Corporate Legal Counsel] | Pass |
+| TC-560 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Financial Analyst] | Pass |
+| TC-561 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Digital Marketing & Brand Strategist] | Pass |
+| TC-562 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Human Resources (HR) Specialist] | Pass |
+| TC-563 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Product Manager] | Pass |
+| TC-564 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Supply Chain & Logistics Specialist] | Pass |
+| TC-565 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [UPSC Civil Services Aspirant] | Pass |
+| TC-566 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Public Sector Bank PO (SBI / IBPS)] | Pass |
+| TC-567 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [DRDO / ISRO Scientist-Engineer] | Pass |
+| TC-568 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Defense Accounts & Audit Officer (CAG/DAD)] | Pass |
+| TC-569 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Railway Recruitment Board (RRB) SSE] | Pass |
+| TC-570 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [SSC CGL Assistant Section Officer (ASO)] | Pass |
+| TC-571 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [State Administrative Officer (KAS / PCS)] | Pass |
+| TC-572 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Assistant Engineer (PWD / Irrigation)] | Pass |
+| TC-573 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Commercial Tax / Revenue Inspector] | Pass |
+| TC-574 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [Panchayat Development Officer (PDO)] | Pass |
+| TC-575 | Integration | Every role and domain, resume to interview | A role works from resume to readiness [State Police Sub-Inspector (PSI / DySP)] | Pass |
+| TC-576 | Integration | Every role and domain, resume to interview | A domain gets a plan instant quizzes and five interview tracks [cs] | Pass |
+| TC-577 | Integration | Every role and domain, resume to interview | A domain gets a plan instant quizzes and five interview tracks [ece] | Pass |
+| TC-578 | Integration | Every role and domain, resume to interview | A domain gets a plan instant quizzes and five interview tracks [mech] | Pass |
+| TC-579 | Integration | Every role and domain, resume to interview | A domain gets a plan instant quizzes and five interview tracks [civil] | Pass |
+| TC-580 | Integration | Every role and domain, resume to interview | A domain gets a plan instant quizzes and five interview tracks [eee] | Pass |
+| TC-581 | Integration | Every role and domain, resume to interview | A domain gets a plan instant quizzes and five interview tracks [biotech] | Pass |
+| TC-582 | Integration | Every role and domain, resume to interview | A domain gets a plan instant quizzes and five interview tracks [health] | Pass |
+| TC-583 | Integration | Every role and domain, resume to interview | A domain gets a plan instant quizzes and five interview tracks [corp] | Pass |
+| TC-584 | Integration | Every role and domain, resume to interview | A domain gets a plan instant quizzes and five interview tracks [govt_central] | Pass |
+| TC-585 | Integration | Every role and domain, resume to interview | A domain gets a plan instant quizzes and five interview tracks [govt_state] | Pass |
+| TC-586 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/onboard.py] | Pass |
+| TC-587 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/plan.py] | Pass |
+| TC-588 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/quiz.py] | Pass |
+| TC-589 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/interview.py] | Pass |
+| TC-590 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/dashboard.py] | Pass |
+| TC-591 | System (UI) | Streamlit pages, headless | A page render never repeats a query [views/results.py] | Pass |
+| TC-592 | System (UI) | Streamlit pages, headless | Onboard prefills the selected students usn | Pass |
+| TC-593 | System (UI) | Streamlit pages, headless | Design system components render | Pass |
+| TC-594 | System (UI) | Streamlit pages, headless | Navigation groups pages with material icons | Pass |
+| TC-595 | System (UI) | Streamlit pages, headless | Sidebar shows readiness and a quiet mock badge | Pass |
+| TC-596 | System (UI) | Streamlit pages, headless | Onboard with sample resume | Pass |
+| TC-597 | System (UI) | Streamlit pages, headless | Onboard without a student explains what happens next | Pass |
+| TC-598 | System (UI) | Streamlit pages, headless | Onboard profile shows readiness skills and fixes | Pass |
+| TC-599 | System (UI) | Streamlit pages, headless | Onboard reprofile without a resume shows the error | Pass |
+| TC-600 | System (UI) | Streamlit pages, headless | Onboarding a usn that is taken asks before replacing that student | Pass |
+| TC-601 | System (UI) | Streamlit pages, headless | Reprofiling the selected student closes their open quiz and interview | Pass |
+| TC-602 | System (UI) | Streamlit pages, headless | Reprofiling the selected student needs no confirmation | Pass |
+| TC-603 | System (UI) | Streamlit pages, headless | Deleting a student needs their usn then returns home | Pass |
+| TC-604 | System (UI) | Streamlit pages, headless | Onboard rejects missing usn | Pass |
+| TC-605 | System (UI) | Streamlit pages, headless | Pages require a student [views/plan.py] | Pass |
+| TC-606 | System (UI) | Streamlit pages, headless | Pages require a student [views/quiz.py] | Pass |
+| TC-607 | System (UI) | Streamlit pages, headless | Pages require a student [views/interview.py] | Pass |
+| TC-608 | System (UI) | Streamlit pages, headless | Pages require a student [views/dashboard.py] | Pass |
+| TC-609 | System (UI) | Streamlit pages, headless | The empty state points to the sidebar when students exist | Pass |
+| TC-610 | System (UI) | Streamlit pages, headless | Plan generates next week and compares | Pass |
+| TC-611 | System (UI) | Streamlit pages, headless | Plan shows the latest week day by day with why and the shift | Pass |
+| TC-612 | System (UI) | Streamlit pages, headless | Plan week one has no shift and table view shows the table | Pass |
+| TC-613 | System (UI) | Streamlit pages, headless | Plan days marked done are saved and counted on home and dashboard | Pass |
+| TC-614 | System (UI) | Streamlit pages, headless | Plan week exports as calendar and table | Pass |
+| TC-615 | System (UI) | Streamlit pages, headless | Plan export files are built only when downloaded | Pass |
+| TC-616 | System (UI) | Streamlit pages, headless | Plan without a plan yet invites week one | Pass |
+| TC-617 | System (UI) | Streamlit pages, headless | Quiz generate answer and review | Pass |
+| TC-618 | System (UI) | Streamlit pages, headless | Quiz setup offers the syllabus counts and a mix that adds to 100 | Pass |
+| TC-619 | System (UI) | Streamlit pages, headless | Quiz over several topics caps the total | Pass |
+| TC-620 | System (UI) | Streamlit pages, headless | Quiz review shows a score card breakdowns and mistakes | Pass |
+| TC-621 | System (UI) | Streamlit pages, headless | Quiz with blank answers asks before submitting | Pass |
+| TC-622 | System (UI) | Streamlit pages, headless | Critic log numbers questions like the quiz | Pass |
+| TC-623 | System (UI) | Streamlit pages, headless | Quiz text and options are shown literally | Pass |
+| TC-624 | System (UI) | Streamlit pages, headless | Interview answer is shown literally | Pass |
+| TC-625 | System (UI) | Streamlit pages, headless | Interview session runs to completion | Pass |
+| TC-626 | System (UI) | Streamlit pages, headless | Interview setup describes each type | Pass |
+| TC-627 | System (UI) | Streamlit pages, headless | Interview shows progress scored feedback and the critic trail | Pass |
+| TC-628 | System (UI) | Streamlit pages, headless | Dashboard renders | Pass |
+| TC-629 | System (UI) | Streamlit pages, headless | Dashboard readiness shows a delta and trend only after a second profile | Pass |
+| TC-630 | System (UI) | Streamlit pages, headless | Dashboard keeps system telemetry in its own section | Pass |
+| TC-631 | System (UI) | Streamlit pages, headless | Dashboard for a new student explains each empty section | Pass |
+| TC-632 | System (UI) | Streamlit pages, headless | Dashboard error state offers a retry | Pass |
+| TC-633 | System (UI) | Streamlit pages, headless | Onboard requires a resume or sample | Pass |
+| TC-634 | System (UI) | Streamlit pages, headless | Onboarding another student drops the previous students session | Pass |
+| TC-635 | System (UI) | Streamlit pages, headless | Failed follow up offers retry without reanswering | Pass |
+| TC-636 | System (UI) | Streamlit pages, headless | Failed quiz generation stays visible | Pass |
+| TC-637 | System (UI) | Streamlit pages, headless | Results page without and with results | Pass |
+| TC-638 | System (UI) | Streamlit pages, headless | Results note mentions the duplicate rate only when it is shown | Pass |
+| TC-639 | System (UI) | Streamlit pages, headless | Seed demo fills an empty database on start | Pass |
+| TC-640 | System (UI) | Streamlit pages, headless | Home without a student explains the loop | Pass |
+| TC-641 | System (UI) | Streamlit pages, headless | Home quick start opens onboard with a sample | Pass |
+| TC-642 | System (UI) | Streamlit pages, headless | Home shows todays focus for the demo student | Pass |
+| TC-643 | System (UI) | Streamlit pages, headless | Todays focus opens the page it names | Pass |
+| TC-644 | System (UI) | Streamlit pages, headless | Todays focus preselects the quiz topic | Pass |
+| TC-645 | System (UI) | Streamlit pages, headless | Home error state offers a retry | Pass |
+| TC-646 | System (UI) | Streamlit pages, headless | An ece students home and quiz show electronics topics | Pass |
+| TC-647 | System (UI) | Streamlit pages, headless | Project space is in the navigation for computing domains only | Pass |
+| TC-648 | System (UI) | Streamlit pages, headless | Project space creates a repository and logs work | Pass |
+| TC-649 | System (UI) | Streamlit pages, headless | Project space shows a bad link as an error | Pass |
+| TC-650 | System (UI) | Streamlit pages, headless | Resume builder starts empty for a new student | Pass |
+| TC-651 | System (UI) | Streamlit pages, headless | Resume builder saves versions and locks the domain | Pass |
+| TC-652 | System (UI) | Streamlit pages, headless | Resume builder finds roles by degree and lists jobs | Pass |
