@@ -9,8 +9,10 @@ on:
 permissions:
   contents: read
 
+# The test suite stays with the developers; the public repository proves the product: format,
+# lint, every module compiles, the datasets agree, and every page renders in mock mode.
 jobs:
-  test:
+  check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -25,5 +27,5 @@ jobs:
         run: ruff format --check .
       - name: Lint
         run: ruff check .
-      - name: Tests (offline, MOCK_MODE; no secrets needed)
-        run: pytest -q
+      - name: Compile, datasets and pages (offline, MOCK_MODE; no secrets needed)
+        run: python -m scripts.ci_check

@@ -1,8 +1,0 @@
-# Cloudflare static site: the landing page (static/index.html) with the app's brand and fonts.
-# Deploy from the repository root:  npx wrangler deploy --config deploy/cloudflare/wrangler.toml
-# Paths in this file are relative to it.
-name = "placementiq"
-compatibility_date = "2024-10-01"
-
-[assets]
-directory = "../../static"

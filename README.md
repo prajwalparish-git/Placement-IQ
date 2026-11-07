@@ -2,8 +2,8 @@
 
 <a href="https://github.com/prajwalparish-git/Skill-Scout-Nexus">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.svg">
-    <img alt="Skill Scout Nexus: an adaptive, multi-agent placement-readiness coach" src="docs/assets/hero-light.svg" width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/hero-dark.svg">
+    <img alt="Skill Scout Nexus: an adaptive, multi-agent placement-readiness coach" src=".github/assets/hero-light.svg" width="100%">
   </picture>
 </a>
 
@@ -16,126 +16,172 @@
 </p>
 
 <p>
-  <b>Profile a resume, close the skill gaps, practise under a critic's eye, and show the placement cell where the cohort stands.</b><br>
-  Engineering, Commerce, Law, Management, Healthcare and Government roles, one app.
+  <b>Profile a resume, close the skill gaps, practise under a critic's eye, and show the placement cell where the cohort stands.</b>
 </p>
 
 <p>
-  <a href="#get-started-in-two-steps">Get started</a> ·
-  <a href="#the-six-step-journey">The journey</a> ·
-  <a href="#self-healing-by-design">Self-healing</a> ·
-  <a href="#architecture">Architecture</a> ·
-  <a href="#configuration">Configuration</a> ·
-  <a href="#documentation">Docs</a>
+  <a href="#overview">Overview</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#configure-env">Configure .env</a> ·
+  <a href="#running-locally">Running locally</a> ·
+  <a href="#how-it-works">How it works</a>
 </p>
 
 </div>
 
 ---
 
-## Get started in two steps
+## Overview
 
-> You need Git and any Python from 3.8 upward to run the setup script. It brings the rest,
-> including Python 3.13 itself if this machine does not have it, into this folder only.
+Skill Scout Nexus is a placement-readiness coach for students across Engineering, Commerce,
+Law, Management, Healthcare and Government roles. A team of AI agents reads a student's
+resume against the role they want, plans what to study, sets quizzes and runs spoken mock
+interviews. A critic agent checks every generated question and plan before the student sees
+it, and quiz results shape the next week's plan. Faculty get a cohort dashboard and a
+placement-readiness report they can export.
 
-**1. Get the code and set it up**
+It runs on a laptop with nothing but Python. With no API keys at all it works in mock mode,
+so every page can be tried offline; add a free Groq or Gemini key for live AI.
+
+## Features
+
+**The six-step placement journey**
+
+| Step | What the student gets |
+|:---:|---|
+| **1. Onboarding and profile** | A resume (PDF, DOCX or TXT) against a target role: readiness score, skills found and missing, resume fixes. |
+| **2. Resume scan and skill gaps** | The resume read against any role in any stream: required skills named, the gaps, the degree and stream it shows. |
+| **3. 7-day study roadmap** | A day-by-day plan for the gaps with objectives, free resources and micro-tasks to tick off, saved week by week. |
+| **4. Critic-checked quiz** | Questions on one skill, each checked for sound facts, a single right answer and fair options; a verified question bank fills any gap. |
+| **5. Proctored voice assessment** | A spoken scenario question, a spoken or typed answer, a 0-15 rubric score, and flags for terse, off-topic or buzzword answers. |
+| **6. Faculty dashboard** | Readiness by stream, score distributions, rubric criteria, the most common skill gaps, the weekly trend, and **Export placement readiness report** (CSV). |
+
+**More tools:** an adaptive weekly plan that follows quiz scores, a full quiz with its
+step-by-step critic trail, a chat mock interview, an ATS resume builder with PDF export, a
+project space for computing roles, and a personal dashboard.
+
+**Built to keep working**
+
+- **Self-healing AI.** Requests go to Groq first, then Google Gemini, then a local Ollama
+  model, then built-in answers from the question bank. Several API keys can share the load
+  in turn; a key that hits its rate limit rests while the next one answers.
+- **Never blocks on the network.** Records are saved to a local SQLite database at once and
+  copied to a cloud PostgreSQL (such as Supabase) in the background, catching up after an
+  outage.
+- **No key prompts, ever.** Keys are read from `.env`; anything missing is skipped quietly.
+- **Accessible design.** Light and dark themes, readable on a phone and on a projector,
+  self-hosted fonts so it works without internet.
+
+## Quick start
+
+You need **Python 3.13** and **Git**.
 
 ```bash
 git clone https://github.com/prajwalparish-git/Skill-Scout-Nexus.git
 cd Skill-Scout-Nexus
-python bootstrap.py        # Windows: py bootstrap.py  ·  macOS / Linux: python3 bootstrap.py
+python -m venv .venv
 ```
 
-Already have it? `git pull`, then run `python bootstrap.py` again: it only adds what is missing.
+Activate the environment and install the dependencies:
 
-**2. Fill in `.env`, then start**
+| Windows (PowerShell) | macOS / Linux |
+|---|---|
+| `.venv\Scripts\Activate.ps1` | `source .venv/bin/activate` |
 
-The setup prints which keys are still empty. With none filled in, the app runs in **mock
-mode** (built-in answers, no network), which is enough to try every page.
+```bash
+pip install -r requirements.txt
+```
 
-| | Start the app | Then open |
+Create your settings file from the template:
+
+| Windows | macOS / Linux |
+|---|---|
+| `copy .env.example .env` | `cp .env.example .env` |
+
+That is enough to run the app in mock mode. For live AI, fill in `.env` as below.
+
+## Configure .env
+
+Only **Groq and/or Gemini** are needed for cloud AI; everything else is optional and falls back
+on its own.
+
+1. Get a free key from [Groq](https://console.groq.com/keys) or [Google AI Studio](https://aistudio.google.com/apikey) (or both).
+2. Put it in `.env` and turn off mock mode:
+
+```ini
+MOCK_MODE=false
+GROQ_API_KEYS=gsk_your_key            # several keys: gsk_key1,gsk_key2,gsk_key3
+GEMINI_API_KEYS=AIza_your_key         # optional second provider, also comma-separated
+```
+
+| Key | What it does | If left blank |
 |---|---|---|
-| **Windows** | `.\run.ps1` | http://localhost:8501 |
-| **macOS / Linux** | `./run.sh` | http://localhost:8501 |
+| `GROQ_API_KEYS` | The fastest cloud AI, and speech-to-text for spoken answers | Skipped |
+| `GEMINI_API_KEYS` | A second cloud AI | Skipped |
+| `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | A local model that works without internet ([ollama.com](https://ollama.com), then `ollama pull llama3.2:3b`) | Skipped |
+| `ELEVENLABS_API_KEY` | A natural voice for interview questions | The browser reads them aloud |
+| `SUPABASE_DB_URL` | A cloud copy of all records, for faculty across several machines | Records stay on this machine |
+
+The model names in `.env.example` are current; every option is explained in that file. Never
+commit `.env`.
+
+## Running locally
+
+```bash
+streamlit run app.py
+```
+
+Then open **http://localhost:8501**.
+
+To explore with sample data first:
+
+```bash
+python -m scripts.seed           # a demo student with four weeks of history
+python -m scripts.seed_cohort    # a fictional cohort for the faculty dashboard
+```
+
+Choose **DEMO0001** under **Student** in the sidebar to see a returning student.
 
 <details>
-<summary><b>What <code>bootstrap.py</code> does, and the other launcher commands</b></summary>
+<summary><b>Optional: the Next.js front end</b></summary>
 
 <br>
 
-| Step | What happens | Where |
-|---|---|---|
-| 1 | Finds Python 3.13. If there is none, downloads [uv](https://github.com/astral-sh/uv) (pinned, checksum-verified) and installs a private Python 3.13 | `.tools/` |
-| 2 | Creates a virtual environment | `.venv/` |
-| 3 | Installs every dependency from `requirements.txt` | `.venv/` |
-| 4 | Creates `.env` from `.env.example` (an existing `.env` is never touched) | `.env` |
-| 5 | Writes the launcher for this system | `run.ps1` or `run.sh` |
+A faster web front end over the same services, with instant quizzes from the question bank:
 
-Nothing is installed system-wide, and everything it makes is git-ignored. Options:
-`--dev` (also pytest, ruff, Playwright), `--frontend` (also the Next.js packages; needs
-Node.js 20+), `--local-python` (always use the private Python).
+```bash
+uvicorn server:app --port 8000             # the API, reading the same .env
+cd frontend
+npm install
+npm run dev                                # http://localhost:3000
+```
 
-| Command | Does |
-|---|---|
-| `run app` (default) | The Streamlit app on port 8501 |
-| `run seed` | A demo student with four weeks of history, and a demo cohort for the faculty dashboard |
-| `run api` | The FastAPI server for the Next.js front end, on port 8000 |
-| `run test` | The test suite (after `bootstrap.py --dev`) |
-| `run check` | Checks the configured Groq models are served, JSON-capable and within quota |
-
-On Windows, if PowerShell blocks scripts: `powershell -ExecutionPolicy Bypass -File .\run.ps1`.
+Set `NEXT_PUBLIC_API_URL=http://localhost:8000` in `frontend/.env.local`.
 
 </details>
 
----
+<details>
+<summary><b>Optional: check your Groq models before a demo</b></summary>
 
-## The six-step journey
+<br>
 
-| Step | Page | What the student gets |
-|:---:|---|---|
-| **1** | Onboarding and profile | A resume (PDF, DOCX, TXT or a sample) against a target role: readiness score, skills found and missing, resume fixes. A critic checks the profile. |
-| **2** | Resume scan and skill gaps | The resume read against any catalog role in any stream: required skills named in words, the gaps, the degree and stream it shows. |
-| **3** | 7-day study roadmap | A day-by-day plan for the gaps: objectives, free resources and micro-tasks to tick off, saved week by week. |
-| **4** | Critic-checked quiz | Questions on one skill. A generator writes them, a critic checks facts, ambiguity and distractors before they are shown; the verified bank fills any gap. |
-| **5** | Proctored voice assessment | A spoken scenario question for the stream, a spoken or typed answer, a 0-15 rubric score and proctor flags for terse, off-topic or buzzword answers. |
-| **6** | Faculty dashboard | Readiness by stream, score distributions, rubric criteria, the most common skill gaps, the weekly trend, and **Export placement readiness report** (CSV). |
+```bash
+python -m scripts.check_models
+```
 
-Under **More tools**: the adaptive weekly plan (quiz scores reshape next week), the full
-quiz with its step-by-step critic trail, a chat mock interview, an ATS resume builder with
-PDF export, a project space for computing roles, a personal dashboard and the evaluation
-results. Light and dark themes; readable on a phone and on a projector.
+It confirms the configured models are still served, answer in JSON and have quota left.
 
----
+</details>
 
-## Self-healing by design
+## How it works
 
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/layer3-dark.svg">
-    <img alt="A request tries Groq, then Gemini, then a local Ollama, then built-in answers" src="docs/assets/layer3-light.svg" width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/layer3-dark.svg">
+    <img alt="A request tries Groq, then Gemini, then a local Ollama, then built-in answers" src=".github/assets/layer3-light.svg" width="100%">
   </picture>
 </div>
-
-Every AI request goes through `core/ai_router.py`, speed first:
-
-| Tier | Provider | How it stays fast |
-|:---:|---|---|
-| 1 | **Groq** | A pool of keys used round-robin; a key that hits its rate limit rests for 60 s while the next answers in the same request. 4 s timeout. |
-| 2 | **Google Gemini** | Its own key pool, rotated the same way. 5 s timeout. |
-| 3 | **Ollama** (local) | A 200 ms ping first, so an absent server costs nothing; the model stays loaded with a small context. |
-| 4 | **Built-in answers** | Questions from the question bank, skills from the role catalogue, coaching from fixed tips: instant, no network. |
-
-A tier without keys, or with every key resting, is skipped without a call, and each sits
-behind a **circuit breaker** that pauses it after repeated failures. Identical plan,
-critique and rubric requests come straight from a SHA-256 prompt cache in under 2 ms. The
-student never sees a key prompt, an error or a warning. Speech works the same way
-(`core/speech_router.py`): ElevenLabs, with every clip cached so a question is never paid
-for twice, otherwise the browser's own voice. The faculty dashboard shows which service is
-answering right now.
-
----
-
-## Architecture
 
 ```mermaid
 flowchart LR
@@ -143,130 +189,37 @@ flowchart LR
         V["views/<br/>one file per page"]
     end
     subgraph Core["Application core (piq/)"]
-        S["services.py<br/>journey.py"]
-        G["LangGraph critic loop<br/>generate → verify → retry"]
-        L["llm.py<br/>validation · repair · logging"]
-        C["checks.py<br/>deterministic rules"]
+        S["services · journey"]
+        G["critic loop<br/>generate → verify → retry"]
+        L["llm<br/>validation · repair"]
     end
-    subgraph L2["Agents (agents/)"]
+    subgraph Agents["agents/"]
         A["resume parser · planner<br/>critic quiz · voice · rubric"]
     end
-    subgraph L3["Layer 3 (core/)"]
-        R["ai_router<br/>Groq → Gemini → Ollama → built-in<br/>key pools · prompt cache"]
-        SP["speech_router<br/>ElevenLabs → browser"]
+    subgraph Routers["core/"]
+        R["AI router<br/>Groq → Gemini → Ollama → built-in"]
+        SP["speech router<br/>ElevenLabs → browser"]
     end
     subgraph Data["Storage"]
         DB[("SQLite<br/>app data")]
-        T[("PostgreSQL or SQLite<br/>telemetry")]
+        T[("SQLite + Supabase<br/>telemetry")]
     end
     V --> S
     S --> A
-    S --> G --> L
+    S --> G --> L --> R
     A --> L
-    G --> C
-    L --> R
     A --> SP
     S --> DB
     S --> T
-    API["server.py<br/>FastAPI"] --> S
-    NX["frontend/<br/>Next.js"] --> API
 ```
 
-| Layer | Choice |
+| Layer | Built with |
 |---|---|
-| Interface | Streamlit 1.66 (Altair charts, self-hosted fonts, light and dark tokens); optional Next.js 14 front end over FastAPI |
-| Agents | LangGraph generate → verify → retry loop; every output is a validated Pydantic model |
-| AI providers | Groq, Google Gemini (round-robin key pools), local Ollama, then built-in answers |
-| Voice | ElevenLabs, then the Web Speech API; Whisper (Groq) for transcription |
-| Storage | SQLite for the app; telemetry on local SQLite (WAL) with a background write-through copy to Supabase PostgreSQL |
-
----
-
-## Configuration
-
-`bootstrap.py` creates `.env` from [`.env.example`](.env.example), where every key is
-explained. **Only Groq and/or Gemini are needed for cloud AI**; everything else falls back on
-its own.
-
-| Key | Needed for | Default |
-|---|---|---|
-| `MOCK_MODE` | `false` turns on live AI | `true` (offline demo) |
-| `GROQ_API_KEYS` | Fastest cloud AI and speech-to-text; one key or `key1,key2,key3` ([keys](https://console.groq.com/keys)) | empty: skipped |
-| `GEMINI_API_KEYS` | Second cloud AI; one key or a comma-separated pool ([keys](https://aistudio.google.com/apikey)) | empty: skipped |
-| `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | A local model that works without internet | `http://localhost:11434`, `llama3.2:3b` |
-| `ELEVENLABS_API_KEY` | A natural voice for interview questions | empty: browser voice |
-| `SUPABASE_DB_URL` or `DATABASE_URL` | Hosted PostgreSQL for telemetry | empty: local SQLite |
-| `GROQ_TIMEOUT_S`, `GEMINI_TIMEOUT_S` | How long a tier may take before the next answers | `4.0`, `5.0` |
-
-`.env` is git-ignored; never commit it.
-
----
-
-<details>
-<summary><b>Tests, evaluation and developer tools</b></summary>
-
-<br>
-
-```bash
-python bootstrap.py --dev                 # once: pytest, ruff, Playwright
-./run.sh test                             # Windows: .\run.ps1 test   (fully offline)
-.venv/bin/python -m ruff format . && .venv/bin/python -m ruff check .
-```
-
-The evaluation compares the agents against a single-prompt baseline on 20 frozen cases
-(live, about two days of free-tier quota):
-
-```bash
-python -m evaluation.run_eval --consecutive 5 --interviews            # add --resume the next day
-python -m evaluation.report                                           # results/report.md + chart.svg
-```
-
-Visual review and performance, in an isolated mock-mode environment:
-
-```bash
-python -m playwright install chromium
-python -m scripts.screenshots docs/design/after --pages faculty --widths 1440,390
-python -m scripts.perf docs/design/perf.md
-```
-
-On Windows use `.venv\Scripts\python.exe` in place of `python` above.
-
-</details>
-
-<details>
-<summary><b>Deploy and share</b></summary>
-
-<br>
-
-**Streamlit Community Cloud.** Create an app from this repository (branch `main`, file
-`app.py`, Python 3.13), and add the `.env` keys under **Secrets**, with `SEED_DEMO = "true"`
-so the demo student and cohort are recreated on each start (the hosted disk is not
-persistent).
-
-**Temporary public link (Windows).** With
-[cloudflared](https://github.com/cloudflare/cloudflared/releases) installed, run
-`scripts\tunnel.bat`. Anyone with the link can use the app until the window is closed.
-
-**Static landing page.** `npx wrangler deploy --config deploy/cloudflare/wrangler.toml`
-publishes `static/index.html` with the app's brand and fonts.
-
-</details>
-
----
-
-## Documentation
-
-| Document | About |
-|---|---|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design, data flow, decisions and limitations |
-| [CLAUDE.md](docs/CLAUDE.md) | Code map, commands and conventions |
-| [DESIGN.md](docs/design/DESIGN.md) | The design system: tokens, type, components, charts |
-| [CATEGORIES_AND_DATASETS.md](docs/CATEGORIES_AND_DATASETS.md) | Roles across 12 domains and the question bank |
-| [diagrams.md](docs/diagrams.md) | Use case, DFD, ER and sequence diagrams |
-| [critic_graph.md](docs/critic_graph.md) | The LangGraph critic loop, generated from the code |
-| [test_report.md](docs/test_report.md) | Every test case and its result |
-| [performance.md](docs/performance.md) | Render time per page |
-| [Summary PDF](docs/PlacementIQ_Summary.pdf) | Two-page abstract and evaluation results |
+| Interface | Streamlit 1.66 with Altair charts; optional Next.js 14 over FastAPI |
+| Agents | LangGraph generate → verify → retry loop; every AI answer is a validated Pydantic model |
+| AI | Groq and Google Gemini (round-robin key pools), local Ollama, built-in answers |
+| Voice | ElevenLabs or the browser's Web Speech API; Whisper on Groq for transcription |
+| Storage | SQLite for the app; telemetry on local SQLite with a background copy to Supabase PostgreSQL |
 
 <div align="center">
 <br>
