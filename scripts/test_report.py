@@ -49,6 +49,7 @@ LAYERS = {
     "test_theme": ("Unit", "Design tokens: contrast and distinctness"),
     "test_charts": ("Unit", "Chart builders: encodings and theme"),
     "test_ci": ("Unit", "CI workflow settings"),
+    "test_bootstrap": ("Unit", "One-command setup: platform, uv pin, launchers, .env"),
     "test_tunnel": ("Unit", "Demo tunnel settings"),
     "test_summary_pdf": ("Unit", "Summary PDF builder"),
     "test_resume_builder": ("Unit", "ATS resume builder and PDF compilation"),
