@@ -307,8 +307,9 @@ def generate_critic_quiz(
     """
     cfg = settings()
 
-    # If offline, in mock mode, or missing API credentials, fall back immediately to CSV bank
-    if cfg.mock_mode or not cfg.groq_api_key:
+    # Mock mode serves the CSV bank at once. Live: the AI router picks a provider; when none
+    # answers, the loop below ends in the same bank.
+    if cfg.mock_mode:
         log.info("Running in mock/offline mode: serving from mcq_bank.csv")
         bank_qs = _load_bank_fallback_questions(skill_gap, target_role, difficulty, count)
         return QuizBatch(

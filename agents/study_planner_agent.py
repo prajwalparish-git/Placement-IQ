@@ -356,8 +356,9 @@ def generate_study_roadmap(
     """
     cfg = settings()
 
-    # In mock mode or if no API key configured, use high-fidelity deterministic generator
-    if cfg.mock_mode or not cfg.groq_api_key:
+    # Mock mode: the deterministic generator. Live: the AI router picks a provider, and any
+    # failure (none answers) falls through to the same generator below.
+    if cfg.mock_mode:
         return _build_fallback_roadmap(missing_gap_skills, target_role, target_stream)
 
     # LLM-guided roadmap generation with strict schema enforcement

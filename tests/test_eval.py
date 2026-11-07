@@ -47,7 +47,7 @@ def test_rate_limit_stops_the_run_but_keeps_partial_results(tmp_path, monkeypatc
     def limited_after_first(case):
         calls.append(case["id"])
         if len(calls) > 1:
-            raise llm.RateLimited(30)
+            raise llm.RateLimited(30, "Groq")
         return real(case)
 
     monkeypatch.setattr(run_eval, "_baseline", limited_after_first)

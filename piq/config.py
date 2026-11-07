@@ -24,6 +24,19 @@ DEFAULT_SAMPLE = "data_analyst.txt"  # the sample Home's "Try it with a sample r
 USN_RE = re.compile(r"^[A-Z0-9]{4,20}$")  # a student's USN, upper-cased: 4-20 letters/digits
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 DB_CONNECT_TIMEOUT = 3  # seconds to wait for PostgreSQL before the telemetry layer uses SQLite
+# --- Layer 3: the AI and speech routers (core/) --------------------------------------
+AI_PROVIDER_NAMES = ("gemini", "groq", "ollama")  # every provider core/ai_router.py knows
+ROUTER_FAILURE_THRESHOLD = 2  # failures in a row that open a provider's circuit breaker
+ROUTER_COOLDOWN_S = 60  # seconds an open breaker skips its provider before one trial request
+ROUTER_BROKEN_COOLDOWN_S = 3600  # a retired model or a refused key: skip for an hour
+CLOUD_TIMEOUT_S = 60  # seconds to wait for Gemini or Groq
+OLLAMA_TIMEOUT_S = 180  # a local model on a laptop CPU is slow
+OLLAMA_PROBE_TIMEOUT_S = 1.0  # the health check (GET /api/tags) must answer within this
+OLLAMA_HEALTH_TTL_S = 30  # seconds a health-check answer is reused
+TTS_TIMEOUT_S = 20  # seconds to wait for ElevenLabs before the browser voice takes over
+TTS_MAX_CHARS = 2500  # text sent for synthesis; longer text is cut at the last full sentence
+ELEVENLABS_DEFAULT_VOICE = "21m00Tcm4TlvDq8ikWAM"  # a premade voice; ELEVENLABS_VOICE_ID overrides
+BROWSER_VOICE_LANG = "en-IN"  # the Web Speech API voice the browser fallback asks for
 VOICE_RUBRIC_MAX = 15  # a voice interview's rubric score runs 0 to 15
 VOICE_CRITERION_MAX = 5  # verbal clarity and relevance each run 0 to 5
 MAX_DOMAIN_TOPICS = 10  # one topic colour each; tests/test_syllabus.py enforces it
@@ -177,10 +190,34 @@ class Settings:
     # Telemetry layer (database/): PostgreSQL when DATABASE_URL answers, else this SQLite file.
     database_url: str = ""
     telemetry_db_path: Path = DATA_DIR / "placement_nexus.db"
+    # Layer 3 (core/ai_router.py): providers tried in this order; empty key or URL = skipped.
+    ai_providers: tuple[str, ...] = AI_PROVIDER_NAMES
+    gemini_api_key: str = ""
+    gemini_model: str = ""
+    ollama_base_url: str = ""
+    ollama_model: str = ""
+    # true: when no provider answers, serve the deterministic offline tier (piq/mock.py) instead
+    # of an error. evaluation/run_eval.py turns it off: offline answers would void its results.
+    offline_fallback: bool = True
+    # core/speech_router.py: empty key = the browser's own voice (Web Speech API).
+    elevenlabs_api_key: str = ""
+    elevenlabs_voice_id: str = ""
+    elevenlabs_model: str = ""
 
 
 def _flag(name: str, default: str) -> bool:
     return os.getenv(name, default).strip().lower() in {"1", "true", "yes"}
+
+
+def _providers(raw: str) -> tuple[str, ...]:
+    names = tuple(dict.fromkeys(p.strip().lower() for p in raw.split(",") if p.strip()))
+    unknown = [p for p in names if p not in AI_PROVIDER_NAMES]
+    if unknown:
+        raise ConfigError(
+            f"AI_PROVIDERS lists unknown provider(s) {', '.join(unknown)}; "
+            f"choose from {', '.join(AI_PROVIDER_NAMES)}"
+        )
+    return names
 
 
 @lru_cache
@@ -207,17 +244,29 @@ def settings() -> Settings:
         telemetry_db_path=Path(
             os.getenv("TELEMETRY_DB_PATH", str(DATA_DIR / "placement_nexus.db"))
         ),
+        ai_providers=_providers(os.getenv("AI_PROVIDERS", ",".join(AI_PROVIDER_NAMES))),
+        gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
+        gemini_model=os.getenv("GEMINI_MODEL", "").strip(),
+        ollama_base_url=os.getenv("OLLAMA_BASE_URL", "").strip().rstrip("/"),
+        ollama_model=os.getenv("OLLAMA_MODEL", "").strip(),
+        offline_fallback=_flag("AI_OFFLINE_FALLBACK", "true"),
+        elevenlabs_api_key=os.getenv("ELEVENLABS_API_KEY", "").strip(),
+        elevenlabs_voice_id=os.getenv("ELEVENLABS_VOICE_ID", "").strip(),
+        elevenlabs_model=os.getenv("ELEVENLABS_MODEL", "").strip(),
     )
     if not s.mock_mode:
-        missing = [
-            k
-            for k, v in {
-                "GROQ_API_KEY_1 (or GROQ_API_KEY)": s.groq_api_key,
-                "GROQ_MODEL_LARGE": s.model_large,
-                "GROQ_MODEL_SMALL": s.model_small,
-            }.items()
-            if not v
-        ]
-        if missing:
-            raise ConfigError(f"MOCK_MODE=false but {', '.join(missing)} not set in .env")
+        # A provider with no key (or URL) is simply skipped by the router; one that is half set
+        # up (a key without its model) is a mistake worth stopping for.
+        half_set = {
+            "GROQ_API_KEY_1 (or GROQ_API_KEY)": (
+                s.groq_api_key,
+                {"GROQ_MODEL_LARGE": s.model_large, "GROQ_MODEL_SMALL": s.model_small},
+            ),
+            "GEMINI_API_KEY": (s.gemini_api_key, {"GEMINI_MODEL": s.gemini_model}),
+            "OLLAMA_BASE_URL": (s.ollama_base_url, {"OLLAMA_MODEL": s.ollama_model}),
+        }
+        for key, (value, needs) in half_set.items():
+            missing = [name for name, v in needs.items() if not v]
+            if value and missing:
+                raise ConfigError(f"{key} is set but {', '.join(missing)} not set in .env")
     return s

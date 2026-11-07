@@ -2,6 +2,7 @@ import csv
 
 import pytest
 
+from core import ai_router, speech_router
 from database.connection import reset_manager
 from piq import agents, db, question_bank, services
 from piq.config import settings
@@ -17,9 +18,28 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("DB_PATH", str(tmp_path / "test.db"))
     monkeypatch.setenv("MAX_CRITIC_RETRIES", "2")
     monkeypatch.setenv("TELEMETRY_DB_PATH", str(tmp_path / "telemetry.db"))
-    for k in ("GROQ_API_KEY", "GROQ_MODEL_LARGE", "GROQ_MODEL_SMALL", "SEED_DEMO", "DATABASE_URL"):
+    for k in (
+        "GROQ_API_KEY",
+        "GROQ_API_KEY_1",
+        "GROQ_API_KEY_2",
+        "GROQ_MODEL_LARGE",
+        "GROQ_MODEL_SMALL",
+        "SEED_DEMO",
+        "DATABASE_URL",
+        "AI_PROVIDERS",
+        "AI_OFFLINE_FALLBACK",
+        "GEMINI_API_KEY",
+        "GEMINI_MODEL",
+        "OLLAMA_BASE_URL",
+        "OLLAMA_MODEL",
+        "ELEVENLABS_API_KEY",
+        "ELEVENLABS_VOICE_ID",
+        "ELEVENLABS_MODEL",
+    ):
         monkeypatch.delenv(k, raising=False)
     settings.cache_clear()
+    ai_router.reset()  # breakers and health checks are process-wide: start each test closed
+    speech_router.reset()
     reset_manager()
     db.init_db()
     agents.clear_verdict_cache()

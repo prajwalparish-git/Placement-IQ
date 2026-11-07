@@ -13,7 +13,8 @@ SQLite file; nothing in the app depends on it yet.
 | Language | Python | 3.13 (tested on 3.13.3) |
 | UI and charts | Streamlit (includes Altair and pandas; both pinned because imported directly) | 1.66.0 (Altair 6.3.0, pandas 3.0.6) |
 | Agent loop | LangGraph | 1.2.16 |
-| LLM SDK | Groq SDK, JSON mode, built-in retry on 429 | 1.7.0 |
+| LLM providers (`core/ai_router.py`) | Gemini REST (primary), Groq SDK, local Ollama REST; JSON mode each | Groq 1.7.0, httpx 0.28.1 |
+| Voice (`core/speech_router.py`) | ElevenLabs REST, else the browser's Web Speech API | httpx 0.28.1 |
 | LLM models (`.env`) | `openai/gpt-oss-120b` (large), `openai/gpt-oss-20b` (small) | verified 2026-10-19 |
 | Validation | Pydantic | 2.14.1 |
 | Storage | SQLite via stdlib `sqlite3` | stdlib |
@@ -44,6 +45,10 @@ views/              One file per page. Calls piq.services, piq.formatter, piq.ch
   interview.py      Chat mock interview, scored feedback, retry for a failed follow-up, summary
   dashboard.py      Readiness, streak, topic mastery, plans, interviews; agents and critic apart
   results.py        Evaluation scorecard: advanced parameters rated 0-10 (piq/scorecard.py)
+core/               Layer 3: self-healing routers. Never import Streamlit
+  ai_router.py      Gemini -> Groq -> Ollama, a circuit breaker each, Ollama health check; raises
+                    AllProvidersDown when none answers (piq/llm.py then serves the offline tier)
+  speech_router.py  ElevenLabs -> browser Web Speech API (no pyttsx3: it speaks on the server)
 piq/                Application package. Only ui.py imports Streamlit
   services.py       Controllers: every user operation; validates, runs agents, persists, typed state
   config.py         Env settings (cached) and constants: CS core topics, thresholds, sizes
@@ -53,7 +58,8 @@ piq/                Application package. Only ui.py imports Streamlit
   scorecard.py      Evaluation parameters from summary.json + CSVs, scores and ratings (pure)
   resume_builder.py Resume data, ATS audit, version diff, Latin-1-safe PDF (fpdf2)
   schemas.py        Pydantic models for every LLM output and derived objects
-  llm.py            The ONLY LLM gateway: JSON mode, validation, repair retry, agent_logs, mock
+  llm.py            The ONLY LLM gateway: messages, validation, repair retry, agent_logs, mock and
+                    the offline tier; transport is core/ai_router.py
   mock.py           Deterministic MOCK_MODE responses (must pass the same checks)
   prompts.py        Every system prompt
   graph.py          LangGraph loop: generate -> verify -> retry | done
@@ -135,7 +141,8 @@ There is no build step. `.env.example` already contains the verified model IDs. 
 - Type hints on every function signature. Use PEP 695 generics (`def f[T](...)`), not `TypeVar`.
 - Layering: `views -> services -> agents -> graph -> llm`, with `db` used by `services` and `llm`. Views never import `agents` or `db`.
 - `services` validate every input and raise `ServiceError` with a message safe to show users. They return typed state, for example `InterviewSession`, `QuizResult` and `PlanOverview`.
-- Every LLM output is a Pydantic model returned by `piq.llm.call`. Never parse prose, and never call the Groq SDK from anywhere else (the one exception is `scripts/check_models.py`).
+- Every LLM output is a Pydantic model returned by `piq.llm.call`. Never parse prose, and never call a provider from anywhere else: transport lives only in `core/ai_router.py` (exceptions: `scripts/check_models.py`, and Whisper transcription in `agents/rubric_evaluator_agent.py`).
+- **The UI never crashes on an AI or voice outage.** A provider that fails is paused by its breaker and the next one answers; with none left, `piq/llm.py` serves the deterministic offline tier (`piq/mock.py`) unless `AI_OFFLINE_FALLBACK=false`, and the `agents/` package falls back to its own banks. The evaluation always sets it false: an offline answer is not the model's.
 - If code can compute something, code computes it: readiness, missing skills, weakness, weak-topic share, minute ordering, difficulty, overall score, turn bookkeeping. The LLM only does what needs language.
 - New generation tasks are a `graph.Task(name, generate, verify)` run through `graph.run` / `run_or_raise`. `generate(inputs, reasons, previous)` receives the rejection reasons and the rejected output. `verify` returns reasons as text.
 - Problems with a single quiz question must be built with `checks.question_reason(i, msg)`. Then only that question is regenerated.
@@ -170,10 +177,10 @@ There is no build step. `.env.example` already contains the verified model IDs. 
 - `students.usn` is required (`NOT NULL UNIQUE`). Never drop it or make it optional.
 - `schema.sql` has no migrations. A new table (`CREATE TABLE IF NOT EXISTS`, as `plan_progress`) is safe for existing databases; changing an existing table is not, so ask first, and afterwards delete `data/placementiq.db` and reseed.
 - Fonts in `static/fonts/` are OFL, self-hosted (no font CDN at runtime: the app must work offline) and keep their licence files next to them.
-- Groq's free tier is the only external service: each model allows 8,000 tokens/minute and 1,000 requests/day (from the response headers), and about 200,000 tokens/day (the full evaluation hit it after 15 of 20 cases). Batch questions into one call, use the small model for extraction, never re-judge questions that were already approved, and keep MOCK_MODE as the default in `.env.example`.
+- External services are optional and degrade in order (Gemini, Groq, Ollama, offline; ElevenLabs, browser voice). Groq's free tier, the one the evaluation used: each model allows 8,000 tokens/minute and 1,000 requests/day (from the response headers), and about 200,000 tokens/day (the full evaluation hit it after 15 of 20 cases). Batch questions into one call, use the small model for extraction, never re-judge questions that were already approved, and keep MOCK_MODE as the default in `.env.example`.
 - Two front ends share one core. The Streamlit app and the Next.js app (`frontend/`, through `server.py`) both call `piq.services`; `server.py` only serialises. Its routes are plain `def`s, so the code stays synchronous; the one `async` is FastAPI's lifespan hook. Interview turns stream critic steps as server-sent events, never unchecked tokens.
 - Groq keys: `GROQ_API_KEY_1` serves agents a student waits on (interviewer, evaluator, bullet), `GROQ_API_KEY_2` background agents; a 429 fails over once (`piq/llm.py`). `GROQ_API_KEY` alone still works.
 - Quizzes in the Next.js app come straight from the question bank (`services.instant_quiz`), with no LLM call; answers stay on the server until `/api/quiz/submit` grades them. The Streamlit quiz keeps the generate -> critic loop with its bank share.
 - The bullet polish (`agents.enhance_bullet`) may not invent numbers: `checks.check_bullet` rejects any figure absent from the student's text.
 - Telemetry (`database/`): the manager probes `DATABASE_URL` once, with `DB_CONNECT_TIMEOUT`; a missing, malformed, non-PostgreSQL or unreachable URL, or an outage mid-session, fails over to `TELEMETRY_DB_PATH` with one logged event and the operation retried there. No automatic fail-back (restart, or `reset_manager()`). Never log `DATABASE_URL` unmasked: use `safe_url`. `VoiceInterviewSession` stores text and scores only; recording audio or proctoring is still out of scope.
-- Out of scope: auth, voice/video, a code judge, scraping, a vector database or embeddings, async business logic.
+- Voice is limited to speaking questions and transcribing answers; storing audio and video proctoring are out of scope. Also out of scope: auth, a code judge, scraping, a vector database or embeddings, async business logic.

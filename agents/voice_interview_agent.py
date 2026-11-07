@@ -17,17 +17,14 @@ from __future__ import annotations
 
 import base64
 import logging
-import os
 import random
 from typing import Literal
 
-import httpx
 from pydantic import BaseModel, Field
 
-log = logging.getLogger("agents.voice_interview_agent")
+from core import speech_router
 
-ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech"
-DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # "Rachel" - standard clear conversational voice
+log = logging.getLogger("agents.voice_interview_agent")
 
 
 class VoiceInterviewQuestion(BaseModel):
@@ -224,45 +221,14 @@ DOMAIN_SCENARIOS: dict[str, list[dict[str, str]]] = {
 }
 
 
-def synthesize_speech_elevenlabs(
-    text: str,
-    voice_id: str = DEFAULT_VOICE_ID,
-    api_key: str | None = None,
-) -> tuple[bytes | None, str]:
-    """Synthesizes speech using ElevenLabs Text-to-Speech REST API.
-
-    Returns:
-        (audio_bytes, source_label): audio_bytes is None if API key is not configured or fails.
-    """
-    key = api_key or os.getenv("ELEVENLABS_API_KEY")
-    if not key:
+def synthesize_speech_elevenlabs(text: str, api_key: str | None = None) -> tuple[bytes | None, str]:
+    """(MP3 bytes, "elevenlabs") or (None, "browser_fallback"). core/speech_router.py does the
+    work: ELEVENLABS_API_KEY from .env, a circuit breaker, and no exception ever escapes.
+    `api_key=""` asks for the browser voice outright."""
+    if api_key == "":
         return None, "browser_fallback"
-
-    url = f"{ELEVENLABS_API_URL}/{voice_id}"
-    headers = {
-        "xi-api-key": key,
-        "Content-Type": "application/json",
-        "Accept": "audio/mpeg",
-    }
-    payload = {
-        "text": text,
-        "model_id": "eleven_monolingual_v1",
-        "voice_settings": {
-            "stability": 0.5,
-            "similarity_boost": 0.75,
-        },
-    }
-
-    try:
-        with httpx.Client(timeout=20.0) as client:
-            resp = client.post(url, headers=headers, json=payload)
-            if resp.status_code == 200:
-                return resp.content, "elevenlabs"
-            log.warning("ElevenLabs TTS returned HTTP %d: %s", resp.status_code, resp.text)
-    except Exception as e:
-        log.warning("ElevenLabs TTS connection error: %s", e)
-
-    return None, "browser_fallback"
+    speech = speech_router.synthesize(text)
+    return (speech.audio, "elevenlabs") if speech.audio else (None, "browser_fallback")
 
 
 def get_stream_from_role_or_domain(role: str, domain_id: str = "") -> str:
@@ -297,7 +263,7 @@ def generate_voice_interview_question(
         stream: Optional stream override ('Engineering', 'Commerce', 'Law', 'Management').
         category: Optional category ('technical', 'behavioral', 'situational').
         include_audio: Whether to invoke ElevenLabs TTS if key is present.
-        elevenlabs_key: Optional explicit ElevenLabs API key.
+        elevenlabs_key: "" forces the browser voice; None uses ELEVENLABS_API_KEY from .env.
     """
     stream_name = stream or get_stream_from_role_or_domain(target_role)
     scenarios = DOMAIN_SCENARIOS.get(stream_name, DOMAIN_SCENARIOS["Engineering"])
@@ -313,7 +279,7 @@ def generate_voice_interview_question(
     tts_source = "browser_fallback"
 
     if include_audio:
-        audio_bytes, tts_source = synthesize_speech_elevenlabs(text=q_text, api_key=elevenlabs_key)
+        audio_bytes, tts_source = synthesize_speech_elevenlabs(q_text, api_key=elevenlabs_key)
         if audio_bytes:
             audio_b64 = base64.b64encode(audio_bytes).decode("ascii")
 

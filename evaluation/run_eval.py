@@ -304,6 +304,8 @@ def main(argv: list[str] | None = None) -> dict:
         state = _fresh_state()
         eval_db.unlink(missing_ok=True)  # agent_stats then cover this evaluation only
     os.environ["DB_PATH"] = str(eval_db)
+    # An offline-tier answer is canned, not the model's: fail (and resume later) instead.
+    os.environ["AI_OFFLINE_FALLBACK"] = "false"
     settings.cache_clear()
     mode = "mock" if settings().mock_mode else "live"
     if mode == "mock" and not args.allow_mock:

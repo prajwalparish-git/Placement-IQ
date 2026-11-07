@@ -81,8 +81,10 @@ def transcribe_audio_with_whisper(
     cfg = settings()
     key = api_key or cfg.groq_api_key or os.getenv("GROQ_API_KEY")
 
-    if cfg.mock_mode or not key or not audio_bytes:
-        log.info("Whisper transcription using mock/fallback.")
+    if not audio_bytes:
+        return ""
+    if cfg.mock_mode:
+        log.info("Whisper transcription: mock mode returns a canned answer.")
         return (
             "In our previous project, I led the migration of our monolithic checkout system "
             "to asynchronous message queues. When traffic surged, the database previously locked "
@@ -92,6 +94,9 @@ def transcribe_audio_with_whisper(
             "under 120 milliseconds with zero dropped orders."
         )
 
+    if not key:
+        log.info("Whisper transcription needs GROQ_API_KEY; the student types instead.")
+        return ""
     try:
         from groq import Groq
 
@@ -107,11 +112,8 @@ def transcribe_audio_with_whisper(
         )
         return str(transcription).strip()
     except Exception as e:
-        log.warning("Whisper transcription failed, falling back: %s", e)
-        return (
-            "I addressed the scenario by analyzing the primary bottlenecks in the architecture. "
-            "We applied standard industry best practices to ensure stability and reliability."
-        )
+        log.warning("Whisper transcription failed; the student types instead: %s", e)
+        return ""
 
 
 def _detect_suspicious_gaps(question: str, answer_text: str) -> SuspiciousGapFlags:
@@ -169,6 +171,57 @@ class _RawRubricPayload(BaseModel):
     exemplary_model_answer: str
 
 
+def _heuristic_evaluation(
+    question: str, answer_text: str, gap_flags: SuspiciousGapFlags
+) -> RubricEvaluationResult:
+    """Deterministic 0-15 scoring from length, STAR markers and the gap flags: mock mode, and
+    the fallback when no AI provider can evaluate."""
+    word_count = len(answer_text.split())
+    c_score = 4 if word_count > 40 else (3 if word_count > 20 else 2)
+    s_score = (
+        4
+        if any(
+            star in answer_text.lower() for star in ["because", "result", "then", "led", "impact"]
+        )
+        else 3
+    )
+    d_score = 4 if not gap_flags.excessive_silence_or_terse else 2
+    total = c_score + s_score + d_score
+
+    tier: Literal["Excellent", "Proficient", "Needs Improvement", "Unsatisfactory"] = (
+        "Excellent" if total >= 13 else ("Proficient" if total >= 10 else "Needs Improvement")
+    )
+
+    return RubricEvaluationResult(
+        question_asked=question,
+        transcribed_response=answer_text,
+        rubric=RubricBreakdown(
+            content_knowledge=c_score,
+            verbal_clarity_star=s_score,
+            confidence_demeanor=d_score,
+            total_score=total,
+        ),
+        performance_tier=tier,
+        strengths=[
+            "Addressed the core scenario directly with relevant domain terminology.",
+            "Demonstrated clear understanding of operational constraints.",
+        ],
+        areas_for_improvement=[
+            "Explicitly quantify measurable business or technical outcomes (metrics, % "
+            "latency reduction, ROI).",
+            "Strictly follow the STAR framework (Situation -> Task -> Action -> Result).",
+        ],
+        exemplary_model_answer=(
+            "In my previous project [Situation], we faced a similar challenge [Task]. "
+            "I engineered an automated mitigation pipeline and verified input edge cases "
+            "[Action]. "
+            "As a result, system uptime remained at 99.98% with zero compliance violations "
+            "[Result]."
+        ),
+        gap_flags=gap_flags,
+    )
+
+
 def evaluate_rubric_answer(
     question: str,
     answer_text: str,
@@ -191,53 +244,9 @@ def evaluate_rubric_answer(
     cfg = settings()
     gap_flags = _detect_suspicious_gaps(question, answer_text)
 
-    # Deterministic fallback evaluation if in mock mode or API key missing
-    if cfg.mock_mode or not cfg.groq_api_key:
-        word_count = len(answer_text.split())
-        c_score = 4 if word_count > 40 else (3 if word_count > 20 else 2)
-        s_score = (
-            4
-            if any(
-                star in answer_text.lower()
-                for star in ["because", "result", "then", "led", "impact"]
-            )
-            else 3
-        )
-        d_score = 4 if not gap_flags.excessive_silence_or_terse else 2
-        total = c_score + s_score + d_score
-
-        tier: Literal["Excellent", "Proficient", "Needs Improvement", "Unsatisfactory"] = (
-            "Excellent" if total >= 13 else ("Proficient" if total >= 10 else "Needs Improvement")
-        )
-
-        return RubricEvaluationResult(
-            question_asked=question,
-            transcribed_response=answer_text,
-            rubric=RubricBreakdown(
-                content_knowledge=c_score,
-                verbal_clarity_star=s_score,
-                confidence_demeanor=d_score,
-                total_score=total,
-            ),
-            performance_tier=tier,
-            strengths=[
-                "Addressed the core scenario directly with relevant domain terminology.",
-                "Demonstrated clear understanding of operational constraints.",
-            ],
-            areas_for_improvement=[
-                "Explicitly quantify measurable business or technical outcomes (metrics, % "
-                "latency reduction, ROI).",
-                "Strictly follow the STAR framework (Situation -> Task -> Action -> Result).",
-            ],
-            exemplary_model_answer=(
-                "In my previous project [Situation], we faced a similar challenge [Task]. "
-                "I engineered an automated mitigation pipeline and verified input edge cases "
-                "[Action]. "
-                "As a result, system uptime remained at 99.98% with zero compliance violations "
-                "[Result]."
-            ),
-            gap_flags=gap_flags,
-        )
+    # Mock mode: the deterministic evaluator. Live: the AI router picks a provider.
+    if cfg.mock_mode:
+        return _heuristic_evaluation(question, answer_text, gap_flags)
 
     # LLM Evaluator Call
     system_prompt = (
@@ -299,11 +308,5 @@ def evaluate_rubric_answer(
         )
     except Exception as e:
         log.warning("LLM Rubric evaluation failed, using fallback evaluator: %s", e)
-        # Fallback to local heuristic evaluator
-        return evaluate_rubric_answer(
-            question=question,
-            answer_text=answer_text,
-            stream=stream,
-            target_role=target_role,
-            student_id=student_id,
-        )
+        # The heuristic, not this function again: a second LLM failure would recurse forever.
+        return _heuristic_evaluation(question, answer_text, gap_flags)

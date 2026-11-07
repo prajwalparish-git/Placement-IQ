@@ -1,4 +1,5 @@
-"""llm.call in mock mode and, through a fake Groq client, every live-mode code path."""
+"""llm.call in mock mode and, through a fake Groq client behind core/ai_router.py, every
+live-mode code path; plus the offline tier when no provider answers."""
 
 import json
 from types import SimpleNamespace
@@ -7,6 +8,7 @@ import groq
 import httpx
 import pytest
 
+from core import ai_router
 from piq import db, llm, mock
 from piq.config import settings
 from piq.schemas import InterviewTurn
@@ -53,11 +55,13 @@ def live(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "test-key")
     monkeypatch.setenv("GROQ_MODEL_LARGE", "large-model")
     monkeypatch.setenv("GROQ_MODEL_SMALL", "small-model")
+    # Errors surface as before; the offline tier has its own tests below.
+    monkeypatch.setenv("AI_OFFLINE_FALLBACK", "false")
     settings.cache_clear()
 
     def install(*replies) -> FakeGroq:
         fake = FakeGroq(*replies)
-        monkeypatch.setattr(llm, "_client", lambda *_: fake)
+        monkeypatch.setattr(ai_router, "_groq_client", lambda *_: fake)
         return fake
 
     return install
@@ -85,8 +89,12 @@ def test_mock_mode_raises_after_second_invalid_output(monkeypatch):
     assert row["critic_approved"] is None and row["latency_ms"] >= 0
 
 
-def test_model_for_maps_sizes(live):
-    assert (llm.model_for("large"), llm.model_for("small")) == ("large-model", "small-model")
+def test_groq_maps_sizes_to_models(live):
+    groq_provider = ai_router.PROVIDERS["groq"]
+    assert (groq_provider.model("large"), groq_provider.model("small")) == (
+        "large-model",
+        "small-model",
+    )
 
 
 # --- live mode via fake client -------------------------------------------------
@@ -101,7 +109,11 @@ def test_live_request_shape_and_logging(live):
     assert req["response_format"] == {"type": "json_object"}
     assert "JSON Schema" in req["messages"][0]["content"]
     [row] = _rows()
-    assert (row["model_used"], row["input_tokens"], row["output_tokens"]) == ("small-model", 10, 5)
+    assert (row["model_used"], row["input_tokens"], row["output_tokens"]) == (
+        "groq:small-model",
+        10,
+        5,
+    )
 
 
 def test_live_repair_feeds_validation_error_back_and_sums_tokens(live):
@@ -182,6 +194,7 @@ def pool(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY_2", "key-two")
     monkeypatch.setenv("GROQ_MODEL_LARGE", "large-model")
     monkeypatch.setenv("GROQ_MODEL_SMALL", "small-model")
+    monkeypatch.setenv("AI_OFFLINE_FALLBACK", "false")
     settings.cache_clear()
     used: list[str] = []
 
@@ -192,7 +205,7 @@ def pool(monkeypatch):
             used.append(key)
             return fake
 
-        monkeypatch.setattr(llm, "_client", client)
+        monkeypatch.setattr(ai_router, "_groq_client", client)
         return fake
 
     return install, used
@@ -228,4 +241,47 @@ def test_both_keys_rate_limited_raises_rate_limited(pool):
 def test_one_key_still_works_and_needs_no_numbered_keys(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "only")
     settings.cache_clear()
-    assert settings().groq_api_keys == ("only",) and llm.keys_for("interviewer") == ["only"]
+    assert settings().groq_api_keys == ("only",) and ai_router.keys_for("interviewer") == ["only"]
+
+
+# --- the offline tier: no provider answers ---------------------------------------------------
+
+
+def test_no_provider_set_up_is_served_by_the_offline_tier(monkeypatch):
+    monkeypatch.setenv("MOCK_MODE", "false")
+    settings.cache_clear()
+    monkeypatch.setattr(mock, "respond", lambda agent, ctx: VALID)
+    out, _ = _call()
+    assert out == InterviewTurn(**VALID)  # the deterministic answer, validated like any other
+    [row] = _rows()
+    assert row["model_used"] == "offline" and row["reject_reason"] is None
+
+
+def test_a_failing_provider_falls_back_to_the_offline_tier(live, monkeypatch):
+    monkeypatch.setenv("AI_OFFLINE_FALLBACK", "true")
+    settings.cache_clear()
+    monkeypatch.setattr(mock, "respond", lambda agent, ctx: VALID)
+    live(_status_error(groq.InternalServerError, 500, "boom"))
+    out, _ = _call()
+    assert out == InterviewTurn(**VALID) and _rows()[0]["model_used"] == "offline"
+
+
+def test_rate_limited_names_the_provider(live):
+    live(_rate_limit({"retry-after": "3"}))
+    with pytest.raises(llm.RateLimited, match="^Groq free-tier rate limit reached"):
+        _call()
+
+
+def test_an_agent_without_an_offline_answer_raises_llm_error(monkeypatch):
+    monkeypatch.setenv("MOCK_MODE", "false")
+    settings.cache_clear()
+    with pytest.raises(llm.LLMError, match="no offline answer"):
+        llm.call(InterviewTurn, agent="no-such-agent", system="s", user="u", context={})
+
+
+def test_offline_tier_off_and_nothing_set_up_names_the_keys(monkeypatch):
+    monkeypatch.setenv("MOCK_MODE", "false")
+    monkeypatch.setenv("AI_OFFLINE_FALLBACK", "false")
+    settings.cache_clear()
+    with pytest.raises(llm.LLMError, match="GEMINI_API_KEY, GROQ_API_KEY or OLLAMA_BASE_URL"):
+        _call()

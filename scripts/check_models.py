@@ -25,6 +25,9 @@ def main() -> int:
     if s.mock_mode:
         print("MOCK_MODE=true: no models in use. Set MOCK_MODE=false in .env to check them.")
         return 0
+    if not s.groq_api_key:  # live mode may run on Gemini or Ollama alone; this checks Groq
+        print("config error: GROQ_API_KEY_1 (or GROQ_API_KEY) is not set in .env")
+        return 2
 
     import groq
 
