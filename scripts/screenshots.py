@@ -49,14 +49,20 @@ class AppPage:
 
 
 PAGES = (
+    # the six-step placement journey
+    AppPage("onboard", "1. Onboarding and profile", "views/onboard.py"),
+    AppPage("scanner", "2. Resume scan and skill gaps", "views/scanner.py"),
+    AppPage("roadmap", "3. 7-day study roadmap", "views/roadmap.py"),
+    AppPage("critic_quiz", "4. Critic-checked quiz", "views/critic_quiz.py"),
+    AppPage("voice_interview", "5. Proctored voice assessment", "views/voice_interview.py"),
+    AppPage("faculty", "6. Faculty dashboard", "views/faculty.py"),
+    # more tools
     AppPage("home", "Home", "views/home.py"),
     AppPage("resume_builder", "Resume builder", "views/resume_builder.py"),
-    AppPage("onboard", "Onboard", "views/onboard.py"),
     AppPage("projects", "Project space", "views/projects.py"),  # computing domains only
     AppPage("plan", "Weekly plan", "views/plan.py"),
     AppPage("quiz", "Quiz", "views/quiz.py"),
     AppPage("interview", "Mock interview", "views/interview.py"),
-    AppPage("voice_interview", "Live Voice Interview", "views/voice_interview.py"),
     AppPage("dashboard", "Dashboard", "views/dashboard.py"),
     AppPage("results", "Results", "views/results.py"),
 )
@@ -86,13 +92,22 @@ MARKERS = {
     ("quiz", "nostudent"): "No student selected",
     ("interview", "nostudent"): "No student selected",
     ("voice_interview", "nostudent"): "No student selected",
+    ("scanner", "nostudent"): "No student selected",
+    ("roadmap", "nostudent"): "No student selected",
+    ("critic_quiz", "nostudent"): "No student selected",
+    # The faculty page needs no student; SEED_DEMO gives it the demo cohort.
+    ("faculty", "nostudent"): "Export placement readiness report",
+    ("faculty", "demo"): "Export placement readiness report",
+    ("scanner", "demo"): "Scan resume",
+    ("roadmap", "demo"): "Skills to cover",
+    ("critic_quiz", "demo"): "Generate quiz",
     ("dashboard", "nostudent"): "No student selected",
     ("results", "nostudent"): "Baseline",
     ("onboard", "demo"): "Missing for this role",
     ("plan", "demo"): "Generate week 5 plan",
     ("quiz", "demo"): "Generate quiz",
     ("interview", "demo"): "Start session",
-    ("voice_interview", "demo"): "Generate Interview Scenario",
+    ("voice_interview", "demo"): "Generate question",
     ("dashboard", "demo"): "Quizzes taken",
     ("results", "demo"): "Baseline",
     ("onboard", "error"): "Upload a resume or pick a sample",

@@ -15,6 +15,7 @@ def isolated(tmp_path, monkeypatch):
     use the small `bank` fixture below)."""
     monkeypatch.setenv("PIQ_DOTENV", str(tmp_path / "absent.env"))
     monkeypatch.setenv("MOCK_MODE", "true")
+    monkeypatch.setenv("PIQ_RAISE_ERRORS", "1")  # app.py's crash guard re-raises for AppTest
     monkeypatch.setenv("DB_PATH", str(tmp_path / "test.db"))
     monkeypatch.setenv("MAX_CRITIC_RETRIES", "2")
     monkeypatch.setenv("TELEMETRY_DB_PATH", str(tmp_path / "telemetry.db"))

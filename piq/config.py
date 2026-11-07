@@ -35,6 +35,16 @@ OLLAMA_PROBE_TIMEOUT_S = 1.0  # the health check (GET /api/tags) must answer wit
 OLLAMA_HEALTH_TTL_S = 30  # seconds a health-check answer is reused
 TTS_TIMEOUT_S = 20  # seconds to wait for ElevenLabs before the browser voice takes over
 TTS_MAX_CHARS = 2500  # text sent for synthesis; longer text is cut at the last full sentence
+# --- the six-step journey and the faculty dashboard (piq/journey.py, piq/cohort.py) ----------
+CRITIC_QUIZ_SIZES = (3, 5, 10)  # questions a critic-checked quiz can have
+CRITIC_QUIZ_DEFAULT = 5
+# A student's placement readiness (0-100) for the faculty report: the weighted mean of what
+# they have done: resume match (%), quiz average (%), voice rubric (scaled to %). Weights of
+# missing parts are spread over the rest; with none done the student is "Not assessed".
+READINESS_WEIGHTS = {"resume": 0.3, "quiz": 0.4, "voice": 0.3}
+READY_AT = 75  # readiness at or above this: "Ready"
+NEARLY_READY_AT = 50  # at or above this: "Nearly ready"; below: "Needs work"
+GAP_CHART_TOP = 10  # skill gaps the faculty chart shows
 ELEVENLABS_DEFAULT_VOICE = "21m00Tcm4TlvDq8ikWAM"  # a premade voice; ELEVENLABS_VOICE_ID overrides
 BROWSER_VOICE_LANG = "en-IN"  # the Web Speech API voice the browser fallback asks for
 VOICE_RUBRIC_MAX = 15  # a voice interview's rubric score runs 0 to 15
@@ -203,6 +213,9 @@ class Settings:
     elevenlabs_api_key: str = ""
     elevenlabs_voice_id: str = ""
     elevenlabs_model: str = ""
+    # app.py shows a friendly message for a crashed page; tests set PIQ_RAISE_ERRORS=1 so
+    # AppTest sees the exception instead.
+    raise_page_errors: bool = False
 
 
 def _flag(name: str, default: str) -> bool:
@@ -253,6 +266,7 @@ def settings() -> Settings:
         elevenlabs_api_key=os.getenv("ELEVENLABS_API_KEY", "").strip(),
         elevenlabs_voice_id=os.getenv("ELEVENLABS_VOICE_ID", "").strip(),
         elevenlabs_model=os.getenv("ELEVENLABS_MODEL", "").strip(),
+        raise_page_errors=_flag("PIQ_RAISE_ERRORS", "false"),
     )
     if not s.mock_mode:
         # A provider with no key (or URL) is simply skipped by the router; one that is half set

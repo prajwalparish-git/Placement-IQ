@@ -130,8 +130,16 @@ def test_navigation_groups_pages_with_material_icons():
         k.value: [ast.literal_eval(p.args[0]) for p in v.elts if isinstance(p, ast.Call)]
         for k, v in zip(nav.args[0].keys, nav.args[0].values, strict=True)
     }
-    assert list(sections) == ["Prepare", "Insights"]
-    assert sections["Insights"] == ["views/dashboard.py", "views/results.py"]
+    assert list(sections) == ["Placement journey", "More tools"]
+    assert sections["Placement journey"] == [  # the six numbered steps, in order
+        "views/onboard.py",
+        "views/scanner.py",
+        "views/roadmap.py",
+        "views/critic_quiz.py",
+        "views/voice_interview.py",
+        "views/faculty.py",
+    ]
+    assert sections["More tools"][-2:] == ["views/dashboard.py", "views/results.py"]
     pages = [
         ast.literal_eval(n.args[0])
         for n in ast.walk(tree)

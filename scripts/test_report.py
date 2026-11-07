@@ -59,7 +59,10 @@ LAYERS = {
     "test_all_domains": ("Integration", "Every role and domain, resume to interview"),
     "test_agents_layer2": ("Integration", "Layer 2 agents: resume parser, planner, critic quiz"),
     "test_voice_interview_step5": ("Integration", "Voice interview and rubric evaluator agents"),
+    "test_cohort": ("Unit", "Cohort analytics, readiness report and faculty charts"),
+    "test_journey": ("Integration", "Six-step journey: agents and telemetry, end to end"),
     "test_ui": ("System (UI)", "Streamlit pages, headless"),
+    "test_ui_journey": ("System (UI)", "Six-step journey pages, headless"),
 }
 ORDER = list(LAYERS)
 

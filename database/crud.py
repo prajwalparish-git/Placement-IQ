@@ -376,6 +376,51 @@ def student_session(usn: str, db: DatabaseManager | None = None) -> StudentSessi
     return _db(db).run(work)
 
 
+@dataclass(frozen=True)
+class Cohort:
+    """Every student's records, for the faculty dashboard and the readiness report."""
+
+    students: list[StudentProfile]
+    latest_resumes: dict[int, ResumeAnalysis]  # student id -> their latest analysis
+    plans: list[StudyPlan]
+    quiz_attempts: list[QuizAttempt]
+    interviews: list[VoiceInterviewSession]
+
+
+def cohort(db: DatabaseManager | None = None) -> Cohort:
+    """All students and their records, read in one transaction (so from one backend). Students
+    by USN; attempts and sessions oldest first."""
+
+    def work(s: Session) -> Cohort:
+        latest = (
+            select(func.max(ResumeAnalysis.id))
+            .group_by(ResumeAnalysis.student_id)
+            .scalar_subquery()
+        )
+        return Cohort(
+            students=list(s.scalars(select(StudentProfile).order_by(StudentProfile.usn))),
+            latest_resumes={
+                r.student_id: r
+                for r in s.scalars(select(ResumeAnalysis).where(ResumeAnalysis.id.in_(latest)))
+            },
+            plans=list(
+                s.scalars(select(StudyPlan).order_by(StudyPlan.student_id, StudyPlan.week_number))
+            ),
+            quiz_attempts=list(
+                s.scalars(select(QuizAttempt).order_by(QuizAttempt.timestamp, QuizAttempt.id))
+            ),
+            interviews=list(
+                s.scalars(
+                    select(VoiceInterviewSession).order_by(
+                        VoiceInterviewSession.timestamp, VoiceInterviewSession.id
+                    )
+                )
+            ),
+        )
+
+    return _db(db).run(work)
+
+
 def analytics(db: DatabaseManager | None = None) -> Analytics:
     """Students per stream, average resume match per stream (each student's latest analysis),
     quiz results per stream and domain, and voice-interview results per role. Averages are

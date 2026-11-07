@@ -27,6 +27,15 @@ PER_STUDENT_KEYS = (
     "interview",
     "onboard_confirm",
     "onboard_delete",
+    # the six-step journey's pages
+    "scan",
+    "roadmap_gaps",
+    "roadmap_unsaved",
+    "cq_batch",
+    "cq_grade",
+    "voice_q",
+    "voice_result",
+    "voice_text",
 )
 RUN_PREFIX = "run:"  # session key prefix for persisted agent step logs
 FAILED = formatter.FAILED
@@ -72,9 +81,9 @@ def student_count() -> int:
     return st.session_state.get("student_count", 0)
 
 
-def sidebar_context(mock_mode: bool) -> None:
-    """Under the student picker: their readiness at a glance and, in mock mode, a quiet
-    badge (the old warning box was the loudest thing on every page)."""
+def sidebar_context(mock_mode: bool, ai: str = "") -> None:
+    """Under the student picker: their readiness at a glance and a quiet badge naming who
+    answers: mock mode, the AI provider in use (Layer 3), or the offline rules."""
     with st.sidebar:
         if student := current_student():
             score = student["readiness_score"] or 0
@@ -85,6 +94,21 @@ def sidebar_context(mock_mode: bool) -> None:
                 icon=":material/science:",
                 color="gray",
                 help="Answers come from built-in samples; no AI service is called.",
+            )
+        elif ai == "Offline rules":
+            st.badge(
+                "Offline: rule-based answers",
+                icon=":material/cloud_off:",
+                color="orange",
+                help="No AI provider is reachable. Answers come from built-in rules and banks "
+                "until one is back.",
+            )
+        elif ai:
+            st.badge(
+                f"AI: {ai}",
+                icon=":material/cloud_done:",
+                color="gray",
+                help="The first healthy provider answers; others take over if it fails.",
             )
 
 

@@ -551,3 +551,195 @@ def ats_trend_spec(scores: Sequence[int], labels: Sequence[str]) -> dict:
 @lru_cache(maxsize=128)
 def _ats_trend_json(scores: tuple[int, ...], labels: tuple[str, ...]) -> str:
     return json.dumps(to_spec(ats_trend(scores, labels)))
+
+
+# --- faculty dashboard: the cohort ----------------------------------------------------------
+# Streams and rubric criteria are not topics, so every mark is the brand teal (topic colours
+# mean topics); values sit in the axis labels, and hovering a bar dims the others.
+
+
+def _hover(fields: list[str]) -> alt.Parameter:
+    return alt.selection_point(on="pointerover", clear="pointerout", fields=fields, empty=True)
+
+
+def _label_bars(
+    df: pd.DataFrame, *, value: str, top: float, fmt: str, tooltip: list[alt.Tooltip]
+) -> alt.Chart:
+    """Horizontal brand-teal bars, one per `label` row, in the frame's order; hover dims the
+    rest. The label already carries the value, so the bars need no text marks."""
+    hover = _hover(["label"])
+    chart = (
+        alt.Chart(df)
+        .mark_bar(size=18, color=BRAND_COLOR, cornerRadiusEnd=3)
+        .encode(
+            y=alt.Y(
+                "label:N",
+                sort=df["label"].tolist(),
+                title=None,
+                axis=alt.Axis(labelFontSize=14, labelPadding=8, labelLimit=0),
+            ),
+            x=alt.X(
+                f"{value}:Q",
+                scale=alt.Scale(domain=[0, top]),
+                title=None,
+                axis=alt.Axis(values=[0, top / 2, top], format=fmt),
+            ),
+            opacity=alt.condition(hover, alt.value(1.0), alt.value(0.45)),
+            tooltip=tooltip,
+        )
+        .add_params(hover)
+        .properties(height=ROW_PX * max(1, len(df)) + 30)
+    )
+    return themed(chart)
+
+
+def stream_readiness(rows: Sequence[tuple[str, int, float, str]]) -> alt.Chart:
+    """Average placement readiness per stream (0-100). `rows`: (stream, students, readiness,
+    detail for the tooltip), best first."""
+    df = pd.DataFrame(rows, columns=["stream", "students", "readiness", "detail"])
+    df = df.sort_values("readiness", ascending=False, kind="stable")
+    df["label"] = [f"{s}  {r:.0f}" for s, r in zip(df["stream"], df["readiness"], strict=True)]
+    return _label_bars(
+        df,
+        value="readiness",
+        top=100,
+        fmt="d",
+        tooltip=[
+            alt.Tooltip("stream:N", title="Stream"),
+            alt.Tooltip("students:Q", title="Students"),
+            alt.Tooltip("readiness:Q", title="Average readiness (/100)", format=".1f"),
+            alt.Tooltip("detail:N", title="Parts"),
+        ],
+    )
+
+
+def rubric_breakdown(averages: Mapping[str, float]) -> alt.Chart:
+    """Average of each voice rubric criterion (0-5), in rubric order."""
+    df = pd.DataFrame({"criterion": list(averages), "average": list(averages.values())})
+    df["label"] = [f"{c}  {a:.1f}" for c, a in zip(df["criterion"], df["average"], strict=True)]
+    return _label_bars(
+        df,
+        value="average",
+        top=5,
+        fmt="d",
+        tooltip=[
+            alt.Tooltip("criterion:N", title="Criterion"),
+            alt.Tooltip("average:Q", title="Average (/5)", format=".1f"),
+        ],
+    )
+
+
+def gap_bars(gaps: Sequence[tuple[str, int]], students: int) -> alt.Chart:
+    """The most common missing skills: how many students' latest scan lacks each."""
+    df = pd.DataFrame(gaps, columns=["skill", "students"])
+    df["label"] = [f"{s}  {n}" for s, n in zip(df["skill"], df["students"], strict=True)]
+    df["share"] = df["students"] / max(1, students)
+    return _label_bars(
+        df,
+        value="students",
+        top=max(1, students),
+        fmt="d",
+        tooltip=[
+            alt.Tooltip("skill:N", title="Skill"),
+            alt.Tooltip("students:Q", title="Students missing it"),
+            alt.Tooltip("share:Q", title="Share of scanned students", format=".0%"),
+        ],
+    )
+
+
+def histogram_bands(values: Sequence[float], *, top: int, step: int) -> list[tuple[str, int]]:
+    """(band label, count) of `values` on 0..top. step 1: one band per whole score, top
+    included ("0" .. "15"); wider: "0-10" .. "90-100", the last band including top."""
+    if step == 1:
+        labels = [str(n) for n in range(top + 1)]
+        index = [min(max(int(v), 0), top) for v in values]
+    else:
+        edges = range(0, top, step)
+        labels = [f"{lo}-{min(lo + step, top)}" for lo in edges]
+        index = [min(int(max(0.0, v) // step), len(labels) - 1) for v in values]
+    counts = [0] * len(labels)
+    for i in index:
+        counts[i] += 1
+    return list(zip(labels, counts, strict=True))
+
+
+def histogram(values: Sequence[float], *, top: int, step: int, noun: str) -> alt.Chart:
+    """How many of `values` fall in each band (histogram_bands): binned here, so tests check
+    the counts, not Vega's binning."""
+    bands = histogram_bands(values, top=top, step=step)
+    labels = [b for b, _ in bands]
+    df = pd.DataFrame(bands, columns=["band", "count"])
+    hover = _hover(["band"])
+    chart = (
+        alt.Chart(df)
+        .mark_bar(color=BRAND_COLOR, cornerRadiusEnd=3)
+        .encode(
+            x=alt.X("band:O", sort=labels, title=None, axis=alt.Axis(labelAngle=0)),
+            y=alt.Y("count:Q", title=None, axis=alt.Axis(format="d", tickMinStep=1)),
+            opacity=alt.condition(hover, alt.value(1.0), alt.value(0.45)),
+            tooltip=[
+                alt.Tooltip("band:N", title=noun),
+                alt.Tooltip("count:Q", title="Count"),
+            ],
+        )
+        .add_params(hover)
+        .properties(height=200)
+    )
+    return themed(chart)
+
+
+def cohort_trend(weeks: Sequence[tuple[str, float, int]]) -> alt.LayerChart:
+    """Average quiz score (%) per week. `weeks`: (week label, average, attempts)."""
+    return _trend(
+        [a for _, a, _ in weeks],
+        [f"Week of {w} ({n} attempts)" for w, _, n in weeks],
+        top=100,
+        noun="Week",
+        title="Average quiz score (%)",
+        fmt="d",
+    )
+
+
+def stream_readiness_spec(rows: Sequence[tuple[str, int, float, str]]) -> dict:
+    return json.loads(_stream_readiness_json(tuple(rows)))
+
+
+@lru_cache(maxsize=64)
+def _stream_readiness_json(rows: tuple[tuple[str, int, float, str], ...]) -> str:
+    return json.dumps(to_spec(stream_readiness(rows)))
+
+
+def rubric_breakdown_spec(averages: Mapping[str, float]) -> dict:
+    return json.loads(_rubric_breakdown_json(tuple(averages.items())))
+
+
+@lru_cache(maxsize=64)
+def _rubric_breakdown_json(items: tuple[tuple[str, float], ...]) -> str:
+    return json.dumps(to_spec(rubric_breakdown(dict(items))))
+
+
+def gap_bars_spec(gaps: Sequence[tuple[str, int]], students: int) -> dict:
+    return json.loads(_gap_bars_json(tuple(gaps), students))
+
+
+@lru_cache(maxsize=64)
+def _gap_bars_json(gaps: tuple[tuple[str, int], ...], students: int) -> str:
+    return json.dumps(to_spec(gap_bars(gaps, students)))
+
+
+def histogram_spec(values: Sequence[float], *, top: int, step: int, noun: str) -> dict:
+    return json.loads(_histogram_json(tuple(values), top, step, noun))
+
+
+@lru_cache(maxsize=64)
+def _histogram_json(values: tuple[float, ...], top: int, step: int, noun: str) -> str:
+    return json.dumps(to_spec(histogram(values, top=top, step=step, noun=noun)))
+
+
+def cohort_trend_spec(weeks: Sequence[tuple[str, float, int]]) -> dict:
+    return json.loads(_cohort_trend_json(tuple(weeks)))
+
+
+@lru_cache(maxsize=64)
+def _cohort_trend_json(weeks: tuple[tuple[str, float, int], ...]) -> str:
+    return json.dumps(to_spec(cohort_trend(weeks)))

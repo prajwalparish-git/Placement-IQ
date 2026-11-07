@@ -3,7 +3,7 @@ are there and missing, and what to fix on the resume."""
 
 import streamlit as st
 
-from piq import charts, formatter, services
+from piq import charts, formatter, journey, services
 from piq.ui import current_student, page_header, run_agent, set_student, show_last_run
 
 CONFIRM = "onboard_confirm"  # a submission waiting for "Replace their profile"
@@ -86,6 +86,7 @@ def _form(profile: services.StudentProfile | None, key: str) -> None:
 def _analyse(usn: str, role: str, text: str) -> None:
     result = run_agent("Profile agent", lambda ev: services.onboard(usn, role, text, ev))
     if result:
+        journey.record_student(result[0])  # telemetry, for the faculty dashboard; best-effort
         set_student(result[0], keep_runs=("Profile agent",), fresh=True)
         st.rerun()
 

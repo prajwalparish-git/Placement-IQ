@@ -5,7 +5,8 @@ PlacementIQ is a placement-readiness coach for engineering students. Agents prof
 
 College mini-project scope: one Streamlit process and one SQLite file for the app. Keep it that
 small. The separate telemetry layer (`database/`) may use PostgreSQL and falls back to its own
-SQLite file; nothing in the app depends on it yet.
+SQLite file; the six-step journey records every activity there and the faculty dashboard
+reads it back (through `piq/journey.py`).
 
 ## Tech stack (pinned in `requirements*.txt`)
 | Layer | Choice | Version |
@@ -29,14 +30,25 @@ tests); Pillow compresses its PNGs and is the version Streamlit already installs
 
 ## Directory structure
 ```
-app.py              Entry point: theme CSS, logo, settings check, DB init, sidebar, grouped navigation
+app.py              Entry point: theme CSS, logo, settings check, DB init, sidebar, navigation (the six
+                    numbered journey steps, then More tools), last-resort guard: a crashed page
+                    shows a message, never a traceback (PIQ_RAISE_ERRORS=1 re-raises, for tests)
 server.py           FastAPI over piq.services for the Next.js app: catalog, instant quizzes, plan,
                     dashboard, interview turns (server-sent events), resume ATS/PDF/bullet polish
 frontend/          Next.js 14 (App Router) + Tailwind + lucide-react: /, /resume-builder, /quiz,
                     /interview, /plan, /dashboard. Talks only to server.py (NEXT_PUBLIC_API_URL)
 views/              One file per page. Calls piq.services, piq.formatter, piq.charts and piq.ui
+  Placement journey (steps 1-6; steps 2-5 run the agents/ package through piq/journey.py):
+  onboard.py        1. Resume (upload or sample) -> profile; taken-USN confirmation; delete student
+  scanner.py        2. Resume scan against any catalog role: found and missing skills, degree, stream
+  roadmap.py        3. 7-day roadmap for the gaps, saved week by week; tasks ticked off and kept
+  critic_quiz.py    4. Critic-checked MCQs on one skill (question bank fallback), graded, recorded
+  voice_interview.py 5. Spoken scenario question (ElevenLabs or browser voice), spoken/typed answer,
+                    0-15 rubric with proctor flags, recorded
+  faculty.py        6. Cohort by stream, score spreads, rubric criteria, skill gaps, weekly trend,
+                    Layer 3 service health, readiness report as CSV
+  More tools:
   home.py           Default page: the loop explained, or readiness, streak and today's focus
-  onboard.py        Resume (upload or sample) -> profile; taken-USN confirmation; delete student
   plan.py           Week pills, day-by-day plan with check-off and export, shift and weakness charts
   quiz.py           Several topics x 1-50 questions (100 max), difficulty-mix slider, batched
                     critic trail, blank guard, breakdown by topic/difficulty/level, mistakes
@@ -51,6 +63,10 @@ core/               Layer 3: self-healing routers. Never import Streamlit
   speech_router.py  ElevenLabs -> browser Web Speech API (no pyttsx3: it speaks on the server)
 piq/                Application package. Only ui.py imports Streamlit
   services.py       Controllers: every user operation; validates, runs agents, persists, typed state
+  journey.py        Controllers for journey steps 2-6: run agents/, record telemetry (best-effort:
+                    a failed write is reported as saved=False, never raised), read the cohort
+  cohort.py         Pure cohort analytics: readiness per student and band, stream summaries, chart
+                    inputs, the readiness report CSV (formula-injection safe)
   config.py         Env settings (cached) and constants: CS core topics, thresholds, sizes
   syllabus.py       Domain topics, role focus topics, topic colour slots (career_catalog.json)
   degrees.py        Qualifications (degrees.json) and the catalog roles a degree qualifies for
@@ -71,7 +87,7 @@ piq/                Application package. Only ui.py imports Streamlit
   formatter.py      Output layer: models/rows -> markdown, escaped HTML, DataFrames, files (pure)
   charts.py         Altair chart builders (pure, tested) + cached Vega-Lite specs for the views
   ui.py             Streamlit helpers: student selector, critic trail, design-system components
-database/           Telemetry layer (SQLAlchemy). Not imported by piq yet
+database/           Telemetry layer (SQLAlchemy). Only piq/journey.py imports it
   connection.py     DatabaseManager: PostgreSQL (DATABASE_URL) or SQLite fallback; failover log
   models.py         StudentProfile, ResumeAnalysis, StudyPlan, QuizAttempt, VoiceInterviewSession
   crud.py           Save/fetch per table, a student's whole history, aggregated analytics
@@ -97,6 +113,8 @@ evaluation/
   report.py         results/summary.json -> report.md (tables) + chart.svg for the report
 scripts/
   seed.py           Demo student DEMO0001 with 4 weeks of history (no LLM calls)
+  seed_cohort.py    Fictional cohort (COHORT001..) across four streams for the faculty dashboard;
+                    --replace removes the earlier one. SEED_DEMO=true seeds both on start
   check_models.py   Are the configured Groq models served, JSON-capable, and within quota?
   export_graph.py   Mermaid of the compiled graph -> docs/critic_graph.mmd + .md
   test_report.py    Runs pytest and writes docs/test_report.md (test-case table)
@@ -120,6 +138,7 @@ pip install -r requirements-dev.txt     # runtime + pytest + ruff
 copy .env.example .env                  # then add GROQ_API_KEY; without .env the app runs in MOCK_MODE
 python -m scripts.check_models          # before a demo: models served, JSON mode, quota left
 python -m scripts.seed                  # demo student with 4 weeks of history
+python -m scripts.seed_cohort           # demo cohort for the faculty dashboard
 streamlit run app.py                    # dev server, http://localhost:8501
 uvicorn server:app --port 8000          # API for the Next.js frontend
 cd frontend ; npm install ; npm run dev # Next.js on http://localhost:3000 (npm run build to check types)
@@ -139,7 +158,7 @@ There is no build step. `.env.example` already contains the verified model IDs. 
 ## Coding conventions
 - Format and lint with ruff (`pyproject.toml`: line length 100, py313, rules E F W I B UP SIM). Leave no lint errors.
 - Type hints on every function signature. Use PEP 695 generics (`def f[T](...)`), not `TypeVar`.
-- Layering: `views -> services -> agents -> graph -> llm`, with `db` used by `services` and `llm`. Views never import `agents` or `db`.
+- Layering: `views -> services -> agents -> graph -> llm`, with `db` used by `services` and `llm`. Views never import `agents`, `core`, `database` or `db`; the journey pages go through `piq.journey`.
 - `services` validate every input and raise `ServiceError` with a message safe to show users. They return typed state, for example `InterviewSession`, `QuizResult` and `PlanOverview`.
 - Every LLM output is a Pydantic model returned by `piq.llm.call`. Never parse prose, and never call a provider from anywhere else: transport lives only in `core/ai_router.py` (exceptions: `scripts/check_models.py`, and Whisper transcription in `agents/rubric_evaluator_agent.py`).
 - **The UI never crashes on an AI or voice outage.** A provider that fails is paused by its breaker and the next one answers; with none left, `piq/llm.py` serves the deterministic offline tier (`piq/mock.py`) unless `AI_OFFLINE_FALLBACK=false`, and the `agents/` package falls back to its own banks. The evaluation always sets it false: an offline answer is not the model's.

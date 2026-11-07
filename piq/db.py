@@ -75,6 +75,15 @@ def delete_student(usn: str) -> None:
         c.execute("DELETE FROM students WHERE usn = ?", (usn.strip().upper(),))
 
 
+def student(student_id: str) -> sqlite3.Row | None:
+    """One student's id, name, usn, target_role and readiness_score."""
+    with tx() as c:
+        return c.execute(
+            "SELECT id, name, usn, target_role, readiness_score FROM students WHERE id = ?",
+            (student_id,),
+        ).fetchone()
+
+
 def list_students() -> list[sqlite3.Row]:
     with tx() as c:
         return c.execute(

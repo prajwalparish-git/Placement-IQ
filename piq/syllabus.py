@@ -68,6 +68,14 @@ def domains() -> tuple[Domain, ...]:
     return tuple(out)
 
 
+def stream_of(domain_id: str) -> str:
+    """The academic stream (Engineering, Commerce, Law, Management, ...) a domain belongs to."""
+    return next(
+        (d.get("stream", "Engineering") for d in catalog()["domains"] if d["id"] == domain_id),
+        "Engineering",
+    )
+
+
 def domain(domain_id: str) -> Domain:
     for d in domains():
         if d.id == domain_id:
