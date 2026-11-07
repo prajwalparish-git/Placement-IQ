@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 250" width="1200" height="250" role="img" aria-labelledby="title desc">
+<title id="title">Layer 3: self-healing AI routing</title>
+<desc id="desc">A request tries Gemini, then Groq, then a local Ollama, then built-in offline rules. A failing provider is paused by a circuit breaker and the next one answers.</desc>
+<defs><marker id="tip" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+  <path d="M0 0 L10 5 L0 10 z" fill="#566461"/></marker></defs>
+<style>
+  .head { font: 600 22px Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif; fill: #1A2326; }
+  .sub { font: 400 15px 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; fill: #566461; }
+  .box rect { fill: #FFFFFF; stroke: #DCE1DE; stroke-width: 2; }
+  .name { font: 600 19px 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; fill: #1A2326; }
+  .role { font: 400 14px 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; fill: #566461; }
+  .state { font: 600 13px 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; text-anchor: end; fill: #566461; }
+  .down rect { animation: down 10.0s ease-in-out infinite; }
+  .down .state { fill: #784E00; animation: blink 10.0s ease-in-out infinite; }
+  .live rect { animation: live 10.0s ease-in-out infinite; }
+  .live .state { fill: #0D6670; animation: blink 10.0s 0.4s ease-in-out infinite; }
+  .arrow { stroke: #566461; stroke-width: 2; fill: none; marker-end: url(#tip); }
+  .req { fill: #278C93; animation: req 10.0s ease-in-out infinite; }
+  @keyframes down { 0%, 12% { stroke: #DCE1DE; } 18%, 40% { stroke: #784E00; stroke-dasharray: 8 6; } 60%, 100% { stroke: #DCE1DE; } }
+  @keyframes live { 0%, 34% { stroke: #DCE1DE; } 42%, 80% { stroke: #278C93; stroke-width: 3; } 92%, 100% { stroke: #DCE1DE; } }
+  @keyframes blink { 0%, 14% { opacity: 0; } 22%, 85% { opacity: 1; } 95%, 100% { opacity: 0; } }
+  @keyframes req {
+    0% { transform: translate(30px, 0); opacity: 0; }
+    6% { opacity: 1; }
+    16% { transform: translate(175.0px, 0); }
+    26% { transform: translate(175.0px, 0); }
+    40% { transform: translate(455.0px, 0); }
+    80% { transform: translate(455.0px, 0); opacity: 1; }
+    90%, 100% { transform: translate(455.0px, 0); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+<rect width="1200" height="250" rx="18" fill="#FBFBFA" stroke="#DCE1DE"/>
+<text x="60" y="44" class="head">One request, four ways to answer it</text>
+<text x="60" y="70" class="sub">A provider that fails is paused by its circuit breaker; the next one answers. The app never stops.</text>
+<g class="box down"><rect x="60" y="95" width="230" height="92" rx="14"/><text x="80" y="133" class="name">Gemini</text><text x="80" y="159" class="role">primary</text><text x="272" y="133" class="state">down: paused</text></g><path d="M298 141 h34" class="arrow"/><g class="box live"><rect x="340" y="95" width="230" height="92" rx="14"/><text x="360" y="133" class="name">Groq</text><text x="360" y="159" class="role">second</text><text x="552" y="133" class="state">answers</text></g><path d="M578 141 h34" class="arrow"/><g class="box idle"><rect x="620" y="95" width="230" height="92" rx="14"/><text x="640" y="133" class="name">Ollama</text><text x="640" y="159" class="role">local, offline</text><text x="832" y="133" class="state">standby</text></g><path d="M858 141 h34" class="arrow"/><g class="box idle"><rect x="900" y="95" width="230" height="92" rx="14"/><text x="920" y="133" class="name">Offline rules</text><text x="920" y="159" class="role">built-in banks</text><text x="1112" y="133" class="state">last resort</text></g>
+<circle class="req" cx="0" cy="207" r="7"/>
+</svg>

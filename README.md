@@ -1,146 +1,263 @@
-# CareerMatrix AI (PlacementIQ: Omni)
+<div align="center">
 
-An adaptive multi-agent placement-readiness and career preparation coach spanning Engineering (CS, ECE, Mech, Civil, EEE, Biotech), Commerce (accounting, tax and audit), Law, Management, Healthcare, and Indian Central & State Government Services. It profiles a resume against target roles, plans weekly study, sets adaptive quizzes from local curated question banks, and conducts mock interviews. A critic agent checks generated outputs. Quiz scores feed back into subsequent study plans.
+<a href="https://github.com/prajwalparish-git/Skill-Scout-Nexus">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.svg">
+    <img alt="Skill Scout Nexus: an adaptive, multi-agent placement-readiness coach" src="docs/assets/hero-light.svg" width="100%">
+  </picture>
+</a>
 
-## Quick start (offline, no API key)
+<p>
+  <a href="https://github.com/prajwalparish-git/Skill-Scout-Nexus/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/prajwalparish-git/Skill-Scout-Nexus/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <img alt="Python 3.13" src="https://img.shields.io/badge/python-3.13-278C93?logo=python&logoColor=white">
+  <img alt="Streamlit 1.66" src="https://img.shields.io/badge/streamlit-1.66-278C93?logo=streamlit&logoColor=white">
+  <img alt="LangGraph" src="https://img.shields.io/badge/agents-LangGraph-278C93">
+  <img alt="Works offline" src="https://img.shields.io/badge/works-offline-1B6F36">
+</p>
+
+<p>
+  <b>Profile a resume, close the skill gaps, practise under a critic's eye, and show the placement cell where the cohort stands.</b><br>
+  Engineering, Commerce, Law, Management, Healthcare and Government roles, one app.
+</p>
+
+<p>
+  <a href="#get-started-in-two-steps">Get started</a> ·
+  <a href="#the-six-step-journey">The journey</a> ·
+  <a href="#self-healing-by-design">Self-healing</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#configuration">Configuration</a> ·
+  <a href="#documentation">Docs</a>
+</p>
+
+</div>
+
+---
+
+## Get started in two steps
+
+> You need Git and any Python from 3.8 upward to run the setup script. It brings the rest,
+> including Python 3.13 itself if this machine does not have it, into this folder only.
+
+**1. Get the code and set it up**
+
+```bash
+git clone https://github.com/prajwalparish-git/Skill-Scout-Nexus.git
+cd Skill-Scout-Nexus
+python bootstrap.py        # Windows: py bootstrap.py  ·  macOS / Linux: python3 bootstrap.py
 ```
-python -m venv .venv
-.venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
-python -m scripts.seed            # demo student DEMO0001 with 4 weeks of history
-streamlit run app.py
-```
-Without a `.env` file the app runs in **MOCK_MODE**: canned responses and no network.
 
-## Next.js app (fast front end)
-The same services behind a FastAPI server and a Next.js 14 + Tailwind front end: instant quizzes from
-the question bank (no LLM call), domain interview tracks (five per domain, plus BCA/MCA/MSc/MSE
-tracks), a resume builder with a live ATS score, PDF export and an AI bullet polish.
-```
-uvicorn server:app --port 8000          # the API (reads the same .env and database)
-cd frontend
-copy .env.example .env.local            # NEXT_PUBLIC_API_URL=http://localhost:8000
-npm install
-npm run dev                             # http://localhost:3000
-```
-Choose a candidate in the menu; new candidates are onboarded in the Streamlit app.
+Already have it? `git pull`, then run `python bootstrap.py` again: it only adds what is missing.
 
-## Live mode (Groq free tier)
-1. Copy `.env.example` to `.env` and set `GROQ_API_KEY`.
-2. Set `MOCK_MODE=false`. The model IDs are already filled in (`openai/gpt-oss-120b` and `openai/gpt-oss-20b`, verified 2026-10-19).
-3. Before a demo, run `python -m scripts.check_models`. It confirms both models are still served, that JSON mode works, and how much quota is left (each model allows 8,000 tokens/minute, 1,000 requests/day and about 200,000 tokens/day).
+**2. Fill in `.env`, then start**
 
-## Telemetry database (optional): PostgreSQL with SQLite fallback
-The `database/` package stores student profiles, resume analyses, study plans, quiz attempts and
-voice-interview scores through one SQLAlchemy schema. Set `DATABASE_URL` in `.env` (for example
-`postgresql://user:password@localhost:5432/placement_nexus`) to use PostgreSQL. If it is unset,
-malformed or unreachable, or drops out while running, the layer switches to
-`data/placement_nexus.db` (SQLite), logs the failover with the password hidden, and carries on.
-The app itself still keeps its data in `data/placementiq.db`; nothing calls this layer yet.
+The setup prints which keys are still empty. With none filled in, the app runs in **mock
+mode** (built-in answers, no network), which is enough to try every page.
 
-## Deploy (optional): Streamlit Community Cloud
-1. On share.streamlit.io choose **Create app**, pick this repository (a private repo needs GitHub access granted to Streamlit), branch `main`, main file `app.py`, and Python 3.13 under **Advanced settings**.
-2. Under **Secrets**, add:
-   ```toml
-   GROQ_API_KEY = "your key"
-   GROQ_MODEL_LARGE = "openai/gpt-oss-120b"
-   GROQ_MODEL_SMALL = "openai/gpt-oss-20b"
-   MOCK_MODE = "false"
-   SEED_DEMO = "true"
-   ```
-   Streamlit exposes top-level secrets as environment variables, so no code change is needed.
-3. The hosted disk is not persistent: the SQLite file resets when the app restarts. With `SEED_DEMO=true` the demo student is recreated on start, so the demo always opens with history.
+| | Start the app | Then open |
+|---|---|---|
+| **Windows** | `.\run.ps1` | http://localhost:8501 |
+| **macOS / Linux** | `./run.sh` | http://localhost:8501 |
 
-## Share a live demo (optional): Cloudflare quick tunnel
-On Windows with [cloudflared](https://github.com/cloudflare/cloudflared/releases) installed,
-double-click `scripts\tunnel.bat` (or run `powershell -ExecutionPolicy Bypass -File scripts\tunnel.ps1`).
-It starts Streamlit if nothing is running on port 8501 and prints a temporary public
-`https://…trycloudflare.com` URL for a phone or another laptop. There is no login: anyone
-with the URL can use the app and, in live mode, spend the Groq quota, so close the window
-when the demo ends.
+<details>
+<summary><b>What <code>bootstrap.py</code> does, and the other launcher commands</b></summary>
 
-## Features
-- **Home**: what PlacementIQ does, or for a returning student their readiness, study
-  streak, this week's progress and **today's focus**, the next step chosen by rules.
-- **Onboard**: a resume (PDF, DOCX, TXT or a sample) against a target role gives a readiness
-  score, the skills on the resume and missing for the role, and fixes. A USN that already
-  belongs to someone asks before replacing them; a student can be deleted after typing
-  their USN.
-- **Weekly plan**: seven days of study weighted to the weakest topics, why the planner chose
-  it, how the minutes moved since last week, days to tick off, and export as a calendar
-  file (.ics) or a CSV.
-- **Quiz**: topics ranked by weakness with a suggested difficulty, five questions checked
-  by a critic (the step-by-step trail shows every rejection), a warning before submitting
-  blanks, and a review with each answer marked, downloadable as notes. With the local
-  question bank present, up to half of each topic's questions come from it (unseen ones
-  only); the rest are generated and checked.
-- **Resume builder**: any number of degrees (Class 10 to a doctorate, completed or being
-  pursued) and jobs or internships with dates, so years of experience are computed; an ATS
-  check against the role's keywords and degree rule; **Find roles for your degree** lists
-  the 65 catalog roles a degree and branch qualify for, now or on completion.
-- **Mock interview**: HR, technical or project interviews with follow-ups on vague
-  answers, scored feedback per answer, a session summary with tips, and notes to keep.
-- **Dashboard**: readiness over time, study streak and a 12-week activity calendar, topic
-  mastery (weakness and trend per topic), plan minutes and interview scores, and, kept
-  apart, how the agents and the critic behaved.
-- **Results**: the evaluation against a single-prompt baseline, each metric defined.
-- Light and dark themes, readable on a phone and on a projector; works offline in
-  MOCK_MODE.
+<br>
 
-| Home | Weekly plan |
+| Step | What happens | Where |
+|---|---|---|
+| 1 | Finds Python 3.13. If there is none, downloads [uv](https://github.com/astral-sh/uv) (pinned, checksum-verified) and installs a private Python 3.13 | `.tools/` |
+| 2 | Creates a virtual environment | `.venv/` |
+| 3 | Installs every dependency from `requirements.txt` | `.venv/` |
+| 4 | Creates `.env` from `.env.example` (an existing `.env` is never touched) | `.env` |
+| 5 | Writes the launcher for this system | `run.ps1` or `run.sh` |
+
+Nothing is installed system-wide, and everything it makes is git-ignored. Options:
+`--dev` (also pytest, ruff, Playwright), `--frontend` (also the Next.js packages; needs
+Node.js 20+), `--local-python` (always use the private Python).
+
+| Command | Does |
 |---|---|
-| ![Home](docs/design/after/home-demo-1440-light.png) | ![Weekly plan](docs/design/after/plan-demo-1440-light.png) |
-| **Quiz: the critic rejects a question and it is rewritten** | **Dashboard** |
-| ![Quiz critic loop](docs/design/after/quiz-critic-1440-light.png) | ![Dashboard](docs/design/after/dashboard-demo-1440-light.png) |
+| `run app` (default) | The Streamlit app on port 8501 |
+| `run seed` | A demo student with four weeks of history, and a demo cohort for the faculty dashboard |
+| `run api` | The FastAPI server for the Next.js front end, on port 8000 |
+| `run test` | The test suite (after `bootstrap.py --dev`) |
+| `run check` | Checks the configured Groq models are served, JSON-capable and within quota |
 
-## Demo path
-1. **Home:** with no student selected, the four-step loop. Choose **Try it with a sample
-   resume**.
-2. **Onboard:** pick a USN and **Analyse resume**. The trail shows the profile agent and the
-   critic; the profile shows readiness, matched and missing skills and resume fixes.
-3. **Weekly plan:** **Generate week 1 plan**. Weak topics get the most minutes, and **Why
-   this plan** says so. Tick a day done; export the week to a calendar.
-4. **Quiz:** the weakest topic is preselected with a suggested difficulty. **Generate
-   quiz**: in mock mode the critic rejects the first draft (duplicate options) and only that
-   question is rewritten, step by step in the trail. Score low on purpose.
-5. **Weekly plan:** generate the next week. The weakest topic gets more minutes, and the
-   chart beside the plan states the shift.
-6. **Mock interview:** give a vague answer and get a follow-up that quotes it, then scored
-   feedback; finish the session for the summary.
-7. **Dashboard:** switch to **DEMO0001** in the sidebar for four weeks of history: topic
-   mastery, streak, plan minutes, interviews and, under the hood, the critic's rejections.
-8. **Results:** baseline against PlacementIQ, each metric in plain words.
+On Windows, if PowerShell blocks scripts: `powershell -ExecutionPolicy Bypass -File .\run.ps1`.
 
-## Tests and evaluation
-```
-pip install -r requirements-dev.txt
-pytest                                   # offline, includes headless UI tests (CI runs it on pushes to main and on pull requests)
-python -m evaluation.run_eval --consecutive 5 --interviews   # live, 20 frozen cases; needs 2 days of free quota
-python -m evaluation.run_eval --consecutive 5 --interviews --resume   # continue the next day
-python -m evaluation.report              # results/report.md + chart.svg for the report
-python -m scripts.summary_pdf            # docs/PlacementIQ_Summary.pdf with the latest numbers
+</details>
+
+---
+
+## The six-step journey
+
+| Step | Page | What the student gets |
+|:---:|---|---|
+| **1** | Onboarding and profile | A resume (PDF, DOCX, TXT or a sample) against a target role: readiness score, skills found and missing, resume fixes. A critic checks the profile. |
+| **2** | Resume scan and skill gaps | The resume read against any catalog role in any stream: required skills named in words, the gaps, the degree and stream it shows. |
+| **3** | 7-day study roadmap | A day-by-day plan for the gaps: objectives, free resources and micro-tasks to tick off, saved week by week. |
+| **4** | Critic-checked quiz | Questions on one skill. A generator writes them, a critic checks facts, ambiguity and distractors before they are shown; the verified bank fills any gap. |
+| **5** | Proctored voice assessment | A spoken scenario question for the stream, a spoken or typed answer, a 0-15 rubric score and proctor flags for terse, off-topic or buzzword answers. |
+| **6** | Faculty dashboard | Readiness by stream, score distributions, rubric criteria, the most common skill gaps, the weekly trend, and **Export placement readiness report** (CSV). |
+
+Under **More tools**: the adaptive weekly plan (quiz scores reshape next week), the full
+quiz with its step-by-step critic trail, a chat mock interview, an ATS resume builder with
+PDF export, a project space for computing roles, a personal dashboard and the evaluation
+results. Light and dark themes; readable on a phone and on a projector.
+
+---
+
+## Self-healing by design
+
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/layer3-dark.svg">
+    <img alt="A request tries Gemini, then Groq, then a local Ollama, then built-in offline rules" src="docs/assets/layer3-light.svg" width="100%">
+  </picture>
+</div>
+
+Every AI request goes through `core/ai_router.py`. Providers are tried in order, each
+behind a **circuit breaker**: a provider without a key is skipped; one that times out, runs
+out of quota or retires a model is paused for a cooldown, and the next one answers. With
+none left, deterministic offline answers built from `data/` take over, so the interface
+never shows a crash. Speech works the same way (`core/speech_router.py`): ElevenLabs when it
+can, otherwise the browser's own voice. The faculty dashboard shows which service is
+answering right now.
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph UI["Streamlit app"]
+        V["views/<br/>one file per page"]
+    end
+    subgraph Core["Application core (piq/)"]
+        S["services.py<br/>journey.py"]
+        G["LangGraph critic loop<br/>generate → verify → retry"]
+        L["llm.py<br/>validation · repair · logging"]
+        C["checks.py<br/>deterministic rules"]
+    end
+    subgraph L2["Agents (agents/)"]
+        A["resume parser · planner<br/>critic quiz · voice · rubric"]
+    end
+    subgraph L3["Layer 3 (core/)"]
+        R["ai_router<br/>Gemini → Groq → Ollama → offline"]
+        SP["speech_router<br/>ElevenLabs → browser"]
+    end
+    subgraph Data["Storage"]
+        DB[("SQLite<br/>app data")]
+        T[("PostgreSQL or SQLite<br/>telemetry")]
+    end
+    V --> S
+    S --> A
+    S --> G --> L
+    A --> L
+    G --> C
+    L --> R
+    A --> SP
+    S --> DB
+    S --> T
+    API["server.py<br/>FastAPI"] --> S
+    NX["frontend/<br/>Next.js"] --> API
 ```
 
-## Visual QA and performance (dev tools)
+| Layer | Choice |
+|---|---|
+| Interface | Streamlit 1.66 (Altair charts, self-hosted fonts, light and dark tokens); optional Next.js 14 front end over FastAPI |
+| Agents | LangGraph generate → verify → retry loop; every output is a validated Pydantic model |
+| AI providers | Google Gemini, Groq, local Ollama, then offline rules |
+| Voice | ElevenLabs, then the Web Speech API; Whisper (Groq) for transcription |
+| Storage | SQLite for the app; SQLAlchemy telemetry on PostgreSQL with automatic SQLite failover |
+
+---
+
+## Configuration
+
+`bootstrap.py` creates `.env` from [`.env.example`](.env.example), where every key is
+explained. The ones that matter:
+
+| Key | Needed for | Default |
+|---|---|---|
+| `MOCK_MODE` | `false` turns on live AI | `true` (offline demo) |
+| `GEMINI_API_KEY` | Primary AI provider ([get a key](https://aistudio.google.com/apikey)) | empty: skipped |
+| `GROQ_API_KEY` | Second provider and speech-to-text | empty: skipped |
+| `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | A local model that works without internet | `http://localhost:11434`, `llama3` |
+| `ELEVENLABS_API_KEY` | A natural voice for interview questions | empty: browser voice |
+| `DATABASE_URL` | PostgreSQL for telemetry | empty: local SQLite |
+
+`.env` is git-ignored; never commit it.
+
+---
+
+<details>
+<summary><b>Tests, evaluation and developer tools</b></summary>
+
+<br>
+
+```bash
+python bootstrap.py --dev                 # once: pytest, ruff, Playwright
+./run.sh test                             # Windows: .\run.ps1 test   (fully offline)
+.venv/bin/python -m ruff format . && .venv/bin/python -m ruff check .
 ```
-python -m playwright install chromium    # once
-python -m scripts.screenshots docs/design/after             # every page and flow, 1440/1366/390 px, light and dark
-python -m scripts.screenshots docs/design/after --pages quiz --widths 1440,390
-python -m scripts.perf docs/design/perf.md                  # render time and queries per page (AppTest)
-python -m scripts.perf docs/design/perf.md --mode rerun     # each page's own render cost
+
+The evaluation compares the agents against a single-prompt baseline on 20 frozen cases
+(live, about two days of free-tier quota):
+
+```bash
+python -m evaluation.run_eval --consecutive 5 --interviews            # add --resume the next day
+python -m evaluation.report                                           # results/report.md + chart.svg
 ```
-Both run in an isolated environment (MOCK_MODE, a temporary seeded database, `.env`
-ignored) and never call Groq. The screenshot run fails on any browser console error; the
-design system and the review loop are in [docs/design/DESIGN.md](docs/design/DESIGN.md),
-and the before/after numbers in [docs/performance.md](docs/performance.md).
+
+Visual review and performance, in an isolated mock-mode environment:
+
+```bash
+python -m playwright install chromium
+python -m scripts.screenshots docs/design/after --pages faculty --widths 1440,390
+python -m scripts.perf docs/design/perf.md
+```
+
+On Windows use `.venv\Scripts\python.exe` in place of `python` above.
+
+</details>
+
+<details>
+<summary><b>Deploy and share</b></summary>
+
+<br>
+
+**Streamlit Community Cloud.** Create an app from this repository (branch `main`, file
+`app.py`, Python 3.13), and add the `.env` keys under **Secrets**, with `SEED_DEMO = "true"`
+so the demo student and cohort are recreated on each start (the hosted disk is not
+persistent).
+
+**Temporary public link (Windows).** With
+[cloudflared](https://github.com/cloudflare/cloudflared/releases) installed, run
+`scripts\tunnel.bat`. Anyone with the link can use the app until the window is closed.
+
+**Static landing page.** `npx wrangler deploy --config deploy/cloudflare/wrangler.toml`
+publishes `static/index.html` with the app's brand and fonts.
+
+</details>
+
+---
 
 ## Documentation
-- [docs/PlacementIQ_Summary.pdf](docs/PlacementIQ_Summary.pdf): two-page abstract, key features and the problems it solves (`python -m scripts.summary_pdf`)
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): design, data flow, decisions, limitations
-- [docs/CLAUDE.md](docs/CLAUDE.md): code map, commands and conventions
-- [docs/CATEGORIES_AND_DATASETS.md](docs/CATEGORIES_AND_DATASETS.md): multi-disciplinary roles (65 roles across 12 domains) and question dataset specs
-- [docs/diagrams.md](docs/diagrams.md): use case, components, DFD level 0/1, ER and sequence diagrams
-- [docs/critic_graph.md](docs/critic_graph.md): the LangGraph critic loop, generated from the code
-- [docs/test_report.md](docs/test_report.md): every test case and its result (`python -m scripts.test_report`)
-- [docs/design/DESIGN.md](docs/design/DESIGN.md): the design system: tokens, type, components, charts
-- [docs/performance.md](docs/performance.md): render time per page before and after the redesign
+
+| Document | About |
+|---|---|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design, data flow, decisions and limitations |
+| [CLAUDE.md](docs/CLAUDE.md) | Code map, commands and conventions |
+| [DESIGN.md](docs/design/DESIGN.md) | The design system: tokens, type, components, charts |
+| [CATEGORIES_AND_DATASETS.md](docs/CATEGORIES_AND_DATASETS.md) | Roles across 12 domains and the question bank |
+| [diagrams.md](docs/diagrams.md) | Use case, DFD, ER and sequence diagrams |
+| [critic_graph.md](docs/critic_graph.md) | The LangGraph critic loop, generated from the code |
+| [test_report.md](docs/test_report.md) | Every test case and its result |
+| [performance.md](docs/performance.md) | Render time per page |
+| [Summary PDF](docs/PlacementIQ_Summary.pdf) | Two-page abstract and evaluation results |
+
+<div align="center">
+<br>
+<sub>Built with Streamlit, LangGraph and Pydantic · runs offline in mock mode · <a href="https://github.com/prajwalparish-git/Skill-Scout-Nexus">github.com/prajwalparish-git/Skill-Scout-Nexus</a></sub>
+</div>

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" role="img" aria-labelledby="title desc">
+<title id="title">Skill Scout Nexus</title>
+<desc id="desc">An adaptive, multi-agent placement-readiness coach: onboard, scan, roadmap, quiz, voice assessment and a faculty dashboard.</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#FBFBFA"/><stop offset="1" stop-color="#EEF2F0"/>
+  </linearGradient>
+  <linearGradient id="sheen" x1="0" x2="1">
+    <stop offset="0" stop-color="#278C93" stop-opacity="0"/>
+    <stop offset="0.5" stop-color="#278C93" stop-opacity="0.9"/>
+    <stop offset="1" stop-color="#278C93" stop-opacity="0"/>
+  </linearGradient>
+</defs>
+<style>
+  .title { font: 600 58px Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif; fill: #1A2326; letter-spacing: 0.5px;
+           animation: rise 1.2s ease-out both; }
+  .tag { font: 400 21px 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; fill: #566461; animation: rise 1.2s 0.35s ease-out both; }
+  .rule { stroke: #0D6670; stroke-width: 2; stroke-dasharray: 220; stroke-dashoffset: 220;
+          animation: draw 1.4s 0.6s ease-out forwards; }
+  .track { stroke: #DCE1DE; stroke-width: 3; }
+  .pulse { animation: travel 9.0s linear infinite; }
+  .ring { fill: #FFFFFF; stroke: #DCE1DE; stroke-width: 2; }
+  .dot { fill: #DCE1DE; }
+  .node { animation: light 9.0s ease-in-out infinite; }
+  .node .dot { animation: dot 9.0s ease-in-out infinite; animation-delay: inherit; }
+  .step { font: 600 15px 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; fill: #566461; text-anchor: middle; }
+  .mark { animation: rise 1s ease-out both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes travel { from { transform: translateX(90px); } to { transform: translateX(1010px); } }
+  @keyframes light { 0%, 100% { opacity: 0.55; } 8%, 22% { opacity: 1; } }
+  @keyframes dot { 0%, 100% { fill: #DCE1DE; } 8%, 22% { fill: #0D6670; } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+<rect width="1200" height="340" rx="18" fill="url(#bg)"/>
+<g transform="translate(150 58) scale(1.25)"><g class="mark"><rect width="64" height="64" rx="15" fill="#278C93"/><g fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"><path d="M16 19V45"/><circle cx="37" cy="30" r="11" stroke-opacity="0.4"/><path d="M37.00 19.00A11 11 0 1 1 26.00 30.00"/><path d="M39 41H51"/></g></g></g>
+<text x="250" y="110" class="title">Skill Scout Nexus</text>
+<text x="252" y="150" class="tag">An adaptive, multi-agent placement-readiness coach, double-checked by a critic.</text>
+<line x1="252" y1="176" x2="472" y2="176" class="rule"/>
+<line x1="210" y1="262" x2="990" y2="262" class="track"/>
+<rect class="pulse" x="0" y="259" width="120" height="6" rx="3" fill="url(#sheen)"/>
+<g class="node" style="animation-delay:0.00s"><circle cx="210" cy="262" r="15" class="ring"/><circle cx="210" cy="262" r="6" class="dot"/></g><text x="210" y="300" class="step">1. Onboard</text><g class="node" style="animation-delay:1.12s"><circle cx="366" cy="262" r="15" class="ring"/><circle cx="366" cy="262" r="6" class="dot"/></g><text x="366" y="300" class="step">2. Scan</text><g class="node" style="animation-delay:2.25s"><circle cx="522" cy="262" r="15" class="ring"/><circle cx="522" cy="262" r="6" class="dot"/></g><text x="522" y="300" class="step">3. Roadmap</text><g class="node" style="animation-delay:3.38s"><circle cx="678" cy="262" r="15" class="ring"/><circle cx="678" cy="262" r="6" class="dot"/></g><text x="678" y="300" class="step">4. Quiz</text><g class="node" style="animation-delay:4.50s"><circle cx="834" cy="262" r="15" class="ring"/><circle cx="834" cy="262" r="6" class="dot"/></g><text x="834" y="300" class="step">5. Voice</text><g class="node" style="animation-delay:5.62s"><circle cx="990" cy="262" r="15" class="ring"/><circle cx="990" cy="262" r="6" class="dot"/></g><text x="990" y="300" class="step">6. Faculty</text>
+</svg>

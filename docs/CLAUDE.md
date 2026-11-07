@@ -33,6 +33,8 @@ tests); Pillow compresses its PNGs and is the version Streamlit already installs
 app.py              Entry point: theme CSS, logo, settings check, DB init, sidebar, navigation (the six
                     numbered journey steps, then More tools), last-resort guard: a crashed page
                     shows a message, never a traceback (PIQ_RAISE_ERRORS=1 re-raises, for tests)
+bootstrap.py        One-command setup (stdlib only, runs on Python 3.8+): Python 3.13 via pinned,
+                    checksum-verified uv if missing, .venv, deps, .env, run.ps1 or run.sh
 server.py           FastAPI over piq.services for the Next.js app: catalog, instant quizzes, plan,
                     dashboard, interview turns (server-sent events), resume ATS/PDF/bullet polish
 frontend/          Next.js 14 (App Router) + Tailwind + lucide-react: /, /resume-builder, /quiz,
@@ -125,6 +127,8 @@ scripts/
 docs/               diagrams.md (use case, DFD, ER, sequence), critic graph, test report, performance.md,
                     PlacementIQ_Summary.pdf (abstract, key features, problems it solves)
   design/           DESIGN.md (the design system), curated before/ and after/ screenshots, perf tables
+deploy/cloudflare/  wrangler.toml for the static landing page (static/index.html)
+docs/assets/        The README's animated SVGs (header, Layer 3), light and dark
 .github/workflows/  ci.yml: format check, lint and tests on push to main and on PRs (read-only token)
 .streamlit/         config.toml: theme (light/dark tokens, fonts), static serving, 5 MB uploads, no telemetry
 tests/              pytest, fully offline: one file per layer, services integration, headless UI
@@ -133,9 +137,9 @@ tests/              pytest, fully offline: one file per layer, services integrat
 ## Commands
 Run from the repo root. On Windows, activate with `.venv\Scripts\activate`.
 ```
-python -m venv .venv
-pip install -r requirements-dev.txt     # runtime + pytest + ruff
-copy .env.example .env                  # then add GROQ_API_KEY; without .env the app runs in MOCK_MODE
+python bootstrap.py --dev               # Python 3.13 (private copy in .tools/ if missing), .venv,
+                                        # deps, .env from .env.example, run.ps1 / run.sh launcher
+.un.ps1   |   ./run.sh               # start the app (also: seed | api | test | check)
 python -m scripts.check_models          # before a demo: models served, JSON mode, quota left
 python -m scripts.seed                  # demo student with 4 weeks of history
 python -m scripts.seed_cohort           # demo cohort for the faculty dashboard
