@@ -250,7 +250,7 @@ def generate_study_roadmap(
     cfg = settings()
     
     # In mock mode or if no API key configured, use high-fidelity deterministic generator
-    if cfg.mock_mode or not cfg.groq_api_key_1:
+    if cfg.mock_mode or not cfg.groq_api_key:
         return _build_fallback_roadmap(missing_gap_skills, target_role, target_stream)
 
     # LLM-guided roadmap generation with strict schema enforcement

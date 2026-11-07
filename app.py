@@ -65,6 +65,11 @@ st.navigation(
             st.Page(
                 "views/interview.py", title="Mock interview", icon=":material/record_voice_over:"
             ),
+            st.Page(
+                "views/voice_interview.py",
+                title="Live Voice Interview",
+                icon=":material/graphic_eq:",
+            ),
         ],
         "Insights": [
             st.Page("views/dashboard.py", title="Dashboard", icon=":material/monitoring:"),
