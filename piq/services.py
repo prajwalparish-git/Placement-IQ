@@ -25,7 +25,9 @@ from piq.config import (
     BULLET_MAX_CHARS,
     CRITERION_WEAK_BELOW,
     DATA_DIR,
+    DEFAULT_SAMPLE,
     DIFFICULTIES,
+    EMAIL_RE,
     INSTANT_QUIZ_SIZE,
     INTERVIEW_TIPS,
     INTERVIEW_TYPES,
@@ -40,6 +42,7 @@ from piq.config import (
     RESUME_REVIEW_DAYS,
     TIMEZONE,
     TREND_STEP,
+    USN_RE,
     WEAK_THRESHOLD,
 )
 from piq.graph import OnEvent
@@ -55,8 +58,6 @@ from piq.schemas import (
 )
 from piq.syllabus import Domain
 
-USN_RE = re.compile(r"^[A-Z0-9]{4,20}$")
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 URL_RE = re.compile(r"^https?://[^\s<>()\[\]\"'`]+$")
 SAMPLES_DIR = DATA_DIR / "sample_resumes"
 MAX_ANSWER_CHARS = 4000
@@ -196,6 +197,13 @@ def target_roles() -> list[str]:
 def sample_resumes() -> tuple[str, ...]:
     """The bundled sample files; they ship with the app, so the folder is listed once."""
     return tuple(sorted(p.name for p in SAMPLES_DIR.glob("*.txt")))
+
+
+def default_sample() -> str:
+    """The sample the home page offers first: DEFAULT_SAMPLE, or the first file without it.
+    (Alphabetical order would change the demo every time a sample is added.)"""
+    names = sample_resumes()
+    return DEFAULT_SAMPLE if DEFAULT_SAMPLE in names else names[0]
 
 
 def load_sample(name: str) -> str:

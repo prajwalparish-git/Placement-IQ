@@ -11,3 +11,5 @@ altair==6.3.0          # imported directly by piq/charts.py; already a streamlit
 fpdf2==2.8.2           # pure-python high-speed ATS resume PDF generation
 fastapi==0.162.0       # server.py: HTTP API for the Next.js frontend (frontend/)
 uvicorn==0.54.0        # runs server.py; already installed as a streamlit dependency
+sqlalchemy==2.1.6      # database/: one schema and one CRUD for PostgreSQL and the SQLite fallback
+psycopg[binary]==3.3.6 # database/: the PostgreSQL driver; [binary] bundles libpq (no system install)

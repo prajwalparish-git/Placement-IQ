@@ -35,8 +35,10 @@ def _events(text: str) -> list[tuple[str, dict | str]]:
 
 def test_catalog_lists_every_domain_role_and_degree(client):
     body = client.get("/api/catalog").json()
-    assert len(body["domains"]) == 10
-    assert sum(len(d["roles"]) for d in body["domains"]) == 60
+    assert len(body["domains"]) == 12
+    assert sum(len(d["roles"]) for d in body["domains"]) == 65
+    tax = next(r for d in body["domains"] for r in d["roles"] if r["name"] == "Tax Consultant")
+    assert "GST Portal" in tax["tools"] and tax["benchmarks"]  # roles reach the app whole
     cs = body["domains"][0]
     assert cs["topics"][0]["name"] == "Aptitude" and "ats_keywords" in cs["roles"][0]
     assert {"code": "MCA", "name": "MCA (Master of Computer Applications)"} in body["degrees"]

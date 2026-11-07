@@ -196,7 +196,10 @@
       "Excel": "Excel & SQL",
       "Accounting": "Accounting",
       "SQL": "Excel & SQL",
-      "Statistics": "Aptitude"
+      "Statistics": "Aptitude",
+      "Ratio Analysis": "Accounting",
+      "DCF Valuation": "Financial Modelling",
+      "Tableau": null
     },
     "UPSC Civil Services Aspirant": {
       "Indian Polity": "Indian Polity",
@@ -554,12 +557,12 @@
       "Google Analytics": null
     },
     "Human Resources (HR) Specialist": {
-      "Recruitment": "HR & Operations",
-      "Statutory Compliance": "HR & Operations",
-      "Performance Management": "HR & Operations",
-      "Employee Engagement": "HR & Operations",
-      "POSH": "HR & Operations",
-      "Labour Laws": "Corporate Law",
+      "Recruitment": "Human Resources",
+      "Statutory Compliance": "Human Resources",
+      "Performance Management": "Human Resources",
+      "Employee Engagement": "Human Resources",
+      "POSH": "Human Resources",
+      "Labour Laws": "Human Resources",
       "Business Communication": "Business Communication",
       "Excel": "Excel & SQL",
       "Quantitative Aptitude": "Aptitude",
@@ -578,11 +581,11 @@
       "JIRA": null
     },
     "Supply Chain & Logistics Specialist": {
-      "Inventory Management": "HR & Operations",
-      "Demand Forecasting": "HR & Operations",
-      "Procurement": "HR & Operations",
-      "Warehouse Management": "HR & Operations",
-      "Logistics": "HR & Operations",
+      "Inventory Management": "Operations & Supply Chain",
+      "Demand Forecasting": "Operations & Supply Chain",
+      "Procurement": "Operations & Supply Chain",
+      "Warehouse Management": "Operations & Supply Chain",
+      "Logistics": "Operations & Supply Chain",
       "Excel": "Excel & SQL",
       "Economics": "Economics",
       "Quantitative Aptitude": "Aptitude",
@@ -667,6 +670,73 @@
       "Quantitative Aptitude": "Aptitude",
       "Current Affairs": "Current Affairs",
       "Physical Fitness": null
+    },
+    "Tax Consultant": {
+      "Income Tax": "Income Tax",
+      "Tax Computation": "Income Tax",
+      "TDS": "Income Tax",
+      "GST": "GST",
+      "GST Returns": "GST",
+      "Input Tax Credit": "GST",
+      "Accounting": "Accounting",
+      "Excel": "Excel & SQL",
+      "Quantitative Aptitude": "Aptitude",
+      "Tally Prime": null,
+      "GST Portal": null,
+      "Income Tax e-Filing Portal": null
+    },
+    "Audit Executive": {
+      "Auditing": "Auditing",
+      "Statutory Audit": "Auditing",
+      "Internal Audit": "Auditing",
+      "Vouching": "Auditing",
+      "Internal Controls": "Auditing",
+      "Accounting": "Accounting",
+      "GST": "GST",
+      "Excel": "Excel & SQL",
+      "Quantitative Aptitude": "Aptitude",
+      "Tally Prime": null,
+      "SAP FICO": null
+    },
+    "Corporate Legal Associate": {
+      "Corporate Law": "Corporate Law",
+      "Companies Act": "Corporate Law",
+      "Due Diligence": "Corporate Law",
+      "Corporate Compliance": "Corporate Law",
+      "Contract Drafting": "Contract Drafting",
+      "Legal Research": "Legal Research",
+      "Business Communication": "Business Communication",
+      "Logical Reasoning": "Reasoning",
+      "SCC Online": null,
+      "Manupatra": null,
+      "MCA21": null
+    },
+    "Contract Analyst": {
+      "Contract Law": "Contract Drafting",
+      "Contract Review": "Contract Drafting",
+      "Contract Drafting": "Contract Drafting",
+      "Indian Contract Act": "Contract Drafting",
+      "Corporate Law": "Corporate Law",
+      "Legal Research": "Legal Research",
+      "Business Communication": "Business Communication",
+      "Logical Reasoning": "Reasoning",
+      "LexisNexis": null,
+      "Contract Lifecycle Management": null,
+      "Excel": null
+    },
+    "HR Talent Specialist": {
+      "Talent Acquisition": "Human Resources",
+      "Recruitment": "Human Resources",
+      "HR Analytics": "Human Resources",
+      "Employee Engagement": "Human Resources",
+      "Statutory Compliance": "Human Resources",
+      "Labour Laws": "Human Resources",
+      "Business Communication": "Business Communication",
+      "Excel": "Excel & SQL",
+      "Quantitative Aptitude": "Aptitude",
+      "Tableau": null,
+      "Applicant Tracking System": null,
+      "SAP SuccessFactors": null
     }
   },
   "aliases": {
@@ -710,6 +780,23 @@
     "Hematology": ["haematology"],
     "Sterilization": ["sterilisation"],
     "Cellular Networks": ["4G", "5G", "LTE"],
-    "Switchgear": ["protection relays", "relay coordination"]
+    "Switchgear": ["protection relays", "relay coordination"],
+    "Tally Prime": ["Tally", "TallyPrime", "Tally ERP 9", "Tally ERP"],
+    "GST Returns": ["GSTR-1", "GSTR-3B", "GST return filing"],
+    "Input Tax Credit": ["ITC"],
+    "TDS": ["tax deducted at source"],
+    "GST Portal": ["GSTN", "GST common portal"],
+    "Income Tax e-Filing Portal": ["e-filing portal", "income tax portal"],
+    "SAP FICO": ["SAP FI", "SAP FI/CO"],
+    "Vouching": ["vouched"],
+    "Internal Controls": ["ICFR", "internal financial controls"],
+    "Companies Act": ["Companies Act 2013"],
+    "MCA21": ["MCA 21", "MCA portal"],
+    "Contract Review": ["contract redlining", "redlining", "redlined"],
+    "Contract Lifecycle Management": ["CLM"],
+    "HR Analytics": ["people analytics"],
+    "Labour Laws": ["labour codes", "labor laws", "labor codes"],
+    "Applicant Tracking System": ["Naukri RMS", "Zoho Recruit", "Greenhouse"],
+    "DCF Valuation": ["discounted cash flow", "DCF"]
   }
 }

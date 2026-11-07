@@ -1,6 +1,7 @@
 """Settings loaded once from the environment / .env file."""
 
 import os
+import re
 from dataclasses import dataclass
 from datetime import time
 from functools import lru_cache
@@ -19,6 +20,12 @@ BRAND_DIR = STATIC_DIR / "brand"  # mark.svg (icon) and wordmark.svg
 # the CS core, which the frozen evaluation and the demo seed are built on.
 TOPICS = ("Aptitude", "DBMS", "OS", "CN", "DSA", "OOP")
 DEFAULT_DOMAIN = "cs"  # the domain of a role the catalog does not list (the original CS roles)
+DEFAULT_SAMPLE = "data_analyst.txt"  # the sample Home's "Try it with a sample resume" opens
+USN_RE = re.compile(r"^[A-Z0-9]{4,20}$")  # a student's USN, upper-cased: 4-20 letters/digits
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+DB_CONNECT_TIMEOUT = 3  # seconds to wait for PostgreSQL before the telemetry layer uses SQLite
+VOICE_RUBRIC_MAX = 15  # a voice interview's rubric score runs 0 to 15
+VOICE_CRITERION_MAX = 5  # verbal clarity and relevance each run 0 to 5
 MAX_DOMAIN_TOPICS = 10  # one topic colour each; tests/test_syllabus.py enforces it
 DIFFICULTIES = ("easy", "medium", "hard")
 INTERVIEW_TYPES = ("HR", "Technical", "Project")  # generic types; the frozen evaluation uses them
@@ -167,6 +174,9 @@ class Settings:
     # GROQ_API_KEY_1 (interactive lane) and GROQ_API_KEY_2 (background lane); GROQ_API_KEY alone
     # still works as a one-key pool. See piq/llm.py for the lanes and failover.
     groq_api_keys: tuple[str, ...] = ()
+    # Telemetry layer (database/): PostgreSQL when DATABASE_URL answers, else this SQLite file.
+    database_url: str = ""
+    telemetry_db_path: Path = DATA_DIR / "placement_nexus.db"
 
 
 def _flag(name: str, default: str) -> bool:
@@ -193,6 +203,10 @@ def settings() -> Settings:
         max_critic_retries=int(os.getenv("MAX_CRITIC_RETRIES", "2")),
         mock_mode=_flag("MOCK_MODE", "true"),
         seed_demo=_flag("SEED_DEMO", "false"),
+        database_url=os.getenv("DATABASE_URL", "").strip(),
+        telemetry_db_path=Path(
+            os.getenv("TELEMETRY_DB_PATH", str(DATA_DIR / "placement_nexus.db"))
+        ),
     )
     if not s.mock_mode:
         missing = [

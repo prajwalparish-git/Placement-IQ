@@ -21,9 +21,11 @@ from piq.config import ROOT
 LAYERS = {
     "test_config": ("Unit", "Settings and environment"),
     "test_syllabus": ("Unit", "Domain syllabi, role topics and colour slots"),
+    "test_stream_data": ("Unit", "Streams, stream roles, bank columns and sample resumes"),
     "test_schemas": ("Unit", "Pydantic output schemas"),
     "test_checks": ("Unit", "Deterministic critic rules"),
     "test_db": ("Unit", "SQLite repository"),
+    "test_db_failover": ("Unit", "Telemetry layer: PostgreSQL to SQLite failover, CRUD, analytics"),
     "test_llm": ("Unit", "LLM gateway (fake Groq client)"),
     "test_graph": ("Unit", "LangGraph critic loop"),
     "test_resume": ("Unit", "Resume parsing"),

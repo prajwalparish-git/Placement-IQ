@@ -1,6 +1,6 @@
 # CareerMatrix AI (PlacementIQ: Omni)
 
-An adaptive multi-agent placement-readiness and career preparation coach spanning Engineering (CS, ECE, Mech, Civil, EEE, Biotech), Healthcare, Corporate Management & Law, and Indian Central & State Government Services. It profiles a resume against target roles, plans weekly study, sets adaptive quizzes from local curated question banks, and conducts mock interviews. A critic agent checks generated outputs. Quiz scores feed back into subsequent study plans.
+An adaptive multi-agent placement-readiness and career preparation coach spanning Engineering (CS, ECE, Mech, Civil, EEE, Biotech), Commerce (accounting, tax and audit), Law, Management, Healthcare, and Indian Central & State Government Services. It profiles a resume against target roles, plans weekly study, sets adaptive quizzes from local curated question banks, and conducts mock interviews. A critic agent checks generated outputs. Quiz scores feed back into subsequent study plans.
 
 ## Quick start (offline, no API key)
 ```
@@ -29,6 +29,14 @@ Choose a candidate in the menu; new candidates are onboarded in the Streamlit ap
 1. Copy `.env.example` to `.env` and set `GROQ_API_KEY`.
 2. Set `MOCK_MODE=false`. The model IDs are already filled in (`openai/gpt-oss-120b` and `openai/gpt-oss-20b`, verified 2026-10-19).
 3. Before a demo, run `python -m scripts.check_models`. It confirms both models are still served, that JSON mode works, and how much quota is left (each model allows 8,000 tokens/minute, 1,000 requests/day and about 200,000 tokens/day).
+
+## Telemetry database (optional): PostgreSQL with SQLite fallback
+The `database/` package stores student profiles, resume analyses, study plans, quiz attempts and
+voice-interview scores through one SQLAlchemy schema. Set `DATABASE_URL` in `.env` (for example
+`postgresql://user:password@localhost:5432/placement_nexus`) to use PostgreSQL. If it is unset,
+malformed or unreachable, or drops out while running, the layer switches to
+`data/placement_nexus.db` (SQLite), logs the failover with the password hidden, and carries on.
+The app itself still keeps its data in `data/placementiq.db`; nothing calls this layer yet.
 
 ## Deploy (optional): Streamlit Community Cloud
 1. On share.streamlit.io choose **Create app**, pick this repository (a private repo needs GitHub access granted to Streamlit), branch `main`, main file `app.py`, and Python 3.13 under **Advanced settings**.
@@ -69,7 +77,7 @@ when the demo ends.
 - **Resume builder**: any number of degrees (Class 10 to a doctorate, completed or being
   pursued) and jobs or internships with dates, so years of experience are computed; an ATS
   check against the role's keywords and degree rule; **Find roles for your degree** lists
-  the 60 catalog roles a degree and branch qualify for, now or on completion.
+  the 65 catalog roles a degree and branch qualify for, now or on completion.
 - **Mock interview**: HR, technical or project interviews with follow-ups on vague
   answers, scored feedback per answer, a session summary with tips, and notes to keep.
 - **Dashboard**: readiness over time, study streak and a 12-week activity calendar, topic
@@ -130,7 +138,7 @@ and the before/after numbers in [docs/performance.md](docs/performance.md).
 - [docs/PlacementIQ_Summary.pdf](docs/PlacementIQ_Summary.pdf): two-page abstract, key features and the problems it solves (`python -m scripts.summary_pdf`)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): design, data flow, decisions, limitations
 - [docs/CLAUDE.md](docs/CLAUDE.md): code map, commands and conventions
-- [docs/CATEGORIES_AND_DATASETS.md](docs/CATEGORIES_AND_DATASETS.md): multi-disciplinary roles (58 roles across 10 domains) and question dataset specs
+- [docs/CATEGORIES_AND_DATASETS.md](docs/CATEGORIES_AND_DATASETS.md): multi-disciplinary roles (65 roles across 12 domains) and question dataset specs
 - [docs/diagrams.md](docs/diagrams.md): use case, components, DFD level 0/1, ER and sequence diagrams
 - [docs/critic_graph.md](docs/critic_graph.md): the LangGraph critic loop, generated from the code
 - [docs/test_report.md](docs/test_report.md): every test case and its result (`python -m scripts.test_report`)

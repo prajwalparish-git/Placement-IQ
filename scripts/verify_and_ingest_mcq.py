@@ -3,9 +3,15 @@
 `python -m scripts.verify_and_ingest_mcq` ingests MCQ.csv; with `--normalise` it cleans the
 existing bank in place (role names as data/career_catalog.json spells them, stray topic labels
 fixed, questions whose options repeat dropped). MCQ.csv stays local; the bank is committed.
+
+Each bank row names its `stream` (Engineering, Commerce, Law, Management, Healthcare,
+Government), its `domain` and its `role`, all as data/career_catalog.json has them: the domain
+and stream come from the role. `--normalise` also upgrades a bank written with the older
+`category, role_or_stream` header.
 """
 
 import csv
+import json
 import random
 from collections import Counter
 from pathlib import Path
@@ -14,6 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCE_CSV = ROOT / "MCQ.csv"
 OUTPUT_DIR = ROOT / "data" / "questions"
 TARGET_CSV = OUTPUT_DIR / "mcq_bank.csv"
+CATALOG = ROOT / "data" / "career_catalog.json"
 
 # Category normalization map
 CATEGORY_FIXES = {
@@ -31,13 +38,12 @@ ROLE_ALIASES = {
     "State Civil Service Officer (KAS / PCS)": "State Administrative Officer (KAS / PCS)",
     "Hospital_Operations_Administrator": "Hospital Operations Administrator",
 }
-# Roles the catalog files under another domain than the bank's category.
-CATEGORY_BY_ROLE = {"Embedded Software Engineer": "Electronics & Communication Engineering"}
 TOPIC_FIXES = {"Intellectual_IPR": "Intellectual_Property_Rights_IPR"}
 
 HEADER = [
-    "category",
-    "role_or_stream",
+    "stream",
+    "domain",
+    "role",
     "topic",
     "difficulty",
     "question",
@@ -51,6 +57,14 @@ HEADER = [
 ]
 
 
+def role_homes(catalog: Path = CATALOG) -> dict[str, tuple[str, str]]:
+    """Catalog role -> (stream, domain name) of the domain that lists it."""
+    data = json.loads(catalog.read_text(encoding="utf-8"))
+    return {
+        r["name"]: (d.get("stream", ""), d["name"]) for d in data["domains"] for r in d["roles"]
+    }
+
+
 def clean_and_ingest():
     if not SOURCE_CSV.exists():
         print(f"Error: {SOURCE_CSV} does not exist.")
@@ -59,6 +73,7 @@ def clean_and_ingest():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     random.seed(42)  # Deterministic shuffling for reproducibility
 
+    homes = role_homes()
     cleaned_rows = []
     skipped_rows = 0
     repaired_rows = 0
@@ -109,7 +124,7 @@ def clean_and_ingest():
             category = row[0].strip()
             category = CATEGORY_FIXES.get(category, category)
             role = ROLE_ALIASES.get(row[1].strip(), row[1].strip())
-            category = CATEGORY_BY_ROLE.get(role, category)
+            stream, domain = homes.get(role, ("", category))
             topic = TOPIC_FIXES.get(row[2].strip(), row[2].strip())
             difficulty = row[3].strip().lower()
             if difficulty not in ("easy", "medium", "hard"):
@@ -152,7 +167,8 @@ def clean_and_ingest():
 
             cleaned_rows.append(
                 [
-                    category,
+                    stream,
+                    domain,
                     role,
                     topic,
                     difficulty,
@@ -169,7 +185,7 @@ def clean_and_ingest():
 
     # Write cleaned rows
     with open(TARGET_CSV, mode="w", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
+        writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL, lineterminator="\n")
         writer.writerow(HEADER)
         writer.writerows(cleaned_rows)
 
@@ -177,9 +193,9 @@ def clean_and_ingest():
     print(f"Repaired rows: {repaired_rows}, Skipped/Header rows: {skipped_rows}")
 
     # Summary Statistics
-    cat_counter = Counter(r[0] for r in cleaned_rows)
-    opt_counter = Counter(r[9] for r in cleaned_rows)
-    diff_counter = Counter(r[3] for r in cleaned_rows)
+    cat_counter = Counter(r[1] for r in cleaned_rows)
+    opt_counter = Counter(r[10] for r in cleaned_rows)
+    diff_counter = Counter(r[4] for r in cleaned_rows)
 
     print("\n--- Summary by Domain ---")
     for cat, count in sorted(cat_counter.items(), key=lambda x: -x[1]):
@@ -196,33 +212,41 @@ def clean_and_ingest():
         print(f"  {diff.capitalize()}: {count} ({pct:.1f}%)")
 
 
-def normalise_bank(path: Path = TARGET_CSV) -> Counter:
-    """Clean the existing bank in place (no reshuffle): catalog role names, fixed topic
-    labels, rows whose options repeat dropped. Returns what changed, by kind."""
+def normalise_bank(path: Path = TARGET_CSV, catalog: Path = CATALOG) -> Counter:
+    """Clean the existing bank in place (no reshuffle): catalog role names, each row's stream
+    and domain from its role, fixed topic labels, rows whose options repeat dropped. A bank
+    with the older `category, role_or_stream` header is upgraded. Returns what changed."""
     changes: Counter = Counter()
+    homes = role_homes(catalog)
     with open(path, encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f))
     kept = []
     for row in rows:
+        if "role_or_stream" in row:  # the older header
+            row["role"], row["domain"] = row.pop("role_or_stream"), row.pop("category")
+            row.setdefault("stream", "")
+            changes["header upgraded"] += 1
         options = [row[f"option_{c}"].strip().lower() for c in "abcd"]
         if len(set(options)) < 4:
             changes["dropped: repeated option"] += 1
             continue
-        role = ROLE_ALIASES.get(row["role_or_stream"], row["role_or_stream"])
-        if role != row["role_or_stream"]:
+        role = ROLE_ALIASES.get(row["role"], row["role"])
+        if role != row["role"]:
             changes["role renamed"] += 1
-            row["role_or_stream"] = role
-        category = CATEGORY_BY_ROLE.get(role, row["category"])
-        if category != row["category"]:
-            changes["category moved"] += 1
-            row["category"] = category
+            row["role"] = role
+        stream, domain = homes.get(role, (row["stream"], row["domain"]))
+        if (stream, domain) != (row["stream"], row["domain"]):
+            changes["stream or domain set"] += 1
+            row["stream"], row["domain"] = stream, domain
         topic = TOPIC_FIXES.get(row["topic"], row["topic"])
         if topic != row["topic"]:
             changes["topic fixed"] += 1
             row["topic"] = topic
         kept.append(row)
     with open(path, mode="w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=HEADER, quoting=csv.QUOTE_MINIMAL)
+        writer = csv.DictWriter(
+            f, fieldnames=HEADER, quoting=csv.QUOTE_MINIMAL, lineterminator="\n"
+        )
         writer.writeheader()
         writer.writerows(kept)
     return changes

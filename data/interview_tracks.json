@@ -50,8 +50,22 @@
       {"name": "Public Health", "focus": "surveillance, national programmes, outbreaks and community interventions"},
       {"name": "Ethics & Communication", "focus": "consent, confidentiality, breaking bad news and difficult conversations"}
     ],
-    "corp": [
+    "commerce": [
       {"name": "Financial Modeling", "focus": "statements, valuation, ratios and building a model with stated assumptions"},
+      {"name": "Taxation", "focus": "income tax and GST: computing liability, returns, input tax credit and replying to notices"},
+      {"name": "Audit & Assurance", "focus": "audit planning, vouching, internal controls, the Standards on Auditing and audit opinions"},
+      {"name": "Accounting & Reporting", "focus": "journal entries, adjustments, reconciliations and reading the financial statements"},
+      {"name": "Excel for Finance", "focus": "lookups, pivot tables, reconciliations and laying out a clean, checkable spreadsheet"}
+    ],
+    "law": [
+      {"name": "Contract Review", "focus": "formation, consideration, key commercial clauses and redlining a sample agreement"},
+      {"name": "Corporate Law & Compliance", "focus": "Companies Act governance, board and general meetings, ROC filings and due diligence"},
+      {"name": "Constitutional Law", "focus": "fundamental rights, writs, landmark judgments and the basic structure doctrine"},
+      {"name": "Legal Research & Drafting", "focus": "finding the authority, reading a judgment and drafting a clear legal note"},
+      {"name": "Client Counselling", "focus": "a client's facts: the issues, the options, the risks and advice in plain words"}
+    ],
+    "corp": [
+      {"name": "Marketing Metrics", "focus": "funnel conversion, CAC, LTV, ROAS and NPS used to judge a campaign"},
       {"name": "Supply Chain", "focus": "inventory, forecasting, procurement and logistics decisions"},
       {"name": "Business Case Study", "focus": "a business problem to structure aloud: framework, numbers and a recommendation"},
       {"name": "HR Analytics", "focus": "recruitment, attrition, engagement and performance data used for decisions"},

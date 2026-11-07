@@ -4,10 +4,25 @@ This document outlines the expanded multi-disciplinary architecture for **Placem
 
 ## As built (November 2026)
 
-- The catalog (`data/career_catalog.json`) lists **60 roles across 10 domains**: every role in the
+- The catalog (`data/career_catalog.json`) lists **65 roles across 12 domains**: every role in the
   question bank plus Software Engineer, Data Scientist and Machine Learning / AI Engineer. Each
   role has ATS keywords, sample projects, a recommended degree and an `eligibility` rule
   (degree codes and branches) that the resume builder's degree search uses.
+- Every domain names its **stream**: Engineering, Commerce, Law, Management, Healthcare or
+  Government. The former *Corporate, Finance & Law* domain is split into three:
+  - **Commerce, Accounting & Tax** (`commerce`): Financial Analyst, Tax Consultant, Audit Executive.
+  - **Law & Legal Services** (`law`): Corporate Legal Counsel, Corporate Legal Associate, Contract Analyst.
+  - **Management & Business** (`corp`, id kept): Digital Marketing & Brand Strategist, Human
+    Resources (HR) Specialist, HR Talent Specialist, Product Manager, Supply Chain & Logistics
+    Specialist. Its *HR & Operations* topic is now *Human Resources* and *Operations & Supply Chain*.
+- The six stream roles above (except Corporate Legal Counsel, plus Financial Analyst) also list
+  `tools` (for example Tally Prime, GST Portal, SCC Online, MCA21, Tableau, SAP) and `benchmarks`:
+  what a fresher in the role is expected to be able to do. Required tools sit in
+  `data/role_skills.json` with a null topic, so they count towards readiness at a tool's weight.
+- `data/degrees.json` lists the four placement **streams** with their degrees, the specialisations
+  students name most often (for example CS, IS, ECE and AI/ML; Accounting, Taxation and Corporate
+  Finance; Corporate, Constitutional, Contract and Criminal law; HR Analytics, Marketing,
+  Operations and Product) and the domains that serve them.
 - Bank role names were normalised to the catalog's (for example *Backend Developer (Java/Python/C++)*
   is *Backend Developer*); *Embedded Software Engineer* sits in the ECE domain for its topics.
 - Each bank topic maps to one syllabus topic (`data/bank_topics.json`); 223 questions (Flutter,
@@ -15,7 +30,14 @@ This document outlines the expanded multi-disciplinary architecture for **Placem
 - Quizzes draw **up to half** of each topic-and-difficulty part from the bank (questions the student
   has not seen), not all of it: the rest are generated and checked by the critic, so the critic
   stays part of every quiz while token use halves.
-- The cleaned bank is committed (`data/questions/mcq_bank.csv`); the app still works without it.
+- The cleaned bank is committed (`data/questions/mcq_bank.csv`, 5,746 questions); the app still
+  works without it. Its columns are `stream, domain, role, topic, difficulty, question,
+  option_a-d, correct_option, explanation, bloom_level`; `domain` and `stream` follow from the
+  role's catalog domain (`python -m scripts.verify_and_ingest_mcq --normalise` sets them).
+- Commerce (income tax, GST, auditing: 29), Law (Contract Act, Companies Act, constitutional
+  articles: 25) and Management (marketing metrics, labour-code compliance, supply chain: 23)
+  questions were added in November 2026. Tax figures are for FY 2025-26 under the Income-tax Act,
+  1961, unless a question names the Income-tax Act, 2025.
 
 The plan below is the original design and is kept for reference.
 
@@ -186,8 +208,9 @@ To enable offline caching, instant zero-latency loading, and avoid exhausting LL
 
 | Column Name | Data Type | Required? | Description & Allowed Values | Example Value |
 |---|---|---|---|---|
-| `category` | String | Yes | The broad industry/academic domain | `Computer Science` |
-| `role_or_stream` | String | Yes | Specific job role or general stream | `Frontend Engineer` |
+| `stream` | String | Yes | Placement stream of the role's domain: `Engineering`, `Commerce`, `Law`, `Management`, `Healthcare`, `Government` | `Engineering` |
+| `domain` | String | Yes | The catalog domain's name | `Computer Science & IT` |
+| `role` | String | Yes | A catalog role name | `Frontend Engineer` |
 | `topic` | String | Yes | Topic name matching syllabus | `WebTech` |
 | `difficulty` | Enum | Yes | `easy`, `medium`, or `hard` | `medium` |
 | `question` | String | Yes | Question stem (plain text, markdown-safe) | `What is the main purpose of the useEffect hook in React?` |
@@ -201,11 +224,11 @@ To enable offline caching, instant zero-latency loading, and avoid exhausting LL
 
 #### Raw CSV Header & Sample Rows (MCQs)
 ```csv
-category,role_or_stream,topic,difficulty,question,option_a,option_b,option_c,option_d,correct_option,explanation,bloom_level
-Computer Science,Frontend Engineer,WebTech,medium,"What is the main purpose of the useEffect hook in React?","To directly mutate the DOM tree","To perform side effects in functional components","To force immediate re-rendering of child props","To define Redux global stores",B,"useEffect executes side effects after render cycles.",understand
-Mechanical Engineering,Thermal & HVAC Design Engineer,Thermodynamics,easy,"Which law of thermodynamics defines the concept of temperature?","First Law","Second Law","Third Law","Zeroth Law",D,"The Zeroth Law establishes thermal equilibrium and defines temperature.",remember
-Indian Central Government,UPSC Civil Services Officer,Indian_Polity,medium,"Which Article of the Indian Constitution provides for the Finance Commission?","Article 280","Article 324","Article 356","Article 370",A,"Article 280 provides for the constitution of the Finance Commission every five years.",remember
-Corporate Management,Corporate Legal Counsel,Contract_Law,medium,"An agreement without consideration is void under which Section of the Indian Contract Act?","Section 10","Section 25","Section 56","Section 73",B,"Section 25 of the Indian Contract Act states that an agreement without consideration is void with limited exceptions.",understand
+stream,domain,role,topic,difficulty,question,option_a,option_b,option_c,option_d,correct_option,explanation,bloom_level
+Engineering,Computer Science & IT,Frontend Engineer,WebTech,medium,What is the main purpose of the useEffect hook in React?,To directly mutate the DOM tree,To perform side effects in functional components,To force immediate re-rendering of child props,To define Redux global stores,B,useEffect executes side effects after render cycles.,understand
+Engineering,Mechanical Engineering,Thermal & HVAC Design Engineer,Thermodynamics,easy,Which law of thermodynamics defines the concept of temperature?,First Law,Second Law,Third Law,Zeroth Law,D,The Zeroth Law establishes thermal equilibrium and defines temperature.,remember
+Government,Central Government,UPSC Civil Services Aspirant,Indian_Polity,medium,Which Article of the Indian Constitution provides for the Finance Commission?,Article 280,Article 324,Article 356,Article 370,A,Article 280 provides for the constitution of the Finance Commission every five years.,remember
+Law,Law & Legal Services,Corporate Legal Counsel,Contract_Law,medium,An agreement without consideration is void under which Section of the Indian Contract Act?,Section 10,Section 25,Section 56,Section 73,B,Section 25 of the Indian Contract Act states that an agreement without consideration is void with limited exceptions.,understand
 ```
 
 ---

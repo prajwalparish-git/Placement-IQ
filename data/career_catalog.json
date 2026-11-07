@@ -3,6 +3,7 @@
     {
       "id": "cs",
       "name": "Computer Science & IT",
+      "stream": "Engineering",
       "icon": "computer",
       "description": "Software architecture, full stack web development, cloud computing, AI, and cybersecurity systems.",
       "topics": [
@@ -402,6 +403,7 @@
     {
       "id": "ece",
       "name": "Electronics & Communication",
+      "stream": "Engineering",
       "icon": "memory",
       "description": "Semiconductor VLSI design, embedded firmware, IoT edge hardware, and telecommunications.",
       "topics": [
@@ -608,6 +610,7 @@
     {
       "id": "mech",
       "name": "Mechanical Engineering",
+      "stream": "Engineering",
       "icon": "precision_manufacturing",
       "description": "Automotive systems, thermal design, FEA stress analysis, CAD product engineering, and mechatronics.",
       "topics": [
@@ -756,6 +759,7 @@
     {
       "id": "civil",
       "name": "Civil Engineering",
+      "stream": "Engineering",
       "icon": "apartment",
       "description": "Reinforced concrete design, geotechnical foundations, highway transport, and construction management.",
       "topics": [
@@ -899,6 +903,7 @@
     {
       "id": "eee",
       "name": "Electrical Engineering",
+      "stream": "Engineering",
       "icon": "bolt",
       "description": "Grid power systems, industrial PLC automation, motor drives, and solar/wind renewable integrations.",
       "topics": [
@@ -1017,6 +1022,7 @@
     {
       "id": "biotech",
       "name": "Biotech & Biomedical",
+      "stream": "Engineering",
       "icon": "biotech",
       "description": "Genomics bioinformatics, biosensor instrumentation, bioprocess scale-up, and clinical research.",
       "topics": [
@@ -1145,6 +1151,7 @@
     {
       "id": "health",
       "name": "Healthcare & Medicine",
+      "stream": "Healthcare",
       "icon": "medical_services",
       "description": "Hospital operations management, clinical pharmacy, medical records, and public health policy.",
       "topics": [
@@ -1287,46 +1294,21 @@
       ]
     },
     {
-      "id": "corp",
-      "name": "Corporate, Finance & Law",
-      "icon": "gavel",
-      "description": "Corporate legal counsel, financial valuation modeling, human resources, and product management.",
+      "id": "commerce",
+      "name": "Commerce, Accounting & Tax",
+      "stream": "Commerce",
+      "icon": "calculate",
+      "description": "Accounting, income tax and GST, statutory and internal audit, and financial analysis for B.Com, M.Com, CA and CMA students.",
       "topics": [
-        "Aptitude", "Accounting", "Financial Modelling", "Corporate Law", "Contract Drafting",
-        "Business Communication", "Excel & SQL", "Economics", "Marketing & Product",
-        "HR & Operations"
+        "Aptitude", "Accounting", "Income Tax", "GST", "Auditing", "Financial Modelling",
+        "Excel & SQL", "Economics", "Business Communication"
       ],
       "core_topics": 1,
       "code_space": false,
       "roles": [
         {
-          "name": "Corporate Legal Counsel",
-          "category": "Corporate Management, Finance & Law",
-          "description": "Drafts commercial contracts, assesses corporate regulatory compliance, and advises on intellectual property.",
-          "recommended_degree": "LL.B / B.A. LL.B / LL.M",
-          "eligibility": {
-            "degrees": ["@law"]
-          },
-          "ats_keywords": [
-            "Contract Drafting", "Indian Contract Act", "Companies Act 2013",
-            "Intellectual Property Rights", "Due Diligence", "Commercial Agreements",
-            "Non-Disclosure Agreements (NDA)", "Legal Research", "Dispute Resolution",
-            "Regulatory Compliance"
-          ],
-          "sample_projects": [
-            {
-              "title": "Master Services Agreement (MSA) Standardization Audit",
-              "tech": "Contract Review, Companies Act 2013, Legal Writing",
-              "bullets": [
-                "Reviewed and structured standard vendor contracts and NDAs, establishing airtight indemnity and limitation of liability clauses.",
-                "Conducted legal compliance audit mitigating corporate regulatory liability across multi-vendor service contracts."
-              ]
-            }
-          ]
-        },
-        {
           "name": "Financial Analyst",
-          "category": "Corporate Management, Finance & Law",
+          "category": "Commerce, Accounting & Tax",
           "description": "Builds financial models, analyzes three-statement balance sheets, and conducts DCF investment valuations.",
           "recommended_degree": "B.Com / BBA / MBA Finance",
           "eligibility": {
@@ -1351,11 +1333,211 @@
                 "Conducted scenario and sensitivity analysis demonstrating 18.5% projected IRR under conservative growth assumptions."
               ]
             }
+          ],
+          "tools": ["Excel", "Tableau", "Power BI", "SAP FICO", "PowerPoint"],
+          "benchmarks": [
+            "Builds a linked three-statement model whose balance sheet balances in every forecast year",
+            "Values a listed company by DCF and states the WACC and terminal growth assumptions behind it",
+            "Runs a sensitivity table on the two assumptions that move the valuation most",
+            "Explains a budget-to-actual variance in one page a manager can act on"
           ]
         },
         {
+          "name": "Tax Consultant",
+          "category": "Commerce, Accounting & Tax",
+          "description": "Computes income tax and GST liabilities, files returns, reconciles input tax credit and drafts replies to tax notices for individuals and businesses.",
+          "recommended_degree": "B.Com / M.Com (Taxation), CA or CMA (Inter / Final), or LL.B with tax electives",
+          "eligibility": {
+            "degrees": ["@commerce", "@management", "@law"],
+            "fields": [
+              "commerce", "accounting", "finance", "taxation", "tax", "chartered accountancy",
+              "cost accounting", "law"
+            ]
+          },
+          "ats_keywords": [
+            "Income Tax Return Filing", "GST Return Filing", "GSTR-1", "GSTR-3B",
+            "Input Tax Credit Reconciliation", "TDS Compliance", "Tax Computation", "Advance Tax",
+            "E-Way Bill", "Tax Notices", "Tally Prime", "Tax Planning"
+          ],
+          "tools": [
+            "Tally Prime", "GST Portal", "Income Tax e-Filing Portal", "TRACES",
+            "E-Way Bill Portal", "Excel"
+          ],
+          "benchmarks": [
+            "Computes a salaried individual's tax under both the old and the new regime and says which is lower, and why",
+            "Reconciles a month's purchase register with GSTR-2B and lists every invoice whose input tax credit is at risk",
+            "Files GSTR-1 and GSTR-3B for a practice month by their due dates, with no late fee or interest",
+            "Drafts a reply to a mismatch notice that cites the provision, the facts and the supporting documents"
+          ],
+          "sample_projects": [
+            {
+              "title": "GST Input Tax Credit Reconciliation for a Trading Firm",
+              "tech": "Tally Prime, GST Portal, Excel",
+              "bullets": [
+                "Matched 1,200 purchase invoices against GSTR-2B and flagged 46 with missing or mismatched supplier filings.",
+                "Recovered eligible credit of Rs 3.1 lakh by following up with 9 suppliers before the return due date."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Audit Executive",
+          "category": "Commerce, Accounting & Tax",
+          "description": "Performs statutory and internal audit fieldwork: vouching, verification, testing controls and preparing working papers under the Standards on Auditing.",
+          "recommended_degree": "B.Com / M.Com, CA (Inter or articleship) or CMA",
+          "eligibility": {
+            "degrees": ["@commerce", "@management"],
+            "fields": [
+              "commerce", "accounting", "finance", "audit", "auditing", "chartered accountancy",
+              "cost accounting"
+            ]
+          },
+          "ats_keywords": [
+            "Statutory Audit", "Internal Audit", "Vouching", "Verification",
+            "Standards on Auditing", "Internal Controls", "Audit Working Papers", "CARO 2020",
+            "Ind AS", "Bank Reconciliation", "Tally Prime", "SAP FICO"
+          ],
+          "tools": ["Tally Prime", "SAP FICO", "Excel", "MCA21 Portal", "IDEA Data Analysis"],
+          "benchmarks": [
+            "Vouches a sample of revenue and expense entries and records every exception with its document reference",
+            "Prepares a bank reconciliation statement that ties the ledger to the bank statement to the rupee",
+            "Documents a test of controls with the control, the sample, the result and the conclusion, as SA 230 expects",
+            "Explains when an auditor gives a qualified, an adverse or a disclaimer of opinion"
+          ],
+          "sample_projects": [
+            {
+              "title": "Purchase-to-Pay Internal Audit for a Manufacturing Unit",
+              "tech": "Tally Prime, Excel, Standards on Auditing",
+              "bullets": [
+                "Vouched 180 purchase entries against invoices, goods receipt notes and approvals and found 14 paid without a receipt note.",
+                "Recommended a three-way match before every payment above Rs 50,000, which the client adopted."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "law",
+      "name": "Law & Legal Services",
+      "stream": "Law",
+      "icon": "gavel",
+      "description": "Contract and corporate law, constitutional law, legal research and drafting for LL.B, BA LL.B and LL.M students.",
+      "topics": [
+        "Aptitude", "Contract Drafting", "Corporate Law", "Constitutional Law", "Legal Research",
+        "Reasoning", "English", "Business Communication"
+      ],
+      "core_topics": 1,
+      "code_space": false,
+      "roles": [
+        {
+          "name": "Corporate Legal Counsel",
+          "category": "Law & Legal Services",
+          "description": "Drafts commercial contracts, assesses corporate regulatory compliance, and advises on intellectual property.",
+          "recommended_degree": "LL.B / B.A. LL.B / LL.M",
+          "eligibility": {
+            "degrees": ["@law"]
+          },
+          "ats_keywords": [
+            "Contract Drafting", "Indian Contract Act", "Companies Act 2013",
+            "Intellectual Property Rights", "Due Diligence", "Commercial Agreements",
+            "Non-Disclosure Agreements (NDA)", "Legal Research", "Dispute Resolution",
+            "Regulatory Compliance"
+          ],
+          "sample_projects": [
+            {
+              "title": "Master Services Agreement (MSA) Standardization Audit",
+              "tech": "Contract Review, Companies Act 2013, Legal Writing",
+              "bullets": [
+                "Reviewed and structured standard vendor contracts and NDAs, establishing airtight indemnity and limitation of liability clauses.",
+                "Conducted legal compliance audit mitigating corporate regulatory liability across multi-vendor service contracts."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Corporate Legal Associate",
+          "category": "Law & Legal Services",
+          "description": "Supports corporate transactions and compliance: legal due diligence, board and shareholder resolutions, ROC filings and first drafts of commercial agreements.",
+          "recommended_degree": "LL.B / BA LL.B / BBA LL.B with corporate law electives, LL.M or CS (ICSI)",
+          "eligibility": {
+            "degrees": ["@law"]
+          },
+          "ats_keywords": [
+            "Companies Act 2013", "Legal Due Diligence", "Corporate Compliance",
+            "Board Resolutions", "ROC Filings", "MCA21", "SEBI Regulations", "FEMA",
+            "Shareholders' Agreement", "Mergers and Acquisitions", "Legal Research",
+            "Contract Drafting"
+          ],
+          "tools": ["SCC Online", "Manupatra", "LexisNexis", "MCA21 Portal", "Excel"],
+          "benchmarks": [
+            "Reviews a company's statutory registers and MCA filings and reports each gap with the provision it breaches",
+            "Drafts a board resolution and the notice of a general meeting within the Companies Act timelines",
+            "Finds the leading judgment on a point of law and summarises it in under a page, with its citation",
+            "Keeps a due diligence tracker that rates each finding red, amber or green with a reason"
+          ],
+          "sample_projects": [
+            {
+              "title": "Legal Due Diligence of a Private Limited Company",
+              "tech": "MCA21, Companies Act 2013, Excel",
+              "bullets": [
+                "Reviewed 6 years of ROC filings, charge records and board minutes for a mock acquisition of a private company.",
+                "Reported 11 findings in a red-amber-green tracker, including 2 unfiled charge satisfactions and a late annual return."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Contract Analyst",
+          "category": "Law & Legal Services",
+          "description": "Reviews, redlines and abstracts commercial contracts, tracks obligations and renewal dates, and flags risky clauses for the legal team.",
+          "recommended_degree": "LL.B / BA LL.B / BBA LL.B, or an MBA with contract or procurement specialisation",
+          "eligibility": {
+            "degrees": ["@law", "@management"],
+            "fields": ["law", "legal", "contract", "contracts", "procurement"]
+          },
+          "ats_keywords": [
+            "Contract Review", "Contract Redlining", "Contract Abstraction", "Indian Contract Act",
+            "Indemnity", "Limitation of Liability", "Non-Disclosure Agreements (NDA)",
+            "Master Services Agreement", "Contract Lifecycle Management", "Obligation Tracking",
+            "Risk Assessment", "Legal Research"
+          ],
+          "tools": ["CLM Software", "MS Word Track Changes", "LexisNexis", "SCC Online", "Excel"],
+          "benchmarks": [
+            "Abstracts a 30-page services agreement into term, renewal, payment, liability cap and termination on one page",
+            "Redlines an NDA against a clause playbook and explains every deviation in a comment",
+            "Spots an uncapped indemnity, a silent auto-renewal and a one-sided termination right in a sample contract",
+            "Keeps an obligations tracker that misses no renewal or notice date over a quarter"
+          ],
+          "sample_projects": [
+            {
+              "title": "Clause Playbook and Abstraction of Vendor Agreements",
+              "tech": "MS Word, Excel, Indian Contract Act",
+              "bullets": [
+                "Abstracted 25 vendor agreements into a tracker of term, renewal, liability cap and termination rights.",
+                "Wrote fallback positions for 8 clauses that cut the first review of a new NDA from 2 days to half a day."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "corp",
+      "name": "Management & Business",
+      "stream": "Management",
+      "icon": "business_center",
+      "description": "Marketing, human resources and HR analytics, operations and supply chain, and product management for BBA, MBA and PGDM students.",
+      "topics": [
+        "Aptitude", "Marketing & Product", "Human Resources", "Operations & Supply Chain",
+        "Excel & SQL", "Economics", "Business Communication"
+      ],
+      "core_topics": 1,
+      "code_space": false,
+      "roles": [
+        {
           "name": "Digital Marketing & Brand Strategist",
-          "category": "Corporate Management, Finance & Law",
+          "category": "Management & Business",
           "description": "Plans and runs SEO, paid search, social and email campaigns and measures funnel conversion.",
           "recommended_degree": "BBA / MBA Marketing, BMS, BJMC, or any graduate with digital marketing training",
           "eligibility": {
@@ -1379,7 +1561,7 @@
         },
         {
           "name": "Human Resources (HR) Specialist",
-          "category": "Corporate Management, Finance & Law",
+          "category": "Management & Business",
           "description": "Runs recruitment, onboarding, payroll compliance, performance reviews and employee engagement.",
           "recommended_degree": "MBA / PGDM in HR, MSW (HR / Labour Welfare), BBA, or any graduate",
           "eligibility": {
@@ -1402,8 +1584,42 @@
           ]
         },
         {
+          "name": "HR Talent Specialist",
+          "category": "Management & Business",
+          "description": "Runs campus and lateral hiring end to end and uses HR analytics (funnel conversion, time to hire, attrition) to improve it, within labour-law compliance.",
+          "recommended_degree": "MBA / PGDM (HR or HR Analytics), BBA, MSW (HR), or any graduate",
+          "eligibility": {
+            "degrees": ["@any_graduate"]
+          },
+          "ats_keywords": [
+            "Talent Acquisition", "Campus Hiring", "Sourcing", "Applicant Tracking System",
+            "Interview Scheduling", "Offer Management", "HR Analytics", "Time to Hire",
+            "Attrition Analysis", "Employer Branding", "Labour Codes", "Tableau"
+          ],
+          "tools": [
+            "LinkedIn Recruiter", "Naukri RMS", "Applicant Tracking System", "SAP SuccessFactors",
+            "Tableau", "Excel"
+          ],
+          "benchmarks": [
+            "Writes a job description and a sourcing plan and fills the first interview slate within a week",
+            "Reports a hiring funnel with stage conversion, time to hire and offer acceptance from a raw ATS export",
+            "Computes monthly attrition and splits it by tenure band to show where people leave",
+            "Explains the onboarding compliance a new joiner goes through: PF, ESI, POSH and the appointment letter"
+          ],
+          "sample_projects": [
+            {
+              "title": "Hiring Funnel Dashboard for Campus Recruitment",
+              "tech": "Excel, Tableau, ATS export",
+              "bullets": [
+                "Cleaned 1,800 applicant records from an ATS export and built a stage-by-stage funnel for 6 roles.",
+                "Showed that 40% of drop-offs followed the technical round and proposed a 48-hour feedback rule."
+              ]
+            }
+          ]
+        },
+        {
           "name": "Product Manager",
-          "category": "Corporate Management, Finance & Law",
+          "category": "Management & Business",
           "description": "Decides what to build and why: discovers user needs, writes requirements, prioritises the roadmap and tracks product metrics.",
           "recommended_degree": "B.E / B.Tech with an MBA, MBA / PGDM, or any graduate with product experience",
           "eligibility": {
@@ -1427,7 +1643,7 @@
         },
         {
           "name": "Supply Chain & Logistics Specialist",
-          "category": "Corporate Management, Finance & Law",
+          "category": "Management & Business",
           "description": "Plans inventory, forecasts demand, manages vendors and optimises warehousing and transport.",
           "recommended_degree": "MBA / PGDM Operations or Supply Chain, B.E / B.Tech (Industrial / Mechanical), BBA or B.Com",
           "eligibility": {
@@ -1458,6 +1674,7 @@
     {
       "id": "govt_central",
       "name": "Central Government",
+      "stream": "Government",
       "icon": "account_balance",
       "description": "UPSC Civil Services, SSC CGL administration, Public Sector Banking, defense and railways careers.",
       "topics": [
@@ -1621,6 +1838,7 @@
     {
       "id": "govt_state",
       "name": "State Government",
+      "stream": "Government",
       "icon": "shield",
       "description": "State administrative civil service (KAS/PCS), police law & order, public works, and rural development.",
       "topics": [

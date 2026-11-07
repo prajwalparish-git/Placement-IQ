@@ -41,7 +41,7 @@ if student is None:
     if start:
         _go("views/onboard.py")
     if sample:
-        _go("views/onboard.py", onboard_sample=services.sample_resumes()[0])
+        _go("views/onboard.py", onboard_sample=services.default_sample())
     if ui.student_count():
         st.caption("Already onboarded? Choose your name under Student in the sidebar.")
     st.subheader("How it works", anchor=False)
@@ -53,7 +53,7 @@ if student is None:
     st.divider()
     st.subheader("Explore Career Pathways & Disciplines", anchor=False)
     st.caption(
-        "Open to all disciplines: Engineering, Healthcare, Corporate, and Government sectors."
+        "Open to every stream: Engineering, Commerce, Law, Management, Healthcare and Government."
     )
     from piq import resume_builder
 

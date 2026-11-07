@@ -3,7 +3,9 @@
 ## Purpose
 PlacementIQ is a placement-readiness coach for engineering students. Agents profile a resume, plan the week, set quizzes and run mock interviews. A critic checks every generated output. Quiz results change the next week's plan.
 
-College mini-project scope: one Streamlit process and one SQLite file. Keep it that small.
+College mini-project scope: one Streamlit process and one SQLite file for the app. Keep it that
+small. The separate telemetry layer (`database/`) may use PostgreSQL and falls back to its own
+SQLite file; nothing in the app depends on it yet.
 
 ## Tech stack (pinned in `requirements*.txt`)
 | Layer | Choice | Version |
@@ -15,6 +17,7 @@ College mini-project scope: one Streamlit process and one SQLite file. Keep it t
 | LLM models (`.env`) | `openai/gpt-oss-120b` (large), `openai/gpt-oss-20b` (small) | verified 2026-10-19 |
 | Validation | Pydantic | 2.14.1 |
 | Storage | SQLite via stdlib `sqlite3` | stdlib |
+| Telemetry storage (`database/`) | SQLAlchemy 2 + psycopg 3 (PostgreSQL, SQLite fallback) | 2.1.6 / 3.3.6 |
 | Resume parsing | pypdf / python-docx | 6.21.1 / 1.2.0 |
 | Config | python-dotenv | 1.2.4 |
 | Dev | pytest / ruff | 9.1.1 / 0.17.1 |
@@ -62,17 +65,26 @@ piq/                Application package. Only ui.py imports Streamlit
   formatter.py      Output layer: models/rows -> markdown, escaped HTML, DataFrames, files (pure)
   charts.py         Altair chart builders (pure, tested) + cached Vega-Lite specs for the views
   ui.py             Streamlit helpers: student selector, critic trail, design-system components
+database/           Telemetry layer (SQLAlchemy). Not imported by piq yet
+  connection.py     DatabaseManager: PostgreSQL (DATABASE_URL) or SQLite fallback; failover log
+  models.py         StudentProfile, ResumeAnalysis, StudyPlan, QuizAttempt, VoiceInterviewSession
+  crud.py           Save/fetch per table, a student's whole history, aggregated analytics
 static/             Served at app/static: app.css, brand/ (mark, wordmark), fonts/ (OFL woff2)
 data/interview_tracks.json  Five interview tracks per domain, plus tracks a degree adds (BCA/MCA/MSc/MSE)
 data/
-  career_catalog.json Domains: ordered topics (<= 10), core topics, code_space, roles
+  career_catalog.json Domains: stream, ordered topics (<= 10), core topics, code_space, roles
+                    (commerce, law and management roles also list tools and benchmarks)
   role_skills.json  Role -> required skill -> its domain's topic (drives readiness and weakness);
                     "aliases": other names a resume may use for a skill
-  degrees.json      Class 10 to doctorate: code, level, field; groups roles' eligibility uses
+  degrees.json      Class 10 to doctorate: code, level, field; groups roles' eligibility uses;
+                    streams (Engineering, Commerce, Law, Management): degrees, specialisations, domains
   bank_topics.json  Question-bank topic -> the syllabus topic it serves (or null)
-  questions/        mcq_bank.csv: the question bank (committed; the raw MCQ.csv source is not)
-  sample_resumes/   Three fictional resumes (TXT)
+  questions/        mcq_bank.csv: the question bank (committed; the raw MCQ.csv source is not).
+                    Columns: stream, domain, role (as the catalog names them), topic, difficulty,
+                    question, option_a-d, correct_option, explanation, bloom_level
+  sample_resumes/   Six fictional resumes (TXT): three CS, one each for commerce, law, management
   placementiq.db    Runtime database (git-ignored; created on first run)
+  placement_nexus.db  Telemetry fallback (git-ignored; used when DATABASE_URL is unset or down)
 evaluation/
   test_cases.json   20 frozen cases (5 roles x 4 score profiles)
   run_eval.py       Baseline (one prompt) vs PlacementIQ; resumable, checkpointed; writes results/
@@ -128,7 +140,7 @@ There is no build step. `.env.example` already contains the verified model IDs. 
 - New generation tasks are a `graph.Task(name, generate, verify)` run through `graph.run` / `run_or_raise`. `generate(inputs, reasons, previous)` receives the rejection reasons and the rejected output. `verify` returns reasons as text.
 - Problems with a single quiz question must be built with `checks.question_reason(i, msg)`. Then only that question is regenerated.
 - Put cheap deterministic checks in `checks.py` and run them before any LLM critic call.
-- All SQL lives in `piq/db.py` and uses `?` parameters. Never build SQL with f-strings. Agents never write domain tables; services do.
+- All SQL lives in `piq/db.py` and uses `?` parameters. Never build SQL with f-strings. Agents never write domain tables; services do. The one exception is the telemetry layer: `database/crud.py` queries through SQLAlchemy (no raw SQL strings), so one code path serves PostgreSQL and SQLite.
 - Prompts live only in `piq/prompts.py`. Constants and thresholds live only in `piq/config.py`.
 - Views stay thin: no business logic, and rendering goes through `formatter.py` and `charts.py`.
 - **Theme first, CSS last.** Colours, fonts and radii live in `.streamlit/config.toml` (light and dark), mirrored by `config.PALETTE`, `SEMANTIC_COLORS` and `TOPIC_COLORS`; `tests/test_theme.py` checks contrast and that both agree. `static/app.css` (under 150 lines and 8 KB) holds only what the theme cannot express: every selector includes a `data-testid` (own classes only beneath one, never `.st-emotion-cache-*`), every colour is a `PALETTE` token written `light-dark(light, dark)`, and each rule says why it exists.
@@ -163,4 +175,5 @@ There is no build step. `.env.example` already contains the verified model IDs. 
 - Groq keys: `GROQ_API_KEY_1` serves agents a student waits on (interviewer, evaluator, bullet), `GROQ_API_KEY_2` background agents; a 429 fails over once (`piq/llm.py`). `GROQ_API_KEY` alone still works.
 - Quizzes in the Next.js app come straight from the question bank (`services.instant_quiz`), with no LLM call; answers stay on the server until `/api/quiz/submit` grades them. The Streamlit quiz keeps the generate -> critic loop with its bank share.
 - The bullet polish (`agents.enhance_bullet`) may not invent numbers: `checks.check_bullet` rejects any figure absent from the student's text.
+- Telemetry (`database/`): the manager probes `DATABASE_URL` once, with `DB_CONNECT_TIMEOUT`; a missing, malformed, non-PostgreSQL or unreachable URL, or an outage mid-session, fails over to `TELEMETRY_DB_PATH` with one logged event and the operation retried there. No automatic fail-back (restart, or `reset_manager()`). Never log `DATABASE_URL` unmasked: use `safe_url`. `VoiceInterviewSession` stores text and scores only; recording audio or proctoring is still out of scope.
 - Out of scope: auth, voice/video, a code judge, scraping, a vector database or embeddings, async business logic.

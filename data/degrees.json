@@ -1,5 +1,5 @@
 {
-  "_comment": "Qualifications a student can list on the resume, lowest level first. `field` is the subject the degree itself names (matched with the student's specialisation against a role's eligible fields). `groups` name sets of degree codes that roles in career_catalog.json refer to as \"@group\"; \"@any_graduate\" is any Bachelor's or higher and \"@any_postgraduate\" any Master's or higher.",
+  "_comment": "Qualifications a student can list on the resume, lowest level first. `field` is the subject the degree itself names (matched with the student's specialisation against a role's eligible fields). `groups` name sets of degree codes that roles in career_catalog.json refer to as \"@group\"; \"@any_graduate\" is any Bachelor's or higher and \"@any_postgraduate\" any Master's or higher. `streams` are the four placement streams: their degrees, the specialisations students of each name most often, and the career_catalog.json domains that serve them.",
   "levels": ["School", "Certificate & Diploma", "Bachelor's", "Master's", "Doctorate"],
   "degrees": [
     {"code": "Class 10", "name": "Class 10 (SSLC / SSC / Matriculation)", "level": "School", "aliases": ["sslc", "ssc", "10th", "matriculation", "class x"]},
@@ -88,5 +88,32 @@
     "nursing": ["GNM", "B.Sc Nursing", "M.Sc Nursing"],
     "lab_technology": ["DMLT", "BMLT"],
     "public_health": ["MPH", "MHA"]
+  },
+  "streams": {
+    "Engineering": {
+      "degrees": ["B.E", "B.Tech", "M.E", "M.Tech"],
+      "specializations": [
+        "Computer Science and Engineering",
+        "Information Science and Engineering",
+        "Electronics and Communication Engineering",
+        "Artificial Intelligence and Machine Learning"
+      ],
+      "domains": ["cs", "ece", "mech", "civil", "eee", "biotech"]
+    },
+    "Commerce": {
+      "degrees": ["B.Com", "M.Com"],
+      "specializations": ["Accounting", "Taxation", "Corporate Finance"],
+      "domains": ["commerce"]
+    },
+    "Law": {
+      "degrees": ["LL.B", "BA LL.B"],
+      "specializations": ["Corporate Law", "Constitutional Law", "Contracts", "Criminal Law (IPC / BNS)"],
+      "domains": ["law"]
+    },
+    "Management": {
+      "degrees": ["BBA", "MBA"],
+      "specializations": ["HR Analytics", "Marketing", "Operations", "Product Management"],
+      "domains": ["corp"]
+    }
   }
 }

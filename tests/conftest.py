@@ -2,6 +2,7 @@ import csv
 
 import pytest
 
+from database.connection import reset_manager
 from piq import agents, db, question_bank, services
 from piq.config import settings
 
@@ -15,15 +16,18 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("MOCK_MODE", "true")
     monkeypatch.setenv("DB_PATH", str(tmp_path / "test.db"))
     monkeypatch.setenv("MAX_CRITIC_RETRIES", "2")
-    for k in ("GROQ_API_KEY", "GROQ_MODEL_LARGE", "GROQ_MODEL_SMALL", "SEED_DEMO"):
+    monkeypatch.setenv("TELEMETRY_DB_PATH", str(tmp_path / "telemetry.db"))
+    for k in ("GROQ_API_KEY", "GROQ_MODEL_LARGE", "GROQ_MODEL_SMALL", "SEED_DEMO", "DATABASE_URL"):
         monkeypatch.delenv(k, raising=False)
     settings.cache_clear()
+    reset_manager()
     db.init_db()
     agents.clear_verdict_cache()
     services.sample_resumes.cache_clear()
     monkeypatch.setattr(question_bank, "BANK", tmp_path / "absent_bank.csv")
     question_bank.clear_cache()
     yield
+    reset_manager()
     settings.cache_clear()
     services.sample_resumes.cache_clear()
     question_bank.clear_cache()

@@ -1,0 +1,7 @@
+Ananya Sample
+MBA Human Resources and HR Analytics, CGPA 8.2 (2026)
+BBA, 74% (2024)
+Skills: Talent Acquisition, Recruitment, HR Analytics, Employee Engagement, Statutory Compliance, Labour Laws, Business Communication, Excel, Tableau, Applicant Tracking System, SAP SuccessFactors, Quantitative Aptitude
+Internship: HR trainee at a manufacturing company (10 weeks) - screened 300 applications for campus hiring, scheduled 60 interviews and tracked the funnel in the applicant tracking system
+Project: Attrition Analysis Dashboard - Tableau dashboard over 2 years of anonymised exit data showing that most first-year leavers came from two departments
+Project: Labour Codes Compliance Checklist - mapped onboarding steps (PF, ESI, POSH declaration) to the Code on Social Security and the Code on Wages for a 120-person firm

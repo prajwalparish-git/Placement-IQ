@@ -60,6 +60,13 @@ def test_sample_list_is_read_once(monkeypatch):
     assert globs == ["*.txt"]
 
 
+def test_the_default_sample_stays_put_when_samples_are_added(monkeypatch):
+    assert services.default_sample() == "data_analyst.txt"
+    services.sample_resumes.cache_clear()
+    monkeypatch.setattr(services, "DEFAULT_SAMPLE", "gone.txt")
+    assert services.default_sample() == services.sample_resumes()[0]
+
+
 def test_samples_load_only_from_the_listed_files():
     assert "java_backend_fresher.txt" in services.sample_resumes()
     assert "Spring Boot" in services.load_sample("java_backend_fresher.txt")

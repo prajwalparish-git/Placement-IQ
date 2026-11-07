@@ -830,7 +830,7 @@ def test_home_quick_start_opens_onboard_with_a_sample():
     _button(at, "Try it with a sample resume").click().run()
     assert not at.exception
     sample = next(s for s in at.selectbox if s.label.startswith("…or use"))
-    assert sample.value == services.sample_resumes()[0]
+    assert sample.value == services.default_sample() == "data_analyst.txt"
 
 
 def test_home_shows_todays_focus_for_the_demo_student(seeded):
