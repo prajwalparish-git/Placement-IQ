@@ -1,20 +1,16 @@
 """Unit tests for Step 5: ElevenLabs Voice Mock Interview and Rubric Evaluator Agent."""
 
-import pytest
-
+from agents.rubric_evaluator_agent import (
+    RubricEvaluationResult,
+    _detect_suspicious_gaps,
+    evaluate_rubric_answer,
+    transcribe_audio_with_whisper,
+)
 from agents.voice_interview_agent import (
-    DOMAIN_SCENARIOS,
     VoiceInterviewQuestion,
     generate_voice_interview_question,
     get_stream_from_role_or_domain,
     synthesize_speech_elevenlabs,
-)
-from agents.rubric_evaluator_agent import (
-    RubricEvaluationResult,
-    SuspiciousGapFlags,
-    _detect_suspicious_gaps,
-    evaluate_rubric_answer,
-    transcribe_audio_with_whisper,
 )
 
 
@@ -56,22 +52,32 @@ def test_suspicious_gap_detection():
 
     # Off-topic deflection
     gaps_offtopic = _detect_suspicious_gaps(
-        question="Explain how you reconcile input tax credit discrepancies between GSTR-2B and GSTR-3B.",
-        answer_text="The weather in Bengaluru is very pleasant today and cricket is my favorite sport to play on weekends.",
+        question=(
+            "Explain how you reconcile input tax credit discrepancies between GSTR-2B and GSTR-3B."
+        ),
+        answer_text=(
+            "The weather in Bengaluru is very pleasant today and cricket is my favorite sport to "
+            "play on weekends."
+        ),
     )
     assert gaps_offtopic.off_topic_hallucination is True
 
 
 def test_rubric_evaluator_agent_scoring():
     question = (
-        "During a statutory year-end audit, you notice a material mismatch between vendor ledger balances "
+        "During a statutory year-end audit, you notice a material mismatch between vendor ledger "
+        "balances "
         "and physical stock registers. How do you design your audit procedure?"
     )
     answer = (
-        "In my audit internship at a mid-tier accounting firm, we encountered a similar 15% discrepancy in inventory. "
-        "I first established a sampling threshold under SA 530 and vouched high-value purchase orders against goods "
-        "received notes (GRNs) and e-way bills. Then, I cross-verified physical inventory counts with cutoff tests. "
-        "As a result, we identified two duplicate invoices, reconciled the ledger discrepancy, and issued an unqualified audit opinion."
+        "In my audit internship at a mid-tier accounting firm, we encountered a similar 15% "
+        "discrepancy in inventory. "
+        "I first established a sampling threshold under SA 530 and vouched high-value purchase "
+        "orders against goods "
+        "received notes (GRNs) and e-way bills. Then, I cross-verified physical inventory counts "
+        "with cutoff tests. "
+        "As a result, we identified two duplicate invoices, reconciled the ledger discrepancy, "
+        "and issued an unqualified audit opinion."
     )
 
     eval_result = evaluate_rubric_answer(

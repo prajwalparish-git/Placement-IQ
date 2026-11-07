@@ -19,31 +19,37 @@ from __future__ import annotations
 
 import base64
 import os
+
 import streamlit as st
 
 from agents.rubric_evaluator_agent import evaluate_rubric_answer, transcribe_audio_with_whisper
 from agents.voice_interview_agent import (
-    DOMAIN_SCENARIOS,
     VoiceInterviewQuestion,
     generate_voice_interview_question,
     get_stream_from_role_or_domain,
 )
-from piq import services
-from piq.ui import current_student, empty_state, page_header, require_profile
+from piq.ui import empty_state, page_header, require_profile
 
 VOICE_AVATAR = ":material/graphic_eq:"
 EVAL_AVATAR = ":material/analytics:"
 
 page_header(
     "Live Voice Mock Interview",
-    "Practice oral interviews with realistic voice synthesis, scenario simulations across disciplines, and instant 0-15 point rubric scoring.",
+    (
+        "Practice oral interviews with realistic voice synthesis, scenario simulations across "
+        "disciplines, and instant 0-15 point rubric scoring."
+    ),
 )
 
 profile = require_profile()
 if not profile:
     st.stop()
 
-sid = profile.student_id if hasattr(profile, "student_id") else st.session_state.get("student_id", "DEMO")
+sid = (
+    profile.student_id
+    if hasattr(profile, "student_id")
+    else st.session_state.get("student_id", "DEMO")
+)
 role = profile.target_role
 default_stream = get_stream_from_role_or_domain(role)
 
@@ -58,60 +64,68 @@ if "voice_transcribed_text" not in st.session_state:
 # Sidebar config / Session Setup
 setup_col, preview_col = st.columns([1, 1], gap="large")
 
-with setup_col:
-    with st.container(border=True):
-        st.subheader("Interview Configuration", anchor=False)
-        selected_stream = st.selectbox(
-            "Discipline Stream",
-            ["Engineering", "Commerce", "Law", "Management"],
-            index=["Engineering", "Commerce", "Law", "Management"].index(default_stream)
-            if default_stream in ["Engineering", "Commerce", "Law", "Management"]
-            else 0,
-            help="Select the discipline track to target role-specific situational scenarios.",
+with setup_col, st.container(border=True):
+    st.subheader("Interview Configuration", anchor=False)
+    selected_stream = st.selectbox(
+        "Discipline Stream",
+        ["Engineering", "Commerce", "Law", "Management"],
+        index=["Engineering", "Commerce", "Law", "Management"].index(default_stream)
+        if default_stream in ["Engineering", "Commerce", "Law", "Management"]
+        else 0,
+        help="Select the discipline track to target role-specific situational scenarios.",
+    )
+    selected_category = st.radio(
+        "Question Type",
+        ["technical", "situational", "behavioral"],
+        index=1,
+        format_func=lambda c: c.capitalize(),
+        horizontal=True,
+    )
+
+    elevenlabs_key = os.getenv("ELEVENLABS_API_KEY", "")
+    if not elevenlabs_key:
+        st.caption(
+            "ℹ️ *Using browser HTML5 speech fallback. Set `ELEVENLABS_API_KEY` for "
+            "high-definition neural voices.*"
         )
-        selected_category = st.radio(
-            "Question Type",
-            ["technical", "situational", "behavioral"],
-            index=1,
-            format_func=lambda c: c.capitalize(),
-            horizontal=True,
+
+    if st.button("Generate Interview Scenario", type="primary", icon=":material/play_circle:"):
+        q = generate_voice_interview_question(
+            target_role=role,
+            stream=selected_stream,
+            category=selected_category,
+            include_audio=bool(elevenlabs_key),
+            elevenlabs_key=elevenlabs_key,
         )
+        st.session_state["voice_session_question"] = q
+        st.session_state["voice_session_evaluation"] = None
+        st.session_state["voice_transcribed_text"] = ""
+        st.rerun()
 
-        elevenlabs_key = os.getenv("ELEVENLABS_API_KEY", "")
-        if not elevenlabs_key:
-            st.caption("ℹ️ *Using browser HTML5 speech fallback. Set `ELEVENLABS_API_KEY` for high-definition neural voices.*")
-
-        if st.button("Generate Interview Scenario", type="primary", icon=":material/play_circle:"):
-            q = generate_voice_interview_question(
-                target_role=role,
-                stream=selected_stream,
-                category=selected_category,
-                include_audio=bool(elevenlabs_key),
-                elevenlabs_key=elevenlabs_key,
-            )
-            st.session_state["voice_session_question"] = q
-            st.session_state["voice_session_evaluation"] = None
-            st.session_state["voice_transcribed_text"] = ""
-            st.rerun()
-
-with preview_col:
-    with st.container(border=True):
-        st.subheader("Evaluation Standards (0-15 Rubric)", anchor=False)
-        st.markdown(
+with preview_col, st.container(border=True):
+    st.subheader("Evaluation Standards (0-15 Rubric)", anchor=False)
+    st.markdown(
+        """
+            - **Content Knowledge & Domain Relevancy (0–5 pts):** Accuracy, technical depth,
+              operational mechanics.
+            - **Verbal Clarity & Structure (STAR) (0–5 pts):** Situation, Task, Action, Result
+              methodology.
+            - **Confidence & Professional Demeanor (0–5 pts):** Composure, articulate phrasing,
+              absence of deflection.
+            - **Suspicious Gap Flags:** Identifies terse responses (<20 words), off-topic drift,
+              or buzzword clustering.
             """
-            - **Content Knowledge & Domain Relevancy (0–5 pts):** Accuracy, technical depth, operational mechanics.
-            - **Verbal Clarity & Structure (STAR) (0–5 pts):** Situation, Task, Action, Result methodology.
-            - **Confidence & Professional Demeanor (0–5 pts):** Composure, articulate phrasing, absence of deflection.
-            - **Suspicious Gap Flags:** Identifies terse responses (<20 words), off-topic drift, or buzzword clustering.
-            """
-        )
+    )
 
 current_q: VoiceInterviewQuestion | None = st.session_state["voice_session_question"]
 
 if not current_q:
     empty_state(
         "Ready for your voice interview",
-        "Choose your discipline stream and question category above, then click 'Generate Interview Scenario' to begin.",
+        (
+            "Choose your discipline stream and question category above, then click 'Generate "
+            "Interview Scenario' to begin."
+        ),
         ":material/mic:",
     )
     st.stop()
@@ -137,7 +151,9 @@ with st.container(border=True):
         clean_text_js = current_q.question_text.replace("'", "\\'").replace('"', '\\"')
         tts_html = f"""
         <div style="margin-top: 8px;">
-            <button onclick="speakQuestion()" style="background-color: #4F46E5; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+            <button onclick="speakQuestion()"
+                style="background-color: #4F46E5; color: white; border: none;
+                padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500;">
                 🔊 Read Aloud (Browser TTS)
             </button>
             <script>
@@ -174,7 +190,9 @@ with text_tab:
     student_text_input = st.text_area(
         "Type your answer directly or paste an external transcript:",
         value=st.session_state.get("voice_transcribed_text", ""),
-        placeholder="Structure your answer with the STAR format (Situation, Task, Action, Result)...",
+        placeholder=(
+            "Structure your answer with the STAR format (Situation, Task, Action, Result)..."
+        ),
         height=140,
     )
 
@@ -232,17 +250,15 @@ if eval_res:
     st.write(eval_res.transcribed_response)
 
     col_str, col_imp = st.columns(2, gap="medium")
-    with col_str:
-        with st.container(border=True):
-            st.markdown("**:primary[:material/check_circle:] Key Strengths**")
-            for s in eval_res.strengths:
-                st.markdown(f"- {s}")
+    with col_str, st.container(border=True):
+        st.markdown("**:primary[:material/check_circle:] Key Strengths**")
+        for s in eval_res.strengths:
+            st.markdown(f"- {s}")
 
-    with col_imp:
-        with st.container(border=True):
-            st.markdown("**:primary[:material/warning:] Areas for Improvement**")
-            for a in eval_res.areas_for_improvement:
-                st.markdown(f"- {a}")
+    with col_imp, st.container(border=True):
+        st.markdown("**:primary[:material/warning:] Areas for Improvement**")
+        for a in eval_res.areas_for_improvement:
+            st.markdown(f"- {a}")
 
     with st.expander("Exemplary Model Answer (STAR Benchmark)", icon=":material/star:"):
         st.markdown(eval_res.exemplary_model_answer)

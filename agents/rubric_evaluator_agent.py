@@ -16,11 +16,11 @@ Responsibilities:
 from __future__ import annotations
 
 import io
-import json
 import logging
 import os
 import re
-from typing import Any, Literal
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from piq import llm
@@ -44,7 +44,8 @@ class RubricBreakdown(BaseModel):
 
 class SuspiciousGapFlags(BaseModel):
     excessive_silence_or_terse: bool = Field(
-        default=False, description="Response is unusually brief (< 20 words) or contains empty pauses"
+        default=False,
+        description="Response is unusually brief (< 20 words) or contains empty pauses",
     )
     off_topic_hallucination: bool = Field(
         default=False, description="Candidate deflected or talked about unrelated topics"
@@ -84,8 +85,10 @@ def transcribe_audio_with_whisper(
         log.info("Whisper transcription using mock/fallback.")
         return (
             "In our previous project, I led the migration of our monolithic checkout system "
-            "to asynchronous message queues. When traffic surged, the database previously locked up. "
-            "I introduced Redis caching and a RabbitMQ worker pool, which stabilized response times "
+            "to asynchronous message queues. When traffic surged, the database previously locked "
+            "up. "
+            "I introduced Redis caching and a RabbitMQ worker pool, which stabilized response "
+            "times "
             "under 120 milliseconds with zero dropped orders."
         )
 
@@ -128,7 +131,11 @@ def _detect_suspicious_gaps(question: str, answer_text: str) -> SuspiciousGapFla
         flags.append("Candidate explicitly passed or gave non-substantive filler.")
 
     # 3. Off-topic check (question keywords vs answer)
-    q_words = {w for w in re.findall(r"\b\w{4,}\b", question.lower()) if w not in {"what", "how", "would", "your", "tell", "time"}}
+    q_words = {
+        w
+        for w in re.findall(r"\b\w{4,}\b", question.lower())
+        if w not in {"what", "how", "would", "your", "tell", "time"}
+    }
     a_words = set(words)
     overlap = q_words.intersection(a_words)
     is_off_topic = len(overlap) == 0 and len(words) >= 15
@@ -137,8 +144,11 @@ def _detect_suspicious_gaps(question: str, answer_text: str) -> SuspiciousGapFla
 
     # 4. Keyword stuffing check (same word repeated > 10% of total words)
     from collections import Counter
+
     counts = Counter(words)
-    stuffing = any(count > 6 and (count / len(words)) > 0.12 for w, count in counts.items() if len(w) > 3)
+    stuffing = any(
+        count > 6 and (count / len(words)) > 0.12 for w, count in counts.items() if len(w) > 3
+    )
     if stuffing:
         flags.append("Repetitive keyword clustering detected without progressive STAR structure.")
 
@@ -185,7 +195,14 @@ def evaluate_rubric_answer(
     if cfg.mock_mode or not cfg.groq_api_key:
         word_count = len(answer_text.split())
         c_score = 4 if word_count > 40 else (3 if word_count > 20 else 2)
-        s_score = 4 if any(star in answer_text.lower() for star in ["because", "result", "then", "led", "impact"]) else 3
+        s_score = (
+            4
+            if any(
+                star in answer_text.lower()
+                for star in ["because", "result", "then", "led", "impact"]
+            )
+            else 3
+        )
         d_score = 4 if not gap_flags.excessive_silence_or_terse else 2
         total = c_score + s_score + d_score
 
@@ -208,13 +225,16 @@ def evaluate_rubric_answer(
                 "Demonstrated clear understanding of operational constraints.",
             ],
             areas_for_improvement=[
-                "Explicitly quantify measurable business or technical outcomes (metrics, % latency reduction, ROI).",
+                "Explicitly quantify measurable business or technical outcomes (metrics, % "
+                "latency reduction, ROI).",
                 "Strictly follow the STAR framework (Situation -> Task -> Action -> Result).",
             ],
             exemplary_model_answer=(
                 "In my previous project [Situation], we faced a similar challenge [Task]. "
-                "I engineered an automated mitigation pipeline and verified input edge cases [Action]. "
-                "As a result, system uptime remained at 99.98% with zero compliance violations [Result]."
+                "I engineered an automated mitigation pipeline and verified input edge cases "
+                "[Action]. "
+                "As a result, system uptime remained at 99.98% with zero compliance violations "
+                "[Result]."
             ),
             gap_flags=gap_flags,
         )
@@ -224,9 +244,12 @@ def evaluate_rubric_answer(
         "You are an elite executive interviewer and campus placement evaluator. "
         "Score the candidate's interview response against a standardized 0-15 rubric:\n"
         "- Content Knowledge & Technical Relevancy (0-5 points): Depth of facts, domain accuracy.\n"
-        "- Verbal Clarity & Structure (STAR format) (0-5 points): Situation, Task, Action, Result coherence.\n"
-        "- Confidence & Professional Demeanor (0-5 points): Articulate phrasing, composure, professional tone.\n\n"
-        "Provide constructive strengths, concrete areas for improvement, and a concise 80-120 word model answer."
+        "- Verbal Clarity & Structure (STAR format) (0-5 points): "
+        "Situation, Task, Action, Result coherence.\n"
+        "- Confidence & Professional Demeanor (0-5 points): "
+        "Articulate phrasing, composure, professional tone.\n\n"
+        "Provide constructive strengths, concrete areas for improvement, and a concise 80-120 "
+        "word model answer."
     )
 
     user_prompt = (
@@ -252,7 +275,11 @@ def evaluate_rubric_answer(
         tier_val: Literal["Excellent", "Proficient", "Needs Improvement", "Unsatisfactory"] = (
             "Excellent"
             if total >= 13
-            else ("Proficient" if total >= 10 else ("Needs Improvement" if total >= 7 else "Unsatisfactory"))
+            else (
+                "Proficient"
+                if total >= 10
+                else ("Needs Improvement" if total >= 7 else "Unsatisfactory")
+            )
         )
 
         return RubricEvaluationResult(

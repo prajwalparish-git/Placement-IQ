@@ -5,7 +5,8 @@ Responsibilities:
 - Extracts candidate text using `pypdf` and `python-docx` without OCR overhead.
 - Uses regex + alias taxonomy matching against `data/role_skills.json`.
 - Accurately detects degree/stream qualification using `data/degrees.json` / `piq.degrees`.
-- Returns extracted candidate skills, detected degree/stream, match percentage, and list of missing gap skills.
+- Returns extracted candidate skills, detected degree/stream, match percentage, and list of
+  missing gap skills.
 """
 
 from __future__ import annotations
@@ -13,7 +14,6 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path, PurePath
-from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -74,7 +74,7 @@ def load_role_skills_catalog() -> tuple[dict[str, dict[str, str | None]], dict[s
 def detect_candidate_stream(text: str) -> tuple[CandidateDegree | None, str]:
     """Scans text for academic degrees and branch/specialization."""
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    
+
     # 1. First search line-by-line for specific degree mentions
     best_degree = None
     specialization = ""
@@ -83,11 +83,15 @@ def detect_candidate_stream(text: str) -> tuple[CandidateDegree | None, str]:
         if d:
             best_degree = d
             # Extract specialization clue if present in the same line
-            m = re.search(r"\b(?:in|of|branch|dept|department|specialization)\s+([A-Za-z\s&/]{3,35})", line, re.IGNORECASE)
+            m = re.search(
+                r"\b(?:in|of|branch|dept|department|specialization)\s+([A-Za-z\s&/]{3,35})",
+                line,
+                re.IGNORECASE,
+            )
             if m:
                 specialization = m.group(1).strip()
             break
-            
+
     # 2. If not found in individual lines, check the first 2500 chars
     if not best_degree:
         header_text = text[:2500]
@@ -96,13 +100,25 @@ def detect_candidate_stream(text: str) -> tuple[CandidateDegree | None, str]:
     # 3. Detect engineering/tech/commerce stream cues if specialization was empty
     if not specialization:
         stream_patterns = [
-            (r"\b(computer\s+science(?:\s+and\s+engineering)?|cse|it|information\s+technology)\b", "Computer Science & Engineering"),
-            (r"\b(electronics\s+(?:and\s+)?communication(?:\s+engineering)?|ece)\b", "Electronics & Communication"),
-            (r"\b(electrical\s+(?:and\s+)?electronics(?:\s+engineering)?|eee)\b", "Electrical & Electronics"),
+            (
+                r"\b(computer\s+science(?:\s+and\s+engineering)?|cse|it|information\s+technology)\b",
+                "Computer Science & Engineering",
+            ),
+            (
+                r"\b(electronics\s+(?:and\s+)?communication(?:\s+engineering)?|ece)\b",
+                "Electronics & Communication",
+            ),
+            (
+                r"\b(electrical\s+(?:and\s+)?electronics(?:\s+engineering)?|eee)\b",
+                "Electrical & Electronics",
+            ),
             (r"\b(mechanical(?:\s+engineering)?|mech)\b", "Mechanical Engineering"),
             (r"\b(civil(?:\s+engineering)?)\b", "Civil Engineering"),
             (r"\b(biotechnology|biotech)\b", "Biotechnology"),
-            (r"\b(data\s+science|artificial\s+intelligence|ai\s*&\s*ml|aiml)\b", "Data Science & AI"),
+            (
+                r"\b(data\s+science|artificial\s+intelligence|ai\s*&\s*ml|aiml)\b",
+                "Data Science & AI",
+            ),
             (r"\b(commerce|b\.?com|accounting|finance)\b", "Commerce & Finance"),
             (r"\b(business\s+administration|management|bba|mba)\b", "Business Administration"),
             (r"\b(law|ll\.?b|legal)\b", "Corporate Law"),
@@ -121,7 +137,9 @@ def detect_candidate_stream(text: str) -> tuple[CandidateDegree | None, str]:
             field=best_degree.field,
             specialization=specialization,
         )
-        stream_desc = f"{best_degree.code} in {specialization}" if specialization else best_degree.name
+        stream_desc = (
+            f"{best_degree.code} in {specialization}" if specialization else best_degree.name
+        )
         return cand_degree, stream_desc
 
     if specialization:
@@ -133,7 +151,7 @@ def detect_candidate_stream(text: str) -> tuple[CandidateDegree | None, str]:
 def extract_skills_from_text(
     text: str, all_catalog_skills: set[str], aliases: dict[str, list[str]]
 ) -> list[str]:
-    """Matches words and phrases in resume text against skill taxonomy using token boundary matching."""
+    """Matches words and phrases in resume text against the skill taxonomy (token boundaries)."""
     text_tokens = tokens(text)
     matched: set[str] = set()
 
@@ -181,7 +199,8 @@ def parse_resume(
             target_role = matched_role
         else:
             raise ValueError(
-                f"Unknown target role '{target_role}'. Available catalog roles: {list(roles.keys())[:10]}..."
+                f"Unknown target role '{target_role}'. Available catalog roles: "
+                f"{list(roles.keys())[:10]}..."
             )
 
     role_skill_map = roles[target_role]
@@ -203,9 +222,7 @@ def parse_resume(
     missing_for_role = [s for s in required_skills if s not in matched_for_role]
 
     match_pct = (
-        round((len(matched_for_role) / len(required_skills)) * 100, 1)
-        if required_skills
-        else 100.0
+        round((len(matched_for_role) / len(required_skills)) * 100, 1) if required_skills else 100.0
     )
 
     # 6. Detect degree and stream

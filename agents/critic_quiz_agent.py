@@ -12,16 +12,14 @@ Responsibilities:
 from __future__ import annotations
 
 import csv
-import json
 import logging
 import random
-from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from piq import checks, llm, prompts, question_bank, syllabus
-from piq.config import DATA_DIR, DIFFICULTIES, settings
+from piq import llm, question_bank
+from piq.config import DATA_DIR, settings
 
 log = logging.getLogger("agents.critic_quiz_agent")
 
@@ -56,7 +54,9 @@ class CriticEvaluation(BaseModel):
     rejection_reasons: list[str] = Field(
         default_factory=list, description="Concrete reasons if question is flawed"
     )
-    factual_correctness: bool = Field(default=True, description="Question facts and solution are accurate")
+    factual_correctness: bool = Field(
+        default=True, description="Question facts and solution are accurate"
+    )
     unambiguous: bool = Field(default=True, description="Exactly one option is defensibly correct")
     difficulty_appropriate: bool = Field(
         default=True, description="Matches target audience and difficulty level"
@@ -102,7 +102,7 @@ def _load_bank_fallback_questions(
     broad_rows: list[dict[str, str]] = []
 
     try:
-        with open(MCQ_BANK_PATH, mode="r", encoding="utf-8", errors="replace") as f:
+        with open(MCQ_BANK_PATH, encoding="utf-8", errors="replace") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 q_text = row.get("question", "")
@@ -139,9 +139,13 @@ def _load_bank_fallback_questions(
         results.append(
             GeneratedMCQ(
                 text=(r.get("question") or "").strip(),
-                options=opts if len(opts) == 4 and all(opts) else ["True", "False", "Neither", "Both"],
+                options=opts
+                if len(opts) == 4 and all(opts)
+                else ["True", "False", "Neither", "Both"],
                 correct_index=idx,
-                explanation=(r.get("explanation") or f"Standard verified principle in {skill_gap}.").strip(),
+                explanation=(
+                    r.get("explanation") or f"Standard verified principle in {skill_gap}."
+                ).strip(),
                 bloom_level=r.get("bloom_level") or "understand",
                 difficulty=difficulty,
                 skill_tag=r.get("topic") or skill_gap,
@@ -155,21 +159,30 @@ def _make_synthetic_sample(skill: str, difficulty: str, count: int) -> list[Gene
     """Generates clean verified default MCQs for core topics when bank is sparse."""
     items = [
         GeneratedMCQ(
-            text=f"Which of the following statements best characterizes core best practices in {skill}?",
+            text=(
+                f"Which of the following statements best characterizes core best practices in "
+                f"{skill}?"
+            ),
             options=[
                 f"Prioritizing modularity, loose coupling, and defensive validation in {skill}",
-                f"Relying entirely on runtime exception ignoring without systematic logs",
-                f"Hardcoding dynamic configurations directly inside compilation units",
-                f"Bypassing deterministic testing phases to optimize deployment throughput",
+                "Relying entirely on runtime exception ignoring without systematic logs",
+                "Hardcoding dynamic configurations directly inside compilation units",
+                "Bypassing deterministic testing phases to optimize deployment throughput",
             ],
             correct_index=0,
-            explanation=f"Modularity and defensive programming are universal industry standards when engineering solutions in {skill}.",
+            explanation=(
+                f"Modularity and defensive programming are universal industry standards when "
+                f"engineering solutions in {skill}."
+            ),
             bloom_level="understand",
             difficulty=difficulty,
             skill_tag=skill,
         ),
         GeneratedMCQ(
-            text=f"In the context of production-grade systems using {skill}, what is the primary consequence of unhandled concurrency?",
+            text=(
+                f"In the context of production-grade systems using {skill}, what is the primary "
+                f"consequence of unhandled concurrency?"
+            ),
             options=[
                 "Automatic compiler optimization of critical sections",
                 "Race conditions, data inconsistencies, and potential deadlocks",
@@ -177,13 +190,19 @@ def _make_synthetic_sample(skill: str, difficulty: str, count: int) -> list[Gene
                 "Deterministic memory deallocation across distributed nodes",
             ],
             correct_index=1,
-            explanation="Uncoordinated multi-threaded or concurrent access leads to non-deterministic race conditions and deadlocks.",
+            explanation=(
+                "Uncoordinated multi-threaded or concurrent access leads to non-deterministic "
+                "race conditions and deadlocks."
+            ),
             bloom_level="analyze",
             difficulty=difficulty,
             skill_tag=skill,
         ),
         GeneratedMCQ(
-            text=f"When profiling asymptotic performance in {skill}, what does O(1) time complexity indicate?",
+            text=(
+                f"When profiling asymptotic performance in {skill}, what does O(1) time complexity "
+                f"indicate?"
+            ),
             options=[
                 "Linear growth proportional to input size",
                 "Logarithmic reduction across partitioned subsets",
@@ -191,7 +210,10 @@ def _make_synthetic_sample(skill: str, difficulty: str, count: int) -> list[Gene
                 "Quadratic latency scaling for nested iterations",
             ],
             correct_index=2,
-            explanation="O(1) signifies constant time complexity where the execution duration remains invariant relative to input magnitude.",
+            explanation=(
+                "O(1) signifies constant time complexity where the execution duration remains "
+                "invariant relative to input magnitude."
+            ),
             bloom_level="remember",
             difficulty=difficulty,
             skill_tag=skill,
@@ -224,7 +246,9 @@ def validate_mcq_with_critic(question: GeneratedMCQ, target_topic: str) -> Criti
 
     # 2. Lazy distractors
     for o in opts:
-        if any(lazy in o.lower() for lazy in ["all of the above", "none of the above", "all of these"]):
+        if any(
+            lazy in o.lower() for lazy in ["all of the above", "none of the above", "all of these"]
+        ):
             reasons.append(f"Option '{o}' uses prohibited 'all/none of the above' pattern.")
 
     # 3. Index sanity
@@ -300,9 +324,12 @@ def generate_critic_quiz(
     # Online Generator-Critic Loop
     system_prompt = (
         "You are an expert technical interviewer and test creator. "
-        "Generate targeted technical multiple-choice questions focusing specifically on the provided skill gap. "
-        "Rules: Exactly 4 distinct options, exactly 1 unambiguously correct option, clear explanation, "
-        "no 'all/none of the above' options, balanced option lengths, realistic industrial placement standards."
+        "Generate targeted technical multiple-choice questions focusing specifically on the "
+        "provided skill gap. "
+        "Rules: Exactly 4 distinct options, exactly 1 unambiguously correct option, clear "
+        "explanation, "
+        "no 'all/none of the above' options, balanced option lengths, realistic industrial "
+        "placement standards."
     )
 
     rejection_feedback = ""
@@ -342,7 +369,7 @@ def generate_critic_quiz(
                     verified_questions.append(q)
                 else:
                     batch_rejections.extend(
-                        [f"Question {i+1}: {r}" for r in verdict.rejection_reasons]
+                        [f"Question {i + 1}: {r}" for r in verdict.rejection_reasons]
                     )
 
             if len(verified_questions) >= count:
@@ -354,7 +381,8 @@ def generate_critic_quiz(
                     source="critic_generated",
                     questions=verified_questions[:count],
                     attempts=attempt_count,
-                    critic_notes=all_critic_notes or ["Critic approved all questions on verification."],
+                    critic_notes=all_critic_notes
+                    or ["Critic approved all questions on verification."],
                 )
 
             # Prepare feedback for the retry loop
@@ -362,8 +390,8 @@ def generate_critic_quiz(
                 f"Attempt {attempt_count} rejected: {'; '.join(batch_rejections[:3])}"
             )
             rejection_feedback = (
-                f"\n\nCRITIC REJECTION NOTICE: Previous attempt had these flaws. Fix them completely:\n"
-                + "\n".join(f"- {r}" for r in batch_rejections[:5])
+                "\n\nCRITIC REJECTION NOTICE: Previous attempt had these flaws. "
+                "Fix them completely:\n" + "\n".join(f"- {r}" for r in batch_rejections[:5])
             )
 
         except Exception as e:

@@ -1,17 +1,16 @@
 """Comprehensive unit and integration tests for Layer 2 Multi-Agent Orchestration."""
 
 from pathlib import Path
-import pytest
 
-from agents.resume_parser_agent import parse_resume, detect_candidate_stream, extract_skills_from_text
-from agents.study_planner_agent import generate_study_roadmap, SevenDayRoadmap
 from agents.critic_quiz_agent import (
+    GeneratedMCQ,
     generate_critic_quiz,
     validate_mcq_with_critic,
-    GeneratedMCQ,
-    _load_bank_fallback_questions,
 )
-
+from agents.resume_parser_agent import (
+    parse_resume,
+)
+from agents.study_planner_agent import SevenDayRoadmap, generate_study_roadmap
 
 SAMPLE_RESUME_TEXT = """
 Prajwal Parish
@@ -24,7 +23,8 @@ Don Bosco Institute of Technology, 2022 - 2026 | CGPA: 8.8
 SKILLS
 Programming: Python, Java, SQL, JavaScript
 Frameworks & Libraries: React, Node.js, Spring Boot, Scikit-Learn
-Core CS: Object-Oriented Programming, Data Structures, Algorithms, Operating Systems, Database Design
+Core CS: Object-Oriented Programming, Data Structures, Algorithms,
+Operating Systems, Database Design
 Tools & Cloud: Git, GitHub, Linux, Docker, REST APIs
 
 PROJECTS
@@ -54,7 +54,7 @@ def test_resume_parser_agent_with_text():
 def test_resume_parser_agent_with_file_path(tmp_path: Path):
     doc_path = tmp_path / "candidate_cv.txt"
     doc_path.write_text(SAMPLE_RESUME_TEXT, encoding="utf-8")
-    
+
     res = parse_resume(
         file_input=doc_path,
         target_role="Python Developer",
@@ -76,7 +76,7 @@ def test_study_planner_agent_roadmap():
     assert len(roadmap.days) == 7
     assert roadmap.target_role == "Python Developer"
     assert roadmap.addressed_gaps == gaps
-    
+
     # Verify Day 1 through Day 7 sequence
     for i, d in enumerate(roadmap.days, start=1):
         assert d.day == i
@@ -92,7 +92,9 @@ def test_critic_mcq_validation():
         text="What is the time complexity of searching in a balanced Binary Search Tree?",
         options=["O(1)", "O(log n)", "O(n)", "O(n log n)"],
         correct_index=1,
-        explanation="In a balanced BST, each comparison halves the search space, giving O(log n) time.",
+        explanation=(
+            "In a balanced BST, each comparison halves the search space, giving O(log n) time."
+        ),
         bloom_level="understand",
         difficulty="medium",
         skill_tag="Algorithms",

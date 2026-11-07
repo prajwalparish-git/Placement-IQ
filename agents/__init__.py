@@ -3,9 +3,12 @@
 Modular sub-agents:
 - resume_parser_agent: extracts candidate skills, degree/stream, match % and missing gaps.
 - study_planner_agent: generates adaptive 7-day roadmaps with objectives, links, and micro-tasks.
-- critic_quiz_agent: Generator-Critic loop with factual/ambiguity validation and question bank fallback.
-- voice_interview_agent: ElevenLabs speech synthesis and stream-specific behavioral/scenario questions.
-- rubric_evaluator_agent: 0-15 point rubric evaluation (Knowledge, STAR Clarity, Confidence) & gap flags.
+- critic_quiz_agent: Generator-Critic loop with factual/ambiguity validation and question
+  bank fallback.
+- voice_interview_agent: ElevenLabs speech synthesis and stream-specific
+  behavioral/scenario questions.
+- rubric_evaluator_agent: 0-15 point rubric evaluation (Knowledge, STAR Clarity,
+  Confidence) & gap flags.
 """
 
 from agents.critic_quiz_agent import (

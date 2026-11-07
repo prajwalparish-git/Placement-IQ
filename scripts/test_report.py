@@ -55,6 +55,8 @@ LAYERS = {
     "test_question_bank": ("Integration", "Local question bank and its share of quizzes"),
     "test_server": ("Integration", "HTTP API for the Next.js frontend"),
     "test_all_domains": ("Integration", "Every role and domain, resume to interview"),
+    "test_agents_layer2": ("Integration", "Layer 2 agents: resume parser, planner, critic quiz"),
+    "test_voice_interview_step5": ("Integration", "Voice interview and rubric evaluator agents"),
     "test_ui": ("System (UI)", "Streamlit pages, headless"),
 }
 ORDER = list(LAYERS)

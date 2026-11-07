@@ -13,77 +13,179 @@ Responsibilities:
 
 from __future__ import annotations
 
-import json
-from typing import Any, Literal
 from pydantic import BaseModel, Field
 
-from piq import llm, syllabus
+from piq import llm
 from piq.config import settings
 
 # Curated reference links for technical & domain skills (Free / Official documentation)
 CURATED_RESOURCES: dict[str, list[dict[str, str]]] = {
     # CS Core & Languages
     "Java": [
-        {"title": "Dev.java Official Documentation", "url": "https://dev.java/learn/", "type": "Documentation"},
-        {"title": "Baeldung Java Tutorials", "url": "https://www.baeldung.com/java-tutorial", "type": "Tutorial"},
+        {
+            "title": "Dev.java Official Documentation",
+            "url": "https://dev.java/learn/",
+            "type": "Documentation",
+        },
+        {
+            "title": "Baeldung Java Tutorials",
+            "url": "https://www.baeldung.com/java-tutorial",
+            "type": "Tutorial",
+        },
     ],
     "Python": [
-        {"title": "Official Python Tutorial", "url": "https://docs.python.org/3/tutorial/", "type": "Documentation"},
+        {
+            "title": "Official Python Tutorial",
+            "url": "https://docs.python.org/3/tutorial/",
+            "type": "Documentation",
+        },
         {"title": "Real Python Tutorials", "url": "https://realpython.com/", "type": "Article"},
     ],
     "Data Structures": [
-        {"title": "GeeksforGeeks DSA Guide", "url": "https://www.geeksforgeeks.org/data-structures/", "type": "Guide"},
-        {"title": "NeetCode DSA Roadmap", "url": "https://neetcode.io/roadmap", "type": "Interactive"},
+        {
+            "title": "GeeksforGeeks DSA Guide",
+            "url": "https://www.geeksforgeeks.org/data-structures/",
+            "type": "Guide",
+        },
+        {
+            "title": "NeetCode DSA Roadmap",
+            "url": "https://neetcode.io/roadmap",
+            "type": "Interactive",
+        },
     ],
     "Algorithms": [
-        {"title": "VisuAlgo Visualising Algorithms", "url": "https://visualgo.net/en", "type": "Interactive"},
-        {"title": "LeetCode Practice Problems", "url": "https://leetcode.com/explore/", "type": "Practice"},
+        {
+            "title": "VisuAlgo Visualising Algorithms",
+            "url": "https://visualgo.net/en",
+            "type": "Interactive",
+        },
+        {
+            "title": "LeetCode Practice Problems",
+            "url": "https://leetcode.com/explore/",
+            "type": "Practice",
+        },
     ],
     "SQL": [
-        {"title": "PostgreSQL Official Documentation", "url": "https://www.postgresql.org/docs/", "type": "Documentation"},
-        {"title": "SQLZoo Interactive SQL Tutorial", "url": "https://sqlzoo.net/", "type": "Interactive"},
+        {
+            "title": "PostgreSQL Official Documentation",
+            "url": "https://www.postgresql.org/docs/",
+            "type": "Documentation",
+        },
+        {
+            "title": "SQLZoo Interactive SQL Tutorial",
+            "url": "https://sqlzoo.net/",
+            "type": "Interactive",
+        },
     ],
     "Database Design": [
-        {"title": "Database Star ER Diagrams & Normalization", "url": "https://www.databasestar.com/database-normalization/", "type": "Article"},
-        {"title": "Use The Index, Luke (SQL Indexing)", "url": "https://use-the-index-luke.com/", "type": "Guide"},
+        {
+            "title": "Database Star ER Diagrams & Normalization",
+            "url": "https://www.databasestar.com/database-normalization/",
+            "type": "Article",
+        },
+        {
+            "title": "Use The Index, Luke (SQL Indexing)",
+            "url": "https://use-the-index-luke.com/",
+            "type": "Guide",
+        },
     ],
     "Operating Systems": [
-        {"title": "OSTEP (Operating Systems: Three Easy Pieces)", "url": "https://pages.cs.wisc.edu/~remzi/OSTEP/", "type": "Book"},
-        {"title": "Linux Journey (Free Linux OS Guide)", "url": "https://linuxjourney.com/", "type": "Tutorial"},
+        {
+            "title": "OSTEP (Operating Systems: Three Easy Pieces)",
+            "url": "https://pages.cs.wisc.edu/~remzi/OSTEP/",
+            "type": "Book",
+        },
+        {
+            "title": "Linux Journey (Free Linux OS Guide)",
+            "url": "https://linuxjourney.com/",
+            "type": "Tutorial",
+        },
     ],
     "Computer Networks": [
-        {"title": "Beej's Guide to Network Programming", "url": "https://beej.us/guide/bgnet/", "type": "Guide"},
-        {"title": "MDN Web Docs: An Overview of HTTP", "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview", "type": "Documentation"},
+        {
+            "title": "Beej's Guide to Network Programming",
+            "url": "https://beej.us/guide/bgnet/",
+            "type": "Guide",
+        },
+        {
+            "title": "MDN Web Docs: An Overview of HTTP",
+            "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview",
+            "type": "Documentation",
+        },
     ],
     "Object-Oriented Programming": [
-        {"title": "Refactoring Guru: OOP Design Patterns", "url": "https://refactoring.guru/design-patterns", "type": "Guide"},
-        {"title": "Clean Code & SOLID Principles Overview", "url": "https://www.freecodecamp.org/news/solid-principles-explained-in-plain-english/", "type": "Article"},
+        {
+            "title": "Refactoring Guru: OOP Design Patterns",
+            "url": "https://refactoring.guru/design-patterns",
+            "type": "Guide",
+        },
+        {
+            "title": "Clean Code & SOLID Principles Overview",
+            "url": "https://www.freecodecamp.org/news/solid-principles-explained-in-plain-english/",
+            "type": "Article",
+        },
     ],
     "REST APIs": [
-        {"title": "RESTful API Design Best Practices (GitHub Docs)", "url": "https://docs.github.com/en/rest", "type": "Documentation"},
-        {"title": "Postman API Design Guide", "url": "https://www.postman.com/api-platform/api-design/", "type": "Guide"},
+        {
+            "title": "RESTful API Design Best Practices (GitHub Docs)",
+            "url": "https://docs.github.com/en/rest",
+            "type": "Documentation",
+        },
+        {
+            "title": "Postman API Design Guide",
+            "url": "https://www.postman.com/api-platform/api-design/",
+            "type": "Guide",
+        },
     ],
     "Spring Boot": [
-        {"title": "Spring Boot Reference Guides", "url": "https://spring.io/guides", "type": "Documentation"},
+        {
+            "title": "Spring Boot Reference Guides",
+            "url": "https://spring.io/guides",
+            "type": "Documentation",
+        },
     ],
     "React": [
-        {"title": "React.dev Learn React Official", "url": "https://react.dev/learn", "type": "Documentation"},
+        {
+            "title": "React.dev Learn React Official",
+            "url": "https://react.dev/learn",
+            "type": "Documentation",
+        },
     ],
     "Node.js": [
-        {"title": "Node.js Official Documentation Guides", "url": "https://nodejs.org/en/docs/guides", "type": "Documentation"},
+        {
+            "title": "Node.js Official Documentation Guides",
+            "url": "https://nodejs.org/en/docs/guides",
+            "type": "Documentation",
+        },
     ],
     "Git": [
         {"title": "Pro Git Book (Free)", "url": "https://git-scm.com/book/en/v2", "type": "Book"},
     ],
     "Machine Learning": [
-        {"title": "Scikit-Learn User Guide", "url": "https://scikit-learn.org/stable/user_guide.html", "type": "Documentation"},
-        {"title": "Google Machine Learning Crash Course", "url": "https://developers.google.com/machine-learning/crash-course", "type": "Course"},
+        {
+            "title": "Scikit-Learn User Guide",
+            "url": "https://scikit-learn.org/stable/user_guide.html",
+            "type": "Documentation",
+        },
+        {
+            "title": "Google Machine Learning Crash Course",
+            "url": "https://developers.google.com/machine-learning/crash-course",
+            "type": "Course",
+        },
     ],
     "Aptitude": [
-        {"title": "IndiaBIX Quantitative Aptitude", "url": "https://www.indiabix.com/aptitude/questions-and-answers/", "type": "Practice"},
+        {
+            "title": "IndiaBIX Quantitative Aptitude",
+            "url": "https://www.indiabix.com/aptitude/questions-and-answers/",
+            "type": "Practice",
+        },
     ],
     "Logical Reasoning": [
-        {"title": "IndiaBIX Logical Reasoning", "url": "https://www.indiabix.com/logical-reasoning/questions-and-answers/", "type": "Practice"},
+        {
+            "title": "IndiaBIX Logical Reasoning",
+            "url": "https://www.indiabix.com/logical-reasoning/questions-and-answers/",
+            "type": "Practice",
+        },
     ],
 }
 
@@ -160,8 +262,12 @@ def _build_fallback_roadmap(
 ) -> SevenDayRoadmap:
     """Builds a deterministic, rich 7-day roadmap when LLM is in mock mode or unavailable."""
     # Ensure we have skills to distribute
-    skills_pool = list(missing_skills) if missing_skills else ["Core Concepts", "Problem Solving", "System Design", "Best Practices"]
-    
+    skills_pool = (
+        list(missing_skills)
+        if missing_skills
+        else ["Core Concepts", "Problem Solving", "System Design", "Best Practices"]
+    )
+
     # Expand or cycle skills to fill 7 days
     day_skills = []
     for i in range(7):
@@ -170,7 +276,7 @@ def _build_fallback_roadmap(
     days: list[DailyRoadmap] = []
     for day_num, skill in enumerate(day_skills, start=1):
         resources = _get_curated_resources_for_skill(skill)
-        
+
         if day_num == 7:
             focus = f"{skill} & Comprehensive Review"
             objs = [
@@ -186,10 +292,11 @@ def _build_fallback_roadmap(
             focus = f"{skill}: Fundamentals & Architecture"
             objs = [
                 f"Understand core syntax, architectural structure, and lifecycle of {skill}",
-                f"Identify typical production trade-offs and performance characteristics in {skill}",
+                f"Identify typical production trade-offs and performance traits in {skill}",
             ]
             tasks = [
-                f"Write 2-3 code snippets or step-by-step notes explaining fundamental {skill} mechanics",
+                f"Write 2-3 code snippets or step-by-step notes explaining fundamental {skill} "
+                f"mechanics",
                 f"Solve 3 practice questions or exercises from {resources[0].title}",
             ]
         else:
@@ -248,18 +355,23 @@ def generate_study_roadmap(
         SevenDayRoadmap: Complete 7-day actionable study plan.
     """
     cfg = settings()
-    
+
     # In mock mode or if no API key configured, use high-fidelity deterministic generator
     if cfg.mock_mode or not cfg.groq_api_key:
         return _build_fallback_roadmap(missing_gap_skills, target_role, target_stream)
 
     # LLM-guided roadmap generation with strict schema enforcement
-    skills_context = ", ".join(missing_gap_skills) if missing_gap_skills else "General core technical fundamentals"
+    skills_context = (
+        ", ".join(missing_gap_skills)
+        if missing_gap_skills
+        else "General core technical fundamentals"
+    )
     system_prompt = (
         "You are an expert technical placement coach and curriculum designer. "
         "Generate a structured, rigorous 7-day study roadmap (Day 1 through Day 7) "
         "targeting the candidate's exact skill gaps for the specified role. "
-        "Ensure every day has precise technical learning objectives, reputable free/official documentation URLs, "
+        "Ensure every day has precise technical learning objectives, reputable free/official "
+        "documentation URLs, "
         "and practical micro-tasks that can be completed in 1.5 - 3 hours."
     )
     user_prompt = (
