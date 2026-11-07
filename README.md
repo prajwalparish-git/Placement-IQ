@@ -178,7 +178,7 @@ flowchart LR
 | Agents | LangGraph generate → verify → retry loop; every output is a validated Pydantic model |
 | AI providers | Groq, Google Gemini (round-robin key pools), local Ollama, then built-in answers |
 | Voice | ElevenLabs, then the Web Speech API; Whisper (Groq) for transcription |
-| Storage | SQLite for the app; SQLAlchemy telemetry on PostgreSQL with automatic SQLite failover |
+| Storage | SQLite for the app; telemetry on local SQLite (WAL) with a background write-through copy to Supabase PostgreSQL |
 
 ---
 

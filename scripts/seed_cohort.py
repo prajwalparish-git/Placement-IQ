@@ -16,11 +16,12 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from database import crud
-from database.connection import get_manager
+from database.connection import get_manager, local_only
 from database.models import QuizAttempt, StudentProfile, VoiceInterviewSession
 from piq import syllabus
+from piq.config import DEMO_USN_PREFIX
 
-PREFIX = "COHORT"
+PREFIX = DEMO_USN_PREFIX  # never synced to the cloud (database/connection.py)
 WEEKS = 6
 # (stream, domain id, roles, how strong the group starts: 0..1)
 GROUPS = (
@@ -47,7 +48,13 @@ def _clear(s: Session) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Seed the demo cohort; returns how many students it wrote."""
+    """Seed the demo cohort on this machine only (never sent to the cloud copy); returns how
+    many students it wrote."""
+    with local_only():
+        return _seed(argv)
+
+
+def _seed(argv: list[str] | None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--replace", action="store_true", help="delete the earlier demo cohort first")
     args = ap.parse_args(argv)

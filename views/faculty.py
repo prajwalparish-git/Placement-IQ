@@ -2,6 +2,7 @@
 by stream; score distributions, the voice rubric breakdown, the most common skill gaps and
 the weekly trend; Layer 3's service health; and the readiness report as CSV."""
 
+from contextlib import nullcontext
 from datetime import UTC, datetime
 
 import streamlit as st
@@ -33,7 +34,24 @@ with st.expander(
         "done" if health.voice == "ElevenLabs" else "info", f"Voice: {health.voice_detail}"
     )
 
-view = journey.cohort_view()
+CLOUD = "faculty_cloud"  # True: the whole cohort from the cloud copy (every machine)
+if journey.cloud_configured():
+    left, right = st.columns([3, 1], vertical_alignment="center")
+    showing_cloud = bool(st.session_state.get(CLOUD))
+    left.caption(
+        "Showing every machine's records, from the cloud copy."
+        if showing_cloud
+        else "Showing this machine's records. The cloud copy holds every machine's."
+    )
+    if right.button(
+        "This machine only" if showing_cloud else "Refresh from the cloud",
+        icon=":material/computer:" if showing_cloud else ":material/cloud_sync:",
+    ):
+        st.session_state[CLOUD] = not showing_cloud
+        st.rerun()
+
+with st.spinner("Reading the cloud copy") if st.session_state.get(CLOUD) else nullcontext():
+    view = journey.cohort_view(cloud=bool(st.session_state.get(CLOUD)))
 if view.error:
     st.error(view.error, icon=":material/cloud_off:")
     st.stop()

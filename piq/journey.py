@@ -101,15 +101,36 @@ def record_student(student_id: str) -> bool:
 
 
 def telemetry_backend() -> str:
-    """'PostgreSQL', 'SQLite' or 'SQLite (PostgreSQL failed over)', for the faculty page."""
+    """Where records live, for the faculty page: always this machine's SQLite file, and the
+    state of the cloud copy (Supabase) when one is configured."""
     try:
-        m = get_manager()
-        name = m.engine.dialect.name
+        st = crud.sync_status()
     except Exception:
+        log.exception("telemetry: status unavailable")
         return "Unavailable"
-    if name == "postgresql":
-        return "PostgreSQL"
-    return "SQLite (PostgreSQL failed over)" if m.failed_over else "SQLite"
+    if not st.cloud_configured:
+        return "SQLite"
+    if st.state == "offline":
+        return f"SQLite; cloud offline, {st.pending} waiting (retry in {st.retry_in_s:.0f} s)"
+    if st.pending:
+        return f"SQLite; syncing {st.pending} to the cloud"
+    note = f", {st.set_aside} set aside" if st.set_aside else ""
+    return f"SQLite + cloud copy, up to date{note}"
+
+
+def cloud_configured() -> bool:
+    try:
+        return get_manager().cloud_configured
+    except Exception:
+        return False
+
+
+def start_sync() -> None:
+    """Push whatever is waiting to the cloud copy, in the background (on start-up)."""
+    try:
+        get_manager().sync.kick()
+    except Exception:
+        log.exception("telemetry: could not start the cloud sync")
 
 
 # --- step 2: resume scan ----------------------------------------------------------------------
@@ -379,12 +400,14 @@ class CohortView:
     error: str = ""
 
 
-def cohort_view() -> CohortView:
+def cohort_view(cloud: bool = False) -> CohortView:
+    """This machine's records (instant), or with `cloud` every machine's, from the cloud copy."""
     try:
-        snap = crud.cohort()
+        snap = crud.cohort(source="cloud" if cloud else "local")
     except Exception as e:
-        log.exception("telemetry: could not read the cohort")
-        return CohortView(None, [], f"Telemetry is unavailable: {type(e).__name__}.")
+        log.exception("telemetry: could not read the cohort (%s)", "cloud" if cloud else "local")
+        where = "The cloud copy" if cloud else "Telemetry"
+        return CohortView(None, [], f"{where} is unavailable: {type(e).__name__}.")
     return CohortView(snap, cohort.student_rows(snap))
 
 

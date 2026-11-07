@@ -16,6 +16,8 @@ __pycache__/
 # --- Runtime data (recreate with: ./run.sh seed, or .\run.ps1 seed) -------------------------------
 data/*.db
 data/*.db-journal
+data/*.db-wal
+data/*.db-shm
 data/.ai_cache.json
 data/.audio_cache/
 

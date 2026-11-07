@@ -31,6 +31,7 @@ def _startup() -> None:
         seed_demo()
     if cfg.seed_demo and not journey.cohort_view().rows:  # the faculty dashboard's demo cohort
         seed_cohort([])
+    journey.start_sync()  # records made while offline go to the cloud copy, in the background
     logging.getLogger("piq").info(
         "mock_mode=%s large=%s small=%s db=%s",
         cfg.mock_mode,

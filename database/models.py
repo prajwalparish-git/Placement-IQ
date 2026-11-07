@@ -15,8 +15,10 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
+    Table,
     Text,
     TypeDecorator,
     UniqueConstraint,
@@ -140,3 +142,56 @@ class VoiceInterviewSession(Base):
     feedback: Mapped[str] = mapped_column(Text)
     proctor_flags: Mapped[list[str]] = mapped_column(JSON, default=list)
     timestamp: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now)
+
+
+# --- synchronisation with the cloud copy (database/connection.py) ----------------------------
+
+
+class SyncOutbox(Base):
+    """Local only. One row per write, added in the same transaction as the write itself, so a
+    record made while offline is never lost: pending until `synced_at` is set. Rows the cloud
+    rejected SYNC_MAX_ATTEMPTS times stay pending-but-set-aside and are reported."""
+
+    __tablename__ = "sync_outbox"
+    __table_args__ = (Index("ix_sync_outbox_pending", "synced_at", "id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    entity: Mapped[str] = mapped_column(String(20))  # a key of ENTITIES
+    local_id: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now)
+    synced_at: Mapped[datetime | None] = mapped_column(UTCDateTime, default=None)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    last_error: Mapped[str | None] = mapped_column(Text, default=None)
+
+
+class SyncMeta(Base):
+    """Local only: this database's device id (it names its records in the cloud) and flags."""
+
+    __tablename__ = "sync_meta"
+
+    key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
+
+
+class SyncReceipt(Base):
+    """Cloud only: which device record already arrived, so a retry never inserts it twice.
+    Local ids repeat across machines; "<device>:<entity>:<local id>" does not."""
+
+    __tablename__ = "sync_receipts"
+
+    source_key: Mapped[str] = mapped_column(String(120), primary_key=True)
+    cloud_id: Mapped[int] = mapped_column(Integer)
+    received_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now)
+
+
+# Which model each outbox entity names, and which tables each side holds.
+ENTITIES: dict[str, type[Base]] = {
+    "student": StudentProfile,
+    "resume": ResumeAnalysis,
+    "plan": StudyPlan,
+    "quiz": QuizAttempt,
+    "voice": VoiceInterviewSession,
+}
+DATA_TABLES: list[Table] = [m.__table__ for m in ENTITIES.values()]  # type: ignore[misc]
+LOCAL_TABLES: list[Table] = [*DATA_TABLES, SyncOutbox.__table__, SyncMeta.__table__]  # type: ignore[list-item]
+CLOUD_TABLES: list[Table] = [*DATA_TABLES, SyncReceipt.__table__]  # type: ignore[list-item]

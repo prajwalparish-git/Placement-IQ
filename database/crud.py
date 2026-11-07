@@ -1,8 +1,11 @@
 """Save and fetch telemetry: students, resume analyses, study plans, quiz attempts and voice
 interview sessions; a student's whole session history; and analytics aggregated across them.
 
-Each function runs in one transaction through DatabaseManager.run, so a PostgreSQL outage
-fails over to SQLite without the caller noticing. Pass `db` to use a specific manager (tests);
+Every function runs in one transaction on the local SQLite file, so it returns in
+milliseconds whatever the network does. Writes go through DatabaseManager.write, which also
+queues the record for the cloud copy (Supabase) in the same transaction; a background worker
+pushes it when the cloud is reachable. Reads are local; `cohort(source="cloud")` reads the cloud
+copy for the faculty page's whole-cohort view. Pass `db` to use a specific manager (tests);
 by default the process-wide one from connection.get_manager() is used. Inputs are checked here
 and a bad one raises ValueError with a message safe to show; JSON fields take plain lists and
 dicts. Returned rows are detached ORM objects (read their attributes freely).
@@ -10,12 +13,12 @@ dicts. Returned rows are detached ORM objects (read their attributes freely).
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import Float, cast, func, select
 from sqlalchemy.orm import Session
 
-from database.connection import DatabaseManager, get_manager
+from database.connection import DatabaseManager, SyncStatus, get_manager
 from database.models import (
     QuizAttempt,
     ResumeAnalysis,
@@ -148,7 +151,7 @@ def save_student(
         s.flush()
         return student
 
-    return _db(db).run(work)
+    return _db(db).write(work, "student")
 
 
 def get_student(usn: str, db: DatabaseManager | None = None) -> StudentProfile | None:
@@ -170,7 +173,7 @@ def save_resume_analysis(
         "missing_skills": _strings(missing_skills, "Missing skills"),
         "match_percentage": _in_range(float(match_percentage), 0, 100, "Match percentage"),
     }
-    return _db(db).run(lambda s: _insert(s, ResumeAnalysis, values))
+    return _db(db).write(lambda s: _insert(s, ResumeAnalysis, values), "resume")
 
 
 def latest_resume_analysis(
@@ -216,7 +219,7 @@ def save_study_plan(
         s.flush()
         return plan
 
-    return _db(db).run(work)
+    return _db(db).write(work, "plan")
 
 
 def mark_tasks_completed(
@@ -237,7 +240,7 @@ def mark_tasks_completed(
         s.flush()
         return plan
 
-    return _db(db).run(work)
+    return _db(db).write(work, "plan")
 
 
 def study_plans(student_id: int, db: DatabaseManager | None = None) -> list[StudyPlan]:
@@ -273,7 +276,7 @@ def save_quiz_attempt(
         "total_questions": total,
         "critique_notes": (critique_notes or "").strip() or None,
     }
-    return _db(db).run(lambda s: _insert(s, QuizAttempt, values))
+    return _db(db).write(lambda s: _insert(s, QuizAttempt, values), "quiz")
 
 
 def quiz_attempts(student_id: int, db: DatabaseManager | None = None) -> list[QuizAttempt]:
@@ -314,7 +317,7 @@ def save_voice_session(
         "feedback": _text(feedback, "Feedback", 20_000),
         "proctor_flags": _strings(proctor_flags, "Proctor flags"),
     }
-    return _db(db).run(lambda s: _insert(s, VoiceInterviewSession, values))
+    return _db(db).write(lambda s: _insert(s, VoiceInterviewSession, values), "voice")
 
 
 def voice_sessions(
@@ -387,9 +390,12 @@ class Cohort:
     interviews: list[VoiceInterviewSession]
 
 
-def cohort(db: DatabaseManager | None = None) -> Cohort:
-    """All students and their records, read in one transaction (so from one backend). Students
-    by USN; attempts and sessions oldest first."""
+def cohort(
+    db: DatabaseManager | None = None, source: Literal["local", "cloud"] = "local"
+) -> Cohort:
+    """All students and their records, read in one transaction. Students by USN; attempts and
+    sessions oldest first. `source="cloud"`: from the cloud copy, so every machine's records
+    (raises CloudUnavailable or a SQLAlchemy error when it cannot be read)."""
 
     def work(s: Session) -> Cohort:
         latest = (
@@ -418,7 +424,13 @@ def cohort(db: DatabaseManager | None = None) -> Cohort:
             ),
         )
 
-    return _db(db).run(work)
+    manager = _db(db)
+    return manager.run_cloud(work) if source == "cloud" else manager.run(work)
+
+
+def sync_status(db: DatabaseManager | None = None) -> SyncStatus:
+    """Whether records are reaching the cloud copy: state, pending, set aside, last sync."""
+    return _db(db).status()
 
 
 def analytics(db: DatabaseManager | None = None) -> Analytics:

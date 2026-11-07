@@ -23,7 +23,19 @@ DEFAULT_DOMAIN = "cs"  # the domain of a role the catalog does not list (the ori
 DEFAULT_SAMPLE = "data_analyst.txt"  # the sample Home's "Try it with a sample resume" opens
 USN_RE = re.compile(r"^[A-Z0-9]{4,20}$")  # a student's USN, upper-cased: 4-20 letters/digits
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-DB_CONNECT_TIMEOUT = 3  # seconds to wait for PostgreSQL before the telemetry layer uses SQLite
+# --- telemetry storage (database/): local SQLite always, a cloud PostgreSQL copy in background --
+DB_CONNECT_TIMEOUT = 3  # seconds to wait for the cloud database (Supabase) to connect
+CLOUD_POOL_SIZE = 5  # Supabase transaction pooler (port 6543) or session pooler (5432)
+CLOUD_MAX_OVERFLOW = 10
+CLOUD_POOL_TIMEOUT_S = 3  # seconds to wait for a free pooled connection
+SQLITE_BUSY_TIMEOUT_MS = 5000  # the UI and the sync thread share the file: wait, never fail
+SYNC_WORKERS = 2  # background threads that push local records to the cloud
+SYNC_BATCH = 100  # outbox rows read per pass
+SYNC_RETRY_S = 15  # first retry after the cloud is unreachable; doubles up to SYNC_RETRY_MAX_S
+SYNC_RETRY_MAX_S = 300
+SYNC_MAX_ATTEMPTS = 3  # a record the cloud rejects this many times is set aside and reported
+SYNC_KEEP_DAYS = 30  # synced outbox rows are pruned after this many days
+DEMO_USN_PREFIX = "COHORT"  # the demo cohort (scripts/seed_cohort.py) never goes to the cloud
 # --- Layer 3: the AI and speech routers (core/) --------------------------------------
 # Speed first: Groq (fastest cloud), Gemini, a local Ollama; then the offline tier.
 AI_PROVIDER_NAMES = ("groq", "gemini", "ollama")  # every provider core/ai_router.py knows

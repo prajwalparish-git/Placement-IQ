@@ -98,7 +98,8 @@ piq/                Application package. Only ui.py imports Streamlit
   charts.py         Altair chart builders (pure, tested) + cached Vega-Lite specs for the views
   ui.py             Streamlit helpers: student selector, critic trail, design-system components
 database/           Telemetry layer (SQLAlchemy). Only piq/journey.py imports it
-  connection.py     DatabaseManager: PostgreSQL (DATABASE_URL) or SQLite fallback; failover log
+  connection.py     DatabaseManager: local SQLite (WAL) for every read/write; optional cloud copy
+                    (SUPABASE_DB_URL/DATABASE_URL) fed by a sync outbox and a background worker
   models.py         StudentProfile, ResumeAnalysis, StudyPlan, QuizAttempt, VoiceInterviewSession
   crud.py           Save/fetch per table, a student's whole history, aggregated analytics
 static/             Served at app/static: app.css, brand/ (mark, wordmark), fonts/ (OFL woff2)
@@ -214,5 +215,5 @@ There is no build step. `.env.example` already contains the verified model IDs. 
 - The prompt cache (`core/ai_cache.py`) stores only validated answers and only for `AI_CACHE_AGENTS`; quizzes and interview questions must stay fresh. The evaluation runs with `AI_CACHE=false`.
 - Quizzes in the Next.js app come straight from the question bank (`services.instant_quiz`), with no LLM call; answers stay on the server until `/api/quiz/submit` grades them. The Streamlit quiz keeps the generate -> critic loop with its bank share.
 - The bullet polish (`agents.enhance_bullet`) may not invent numbers: `checks.check_bullet` rejects any figure absent from the student's text.
-- Telemetry (`database/`): the manager probes `DATABASE_URL` once, with `DB_CONNECT_TIMEOUT`; a missing, malformed, non-PostgreSQL or unreachable URL, or an outage mid-session, fails over to `TELEMETRY_DB_PATH` with one logged event and the operation retried there. No automatic fail-back (restart, or `reset_manager()`). Never log `DATABASE_URL` unmasked: use `safe_url`. `VoiceInterviewSession` stores text and scores only; recording audio or proctoring is still out of scope.
+- Telemetry (`database/`): every read and write goes to the local SQLite file (`TELEMETRY_DB_PATH`, WAL, `synchronous=NORMAL`); a page never waits on the network. Writes go through `DatabaseManager.write(work, entity)`, which adds a `sync_outbox` row in the same transaction; a background `ThreadPoolExecutor` pushes pending rows to the cloud copy (`SUPABASE_DB_URL` or `DATABASE_URL`, psycopg 3, pooled for Supabase, `prepare_threshold=None` for the transaction pooler), retrying with back-off when it is unreachable. Students match by USN, plans by (student, week), other records by a cloud `sync_receipts` key `<device>:<entity>:<local id>`, so machines never clash and retries never duplicate. Add sync state as new tables, never new columns on existing ones (`create_all` does not migrate). The demo cohort is written inside `local_only()`. Never log a database URL unmasked: use `safe_url`. `VoiceInterviewSession` stores text and scores only; recording audio or proctoring is still out of scope.
 - Voice is limited to speaking questions and transcribing answers; storing audio and video proctoring are out of scope. Also out of scope: auth, a code judge, scraping, a vector database or embeddings, async business logic.

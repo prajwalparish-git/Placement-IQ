@@ -131,3 +131,18 @@ def test_a_crashed_page_shows_a_message_not_a_traceback(monkeypatch):
     monkeypatch.setattr(journey, "cohort_view", boom)
     at = _app(None, "views/faculty.py")
     assert any("Something went wrong on this page" in e.value for e in at.error)
+
+
+def test_faculty_can_switch_to_the_cloud_copy_and_an_outage_is_a_message(monkeypatch):
+    from database.connection import reset_manager
+
+    monkeypatch.setenv("SUPABASE_DB_URL", "postgresql://u:secret@127.0.0.1:1/x")  # nothing there
+    settings.cache_clear()
+    reset_manager()
+    seed_cohort.main([])  # local records (the demo cohort stays local)
+    at = _app(None, "views/faculty.py")
+    assert "Showing this machine's records" in _text(at)
+    _button(at, "Refresh from the cloud").click().run()
+    assert not at.exception
+    assert any("cloud copy is unavailable" in e.value for e in at.error)
+    assert any(b.label == "This machine only" for b in at.button)
