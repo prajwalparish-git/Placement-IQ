@@ -306,6 +306,7 @@ def main(argv: list[str] | None = None) -> dict:
     os.environ["DB_PATH"] = str(eval_db)
     # An offline-tier answer is canned, not the model's: fail (and resume later) instead.
     os.environ["AI_OFFLINE_FALLBACK"] = "false"
+    os.environ["AI_CACHE"] = "false"  # consecutive runs measure fresh answers, not stored ones
     settings.cache_clear()
     mode = "mock" if settings().mock_mode else "live"
     if mode == "mock" and not args.allow_mock:

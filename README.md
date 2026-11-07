@@ -112,16 +112,25 @@ results. Light and dark themes; readable on a phone and on a projector.
 <div align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/layer3-dark.svg">
-    <img alt="A request tries Gemini, then Groq, then a local Ollama, then built-in offline rules" src="docs/assets/layer3-light.svg" width="100%">
+    <img alt="A request tries Groq, then Gemini, then a local Ollama, then built-in answers" src="docs/assets/layer3-light.svg" width="100%">
   </picture>
 </div>
 
-Every AI request goes through `core/ai_router.py`. Providers are tried in order, each
-behind a **circuit breaker**: a provider without a key is skipped; one that times out, runs
-out of quota or retires a model is paused for a cooldown, and the next one answers. With
-none left, deterministic offline answers built from `data/` take over, so the interface
-never shows a crash. Speech works the same way (`core/speech_router.py`): ElevenLabs when it
-can, otherwise the browser's own voice. The faculty dashboard shows which service is
+Every AI request goes through `core/ai_router.py`, speed first:
+
+| Tier | Provider | How it stays fast |
+|:---:|---|---|
+| 1 | **Groq** | A pool of keys used round-robin; a key that hits its rate limit rests for 60 s while the next answers in the same request. 4 s timeout. |
+| 2 | **Google Gemini** | Its own key pool, rotated the same way. 5 s timeout. |
+| 3 | **Ollama** (local) | A 200 ms ping first, so an absent server costs nothing; the model stays loaded with a small context. |
+| 4 | **Built-in answers** | Questions from the question bank, skills from the role catalogue, coaching from fixed tips: instant, no network. |
+
+A tier without keys, or with every key resting, is skipped without a call, and each sits
+behind a **circuit breaker** that pauses it after repeated failures. Identical plan,
+critique and rubric requests come straight from a SHA-256 prompt cache in under 2 ms. The
+student never sees a key prompt, an error or a warning. Speech works the same way
+(`core/speech_router.py`): ElevenLabs, with every clip cached so a question is never paid
+for twice, otherwise the browser's own voice. The faculty dashboard shows which service is
 answering right now.
 
 ---
@@ -143,7 +152,7 @@ flowchart LR
         A["resume parser · planner<br/>critic quiz · voice · rubric"]
     end
     subgraph L3["Layer 3 (core/)"]
-        R["ai_router<br/>Gemini → Groq → Ollama → offline"]
+        R["ai_router<br/>Groq → Gemini → Ollama → built-in<br/>key pools · prompt cache"]
         SP["speech_router<br/>ElevenLabs → browser"]
     end
     subgraph Data["Storage"]
@@ -167,7 +176,7 @@ flowchart LR
 |---|---|
 | Interface | Streamlit 1.66 (Altair charts, self-hosted fonts, light and dark tokens); optional Next.js 14 front end over FastAPI |
 | Agents | LangGraph generate → verify → retry loop; every output is a validated Pydantic model |
-| AI providers | Google Gemini, Groq, local Ollama, then offline rules |
+| AI providers | Groq, Google Gemini (round-robin key pools), local Ollama, then built-in answers |
 | Voice | ElevenLabs, then the Web Speech API; Whisper (Groq) for transcription |
 | Storage | SQLite for the app; SQLAlchemy telemetry on PostgreSQL with automatic SQLite failover |
 
@@ -176,16 +185,18 @@ flowchart LR
 ## Configuration
 
 `bootstrap.py` creates `.env` from [`.env.example`](.env.example), where every key is
-explained. The ones that matter:
+explained. **Only Groq and/or Gemini are needed for cloud AI**; everything else falls back on
+its own.
 
 | Key | Needed for | Default |
 |---|---|---|
 | `MOCK_MODE` | `false` turns on live AI | `true` (offline demo) |
-| `GEMINI_API_KEY` | Primary AI provider ([get a key](https://aistudio.google.com/apikey)) | empty: skipped |
-| `GROQ_API_KEY` | Second provider and speech-to-text | empty: skipped |
-| `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | A local model that works without internet | `http://localhost:11434`, `llama3` |
+| `GROQ_API_KEYS` | Fastest cloud AI and speech-to-text; one key or `key1,key2,key3` ([keys](https://console.groq.com/keys)) | empty: skipped |
+| `GEMINI_API_KEYS` | Second cloud AI; one key or a comma-separated pool ([keys](https://aistudio.google.com/apikey)) | empty: skipped |
+| `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | A local model that works without internet | `http://localhost:11434`, `llama3.2:3b` |
 | `ELEVENLABS_API_KEY` | A natural voice for interview questions | empty: browser voice |
-| `DATABASE_URL` | PostgreSQL for telemetry | empty: local SQLite |
+| `SUPABASE_DB_URL` or `DATABASE_URL` | Hosted PostgreSQL for telemetry | empty: local SQLite |
+| `GROQ_TIMEOUT_S`, `GEMINI_TIMEOUT_S` | How long a tier may take before the next answers | `4.0`, `5.0` |
 
 `.env` is git-ignored; never commit it.
 

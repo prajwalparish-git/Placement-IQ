@@ -16,6 +16,8 @@ __pycache__/
 # --- Runtime data (recreate with: ./run.sh seed, or .\run.ps1 seed) -------------------------------
 data/*.db
 data/*.db-journal
+data/.ai_cache.json
+data/.audio_cache/
 
 # --- Evaluation output (regenerate with: python -m evaluation.run_eval) ---------------------------
 evaluation/results/*

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 250" width="1200" height="250" role="img" aria-labelledby="title desc">
 <title id="title">Layer 3: self-healing AI routing</title>
-<desc id="desc">A request tries Gemini, then Groq, then a local Ollama, then built-in offline rules. A failing provider is paused by a circuit breaker and the next one answers.</desc>
+<desc id="desc">A request tries Groq, then Gemini, then a local Ollama, then built-in answers. Each cloud tier rotates its keys; a tier that cannot answer is skipped and the next one answers.</desc>
 <defs><marker id="tip" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
   <path d="M0 0 L10 5 L0 10 z" fill="#566461"/></marker></defs>
 <style>
@@ -32,7 +32,7 @@
 </style>
 <rect width="1200" height="250" rx="18" fill="#FBFBFA" stroke="#DCE1DE"/>
 <text x="60" y="44" class="head">One request, four ways to answer it</text>
-<text x="60" y="70" class="sub">A provider that fails is paused by its circuit breaker; the next one answers. The app never stops.</text>
-<g class="box down"><rect x="60" y="95" width="230" height="92" rx="14"/><text x="80" y="133" class="name">Gemini</text><text x="80" y="159" class="role">primary</text><text x="272" y="133" class="state">down: paused</text></g><path d="M298 141 h34" class="arrow"/><g class="box live"><rect x="340" y="95" width="230" height="92" rx="14"/><text x="360" y="133" class="name">Groq</text><text x="360" y="159" class="role">second</text><text x="552" y="133" class="state">answers</text></g><path d="M578 141 h34" class="arrow"/><g class="box idle"><rect x="620" y="95" width="230" height="92" rx="14"/><text x="640" y="133" class="name">Ollama</text><text x="640" y="159" class="role">local, offline</text><text x="832" y="133" class="state">standby</text></g><path d="M858 141 h34" class="arrow"/><g class="box idle"><rect x="900" y="95" width="230" height="92" rx="14"/><text x="920" y="133" class="name">Offline rules</text><text x="920" y="159" class="role">built-in banks</text><text x="1112" y="133" class="state">last resort</text></g>
+<text x="60" y="70" class="sub">Keys rotate round-robin; a rate-limited key rests while the next answers, and a tier that cannot answer is skipped.</text>
+<g class="box down"><rect x="60" y="95" width="230" height="92" rx="14"/><text x="80" y="133" class="name">Groq</text><text x="80" y="159" class="role">fastest · key pool</text><text x="272" y="133" class="state">keys resting</text></g><path d="M298 141 h34" class="arrow"/><g class="box live"><rect x="340" y="95" width="230" height="92" rx="14"/><text x="360" y="133" class="name">Gemini</text><text x="360" y="159" class="role">high capacity · key pool</text><text x="552" y="133" class="state">answers</text></g><path d="M578 141 h34" class="arrow"/><g class="box idle"><rect x="620" y="95" width="230" height="92" rx="14"/><text x="640" y="133" class="name">Ollama</text><text x="640" y="159" class="role">local · no internet</text><text x="832" y="133" class="state">standby</text></g><path d="M858 141 h34" class="arrow"/><g class="box idle"><rect x="900" y="95" width="230" height="92" rx="14"/><text x="920" y="133" class="name">Built-in</text><text x="920" y="159" class="role">question bank · rules</text><text x="1112" y="133" class="state">last resort</text></g>
 <circle class="req" cx="0" cy="207" r="7"/>
 </svg>

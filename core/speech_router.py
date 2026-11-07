@@ -10,13 +10,22 @@ pyttsx3 is deliberately not used: it speaks through the server's sound card, whi
 app is not the student's, and it would add a dependency.
 
 ElevenLabs sits behind the same kind of circuit breaker as the AI providers: an outage, a 429
-or a refused key pauses it, and the browser voice answers in the meantime.
+or a refused key pauses it, and the browser voice answers in the meantime. Every clip it makes
+is kept in AUDIO_CACHE_DIR (default data/.audio_cache/<sha256>.mp3, git-ignored), keyed by the
+text, voice and model, so the same question is never synthesised (or paid for) twice.
+
+No key is ever asked for: ELEVENLABS_API_KEY is read from .env or the browser voice is used,
+with nothing shown to the student but the play button.
 """
 
+import hashlib
 import html
 import json
 import logging
+import os
+import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
 import httpx
@@ -100,15 +109,50 @@ def _elevenlabs(text: str) -> bytes:
     raise RuntimeError(f"ElevenLabs answered HTTP {r.status_code}")
 
 
+def audio_path(text: str) -> Path:
+    """Where the clip for `text` in the configured voice and model is cached."""
+    s = settings()
+    voice = s.elevenlabs_voice_id or ELEVENLABS_DEFAULT_VOICE
+    digest = hashlib.sha256(f"{voice}\n{s.elevenlabs_model}\n{text}".encode()).hexdigest()
+    return s.audio_cache_dir / f"{digest}.mp3"
+
+
+def _store(path: Path, audio: bytes) -> None:
+    """Write the clip atomically; a failed write only costs the cache, never the audio."""
+    tmp = None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".part")
+        with os.fdopen(fd, "wb") as f:
+            f.write(audio)
+        os.replace(tmp, path)
+    except OSError as e:
+        log.warning("Audio cache could not be written to %s: %s", path, e)
+        if tmp:
+            Path(tmp).unlink(missing_ok=True)
+
+
 def synthesize(text: str) -> Speech:
-    """ElevenLabs audio when it can, else a Speech the page renders with the browser voice."""
+    """Cached or fresh ElevenLabs audio when a key is set, else a Speech the page renders with
+    the browser voice. Never raises, never asks for anything."""
     spoken = clip(text)
-    why = elevenlabs_unavailable()
-    if not why and spoken:
+    if not spoken:
+        return Speech(spoken, "browser", None, "nothing to say")
+    if settings().elevenlabs_api_key:
+        path = audio_path(spoken)
         try:
-            return Speech(spoken, "elevenlabs", _elevenlabs(spoken))
+            if path.is_file():  # served even while ElevenLabs itself is paused
+                return Speech(spoken, "elevenlabs", path.read_bytes())
+        except OSError:
+            pass
+    why = elevenlabs_unavailable()
+    if not why:
+        try:
+            audio = _elevenlabs(spoken)
+            _store(audio_path(spoken), audio)
+            return Speech(spoken, "elevenlabs", audio)
         except Exception as e:  # the student still hears the question
-            log.warning("ElevenLabs failed (%s); the browser voice takes over", e)
+            log.info("ElevenLabs failed (%s); the browser voice takes over", e)
             why = f"ElevenLabs failed: {e}"
     return Speech(spoken, "browser", None, why)
 

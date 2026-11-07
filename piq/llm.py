@@ -2,12 +2,13 @@
 
 `call()` = JSON mode + Pydantic validation + one repair retry + agent_logs row.
 
-Which provider answers is Layer 3's job (core/ai_router.py): Gemini, Groq or a local Ollama,
-each behind a circuit breaker. When none can answer, the deterministic offline tier
-(piq/mock.py, built from data/) answers instead, unless AI_OFFLINE_FALLBACK=false (the
-evaluation), in which case the failure is raised: `RateLimited` when every provider that was
-tried is out of quota, else `LLMError`. In MOCK_MODE the response comes from `piq.mock` without
-touching the network. Either way the output goes through the same validation.
+Which provider answers is Layer 3's job (core/ai_router.py): Groq, Gemini or a local Ollama,
+with key pools, circuit breakers and a prompt cache. When none can answer, the offline tier
+(piq/offline.py, built from data/) answers instead, silently, unless AI_OFFLINE_FALLBACK=false
+(the evaluation), in which case the failure is raised: `RateLimited` when every provider that
+was tried is out of quota, else `LLMError`. In MOCK_MODE the response comes from `piq.mock`
+without touching the network. Either way the output goes through the same validation, and
+only a validated answer is stored in the prompt cache.
 """
 
 import json
@@ -18,7 +19,7 @@ from typing import Literal
 from pydantic import BaseModel, ValidationError
 
 from core import ai_router
-from piq import db, mock
+from piq import db, mock, offline
 from piq.config import settings
 
 Size = Literal["large", "small"]
@@ -43,7 +44,7 @@ class RateLimited(LLMError):
 def _offline(agent: str, context: dict, down: ai_router.AllProvidersDown) -> str:
     """The deterministic answer for `agent`, or the providers' failure when it has none."""
     try:
-        return json.dumps(mock.respond(agent, context))
+        return json.dumps(offline.respond(agent, context))
     except Exception as e:  # an agent the offline tier does not cover (agents/ has its own)
         raise LLMError(f"No AI provider answered and {agent} has no offline answer: {down}") from e
 
@@ -69,6 +70,7 @@ def call[T: BaseModel](
         },
         {"role": "user", "content": user},
     ]
+    request = [dict(m) for m in messages]  # the cache key: the first attempt, not a repair
     t0 = time.perf_counter()
     tok_in = tok_out = 0
     error = ""
@@ -94,7 +96,7 @@ def call[T: BaseModel](
                             who = " and ".join(ai_router.LABELS[p] for p in e.failures)
                             raise RateLimited(e.retry_after, who) from e
                         raise LLMError(str(e)) from e
-                    log.warning("%s: no provider answered (%s); offline tier answers", agent, e)
+                    log.info("%s: no provider answered (%s); offline tier answers", agent, e)
                     content, used = _offline(agent, context, e), OFFLINE
             tok_in, tok_out = tok_in + i, tok_out + o
             if content:
@@ -118,6 +120,8 @@ def call[T: BaseModel](
         latency = int((time.perf_counter() - t0) * 1000)
         db.log_call(agent, used, tok_in, tok_out, latency, student_id, failed=str(e))
         raise
+    if model != "mock" and used != OFFLINE:
+        ai_router.remember(request, content, used, size=size, temperature=temperature, agent=agent)
     latency = int((time.perf_counter() - t0) * 1000)
     log_id = db.log_call(agent, used, tok_in, tok_out, latency, student_id)
     return out, log_id

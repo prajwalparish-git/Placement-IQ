@@ -14,7 +14,7 @@ reads it back (through `piq/journey.py`).
 | Language | Python | 3.13 (tested on 3.13.3) |
 | UI and charts | Streamlit (includes Altair and pandas; both pinned because imported directly) | 1.66.0 (Altair 6.3.0, pandas 3.0.6) |
 | Agent loop | LangGraph | 1.2.16 |
-| LLM providers (`core/ai_router.py`) | Gemini REST (primary), Groq SDK, local Ollama REST; JSON mode each | Groq 1.7.0, httpx 0.28.1 |
+| LLM providers (`core/ai_router.py`) | Groq SDK (first: fastest), Gemini REST, local Ollama REST; JSON mode each; round-robin key pools | Groq 1.7.0, httpx 0.28.1 |
 | Voice (`core/speech_router.py`) | ElevenLabs REST, else the browser's Web Speech API | httpx 0.28.1 |
 | LLM models (`.env`) | `openai/gpt-oss-120b` (large), `openai/gpt-oss-20b` (small) | verified 2026-10-19 |
 | Validation | Pydantic | 2.14.1 |
@@ -60,9 +60,15 @@ views/              One file per page. Calls piq.services, piq.formatter, piq.ch
   dashboard.py      Readiness, streak, topic mastery, plans, interviews; agents and critic apart
   results.py        Evaluation scorecard: advanced parameters rated 0-10 (piq/scorecard.py)
 core/               Layer 3: self-healing routers. Never import Streamlit
-  ai_router.py      Gemini -> Groq -> Ollama, a circuit breaker each, Ollama health check; raises
-                    AllProvidersDown when none answers (piq/llm.py then serves the offline tier)
-  speech_router.py  ElevenLabs -> browser Web Speech API (no pyttsx3: it speaks on the server)
+  ai_router.py      Groq (4 s) -> Gemini (5 s) -> Ollama (200 ms ping, keep_alive -1), a circuit
+                    breaker each; prompt cache lookup first; raises AllProvidersDown when none
+                    answers (piq/llm.py then serves the offline tier, piq/offline.py)
+  key_pool.py       KeyPoolManager: round-robin keys, 429 -> 60 s rest (or retry-after) and the
+                    next key at once, 401/403 -> 1 h rest, moving-average latency; thread-safe
+  ai_cache.py       SHA-256 request -> validated answer, in memory and data/.ai_cache.json; only
+                    AI_CACHE_AGENTS (planner, critic, evaluator); LRU-capped, 7-day TTL
+  speech_router.py  ElevenLabs (clips cached in data/.audio_cache/) -> browser Web Speech API
+                    (no pyttsx3: it speaks on the server)
 piq/                Application package. Only ui.py imports Streamlit
   services.py       Controllers: every user operation; validates, runs agents, persists, typed state
   journey.py        Controllers for journey steps 2-6: run agents/, record telemetry (best-effort:
@@ -79,6 +85,8 @@ piq/                Application package. Only ui.py imports Streamlit
   llm.py            The ONLY LLM gateway: messages, validation, repair retry, agent_logs, mock and
                     the offline tier; transport is core/ai_router.py
   mock.py           Deterministic MOCK_MODE responses (must pass the same checks)
+  offline.py        Layer 3's last tier: answers from data/ (question bank, role skills, tracks,
+                    fixed tips), unlabelled; the agents/ package uses its own banks
   prompts.py        Every system prompt
   graph.py          LangGraph loop: generate -> verify -> retry | done
   agents.py         Profile, Planner, Quiz (+ LLM critic, verdict cache), Interviewer, Evaluator
@@ -139,7 +147,7 @@ Run from the repo root. On Windows, activate with `.venv\Scripts\activate`.
 ```
 python bootstrap.py --dev               # Python 3.13 (private copy in .tools/ if missing), .venv,
                                         # deps, .env from .env.example, run.ps1 / run.sh launcher
-.un.ps1   |   ./run.sh               # start the app (also: seed | api | test | check)
+.\run.ps1   |   ./run.sh             # start the app (also: seed | api | test | check)
 python -m scripts.check_models          # before a demo: models served, JSON mode, quota left
 python -m scripts.seed                  # demo student with 4 weeks of history
 python -m scripts.seed_cohort           # demo cohort for the faculty dashboard
@@ -202,7 +210,8 @@ There is no build step. `.env.example` already contains the verified model IDs. 
 - Fonts in `static/fonts/` are OFL, self-hosted (no font CDN at runtime: the app must work offline) and keep their licence files next to them.
 - External services are optional and degrade in order (Gemini, Groq, Ollama, offline; ElevenLabs, browser voice). Groq's free tier, the one the evaluation used: each model allows 8,000 tokens/minute and 1,000 requests/day (from the response headers), and about 200,000 tokens/day (the full evaluation hit it after 15 of 20 cases). Batch questions into one call, use the small model for extraction, never re-judge questions that were already approved, and keep MOCK_MODE as the default in `.env.example`.
 - Two front ends share one core. The Streamlit app and the Next.js app (`frontend/`, through `server.py`) both call `piq.services`; `server.py` only serialises. Its routes are plain `def`s, so the code stays synchronous; the one `async` is FastAPI's lifespan hook. Interview turns stream critic steps as server-sent events, never unchecked tokens.
-- Groq keys: `GROQ_API_KEY_1` serves agents a student waits on (interviewer, evaluator, bullet), `GROQ_API_KEY_2` background agents; a 429 fails over once (`piq/llm.py`). `GROQ_API_KEY` alone still works.
+- API keys come only from `.env`, never from the UI: `GROQ_API_KEYS` / `GEMINI_API_KEYS` (one key or a comma-separated pool; `GROQ_API_KEY`, `GEMINI_API_KEY` and the older `GROQ_API_KEY_1/_2` join the pool). Requests take the keys round-robin (`core/key_pool.py`). With no key, or every key resting, the tier is skipped without a call and nothing is shown to the student.
+- The prompt cache (`core/ai_cache.py`) stores only validated answers and only for `AI_CACHE_AGENTS`; quizzes and interview questions must stay fresh. The evaluation runs with `AI_CACHE=false`.
 - Quizzes in the Next.js app come straight from the question bank (`services.instant_quiz`), with no LLM call; answers stay on the server until `/api/quiz/submit` grades them. The Streamlit quiz keeps the generate -> critic loop with its bank share.
 - The bullet polish (`agents.enhance_bullet`) may not invent numbers: `checks.check_bullet` rejects any figure absent from the student's text.
 - Telemetry (`database/`): the manager probes `DATABASE_URL` once, with `DB_CONNECT_TIMEOUT`; a missing, malformed, non-PostgreSQL or unreachable URL, or an outage mid-session, fails over to `TELEMETRY_DB_PATH` with one logged event and the operation retried there. No automatic fail-back (restart, or `reset_manager()`). Never log `DATABASE_URL` unmasked: use `safe_url`. `VoiceInterviewSession` stores text and scores only; recording audio or proctoring is still out of scope.

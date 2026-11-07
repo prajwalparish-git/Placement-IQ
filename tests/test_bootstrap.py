@@ -100,7 +100,7 @@ def test_env_status_reports_filled_keys_never_values(tmp_path):
         encoding="utf-8",
     )
     status = bootstrap.env_status(tmp_path)
-    assert status["GEMINI_API_KEY"] is False and status["GROQ_API_KEY"] is True
+    assert status["GEMINI_API_KEYS"] is False and status["GROQ_API_KEYS"] is True
     assert status["MOCK_MODE=false"] is True and status["DATABASE_URL"] is False
     message = bootstrap.summary("windows", made_env=False, root=tmp_path)
     assert "k1" not in message  # a key's value is never printed
@@ -116,3 +116,11 @@ def test_generated_files_and_tools_are_git_ignored():
     ignored = (ROOT / ".gitignore").read_text(encoding="utf-8")
     for entry in ("/run.sh", "/run.ps1", ".tools/", ".venv/", ".env"):
         assert entry in ignored
+
+
+def test_pooled_key_names_count_as_filled(tmp_path):
+    (tmp_path / ".env").write_text(
+        "GROQ_API_KEYS=a,b\nGEMINI_API_KEY=g\nSUPABASE_DB_URL=postgresql://x\n", encoding="utf-8"
+    )
+    status = bootstrap.env_status(tmp_path)
+    assert status["GROQ_API_KEYS"] and status["GEMINI_API_KEYS"] and status["DATABASE_URL"]

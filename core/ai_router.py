@@ -1,38 +1,47 @@
-"""Layer 3, self-healing AI router: send one chat request to the first healthy LLM provider.
+"""Layer 3, self-healing AI router: answer each LLM request as fast as the healthy providers
+allow, and never fail the student.
 
-Providers, tried in the order AI_PROVIDERS gives (default gemini, groq, ollama):
-- gemini: Google's Gemini API over REST (generateContent with a JSON response type).
-- groq: the Groq SDK in JSON mode, with its two-key lanes and 429 failover between the keys.
-- ollama: a local Ollama server (OLLAMA_BASE_URL); no key, and it works with no internet.
+Tiers, in AI_PROVIDERS order (default: speed first):
+1. groq: the fastest cloud. A round-robin pool of keys (GROQ_API_KEYS, core/key_pool.py);
+   a key that hits a 429 rests and the next key is tried at once. Timeout GROQ_TIMEOUT_S.
+2. gemini: high-capacity cloud over REST, its own key pool (GEMINI_API_KEYS). GEMINI_TIMEOUT_S.
+3. ollama: a local model. A 200 ms TCP ping first (offline: skipped at once), the model kept
+   loaded (keep_alive -1) with a small context and answer budget for speed.
+4. Then piq/llm.py's offline tier answers from data/ (question bank, role skills, tracks).
 
-A provider without its key, URL or model is skipped. Each one sits behind a circuit breaker:
-errors that mean "this provider is down" (network, HTTP 5xx, a 429, a retired model, a refused
-key) count as failures, and after ROUTER_FAILURE_THRESHOLD in a row (at once for a 429, a
-retired model or a refused key) the breaker opens. An open breaker skips its provider until
-the cooldown, or the server's retry-after, has passed; then one trial request closes it again
-or reopens it. Ollama is health-checked (GET /api/tags, model pulled?) before use, and the
-answer is cached for OLLAMA_HEALTH_TTL_S seconds.
+Each provider also sits behind a circuit breaker: errors that mean "this provider is down"
+(network, timeouts, HTTP 5xx, a retired model) open it after ROUTER_FAILURE_THRESHOLD in a row,
+and requests skip it until a cooldown passes. A provider with no key, or with every key
+resting, is skipped without any network call.
 
-The router moves text only. piq/llm.py builds the messages, validates the JSON against the
-schema, repairs once and logs the call. When no provider answers, `complete` raises
-AllProvidersDown with each provider's reason; piq/llm.py then serves the deterministic offline
-tier (piq/mock.py, built from data/), and the agents/ package falls back to its own banks.
+Answers for plans, critiques and rubric evaluations are cached by request hash
+(core/ai_cache.py): an identical request returns from memory without a call.
+
+The router moves text only: piq/llm.py builds the messages, validates the JSON, repairs once,
+logs the call and stores a validated answer in the cache.
 """
 
 import logging
+import socket
 import threading
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import TYPE_CHECKING, Literal, Protocol
+from urllib.parse import urlsplit
 
 import httpx
 
+from core.ai_cache import PromptCache, request_key
+from core.key_pool import KeyPoolManager
 from piq.config import (
-    CLOUD_TIMEOUT_S,
+    AI_CACHE_AGENTS,
     OLLAMA_HEALTH_TTL_S,
+    OLLAMA_KEEP_ALIVE,
+    OLLAMA_PING_TIMEOUT_S,
     OLLAMA_PROBE_TIMEOUT_S,
+    OLLAMA_TEMPERATURE,
     OLLAMA_TIMEOUT_S,
     ROUTER_BROKEN_COOLDOWN_S,
     ROUTER_COOLDOWN_S,
@@ -50,6 +59,7 @@ log = logging.getLogger("core.ai_router")
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 LABELS = {"gemini": "Gemini", "groq": "Groq", "ollama": "Ollama (local)"}
+CACHE = "cache"  # Completion.provider of an answer served from the prompt cache
 
 
 @dataclass(frozen=True)
@@ -69,9 +79,9 @@ class Completion:
 class ProviderError(Exception):
     """The provider could not answer this request.
 
-    `counts`: it says the provider is unwell (False for a request it refused on its merits).
-    `rate_limited` / `retry_after`: a 429 and the server's hint. `cooldown`: open the breaker
-    for this long at once (a retired model or a refused key will not heal in a minute)."""
+    `counts`: it says the provider is unwell (False for a request refused on its merits, or
+    a key pool that is only resting). `rate_limited` / `retry_after`: quota and the hint.
+    `cooldown`: open the breaker this long at once (a retired model will not heal soon)."""
 
     def __init__(
         self,
@@ -93,7 +103,7 @@ class InvalidJson(Exception):
 
 class AllProvidersDown(Exception):
     """No provider could answer. `failures`: the reason for each provider that was tried or is
-    paused; `skipped`: providers left out because they are not set up."""
+    paused; `skipped`: providers left out because they are not set up or not reachable."""
 
     def __init__(
         self,
@@ -107,7 +117,7 @@ class AllProvidersDown(Exception):
         self.rate_limited, self.retry_after = rate_limited, retry_after
         if not failures:
             message = (
-                "No AI provider is set up: add GEMINI_API_KEY, GROQ_API_KEY or "
+                "No AI provider is set up: add GROQ_API_KEYS, GEMINI_API_KEYS or "
                 "OLLAMA_BASE_URL to .env."
             )
         elif len(failures) == 1:
@@ -171,6 +181,39 @@ class CircuitBreaker:
                 self.open_until = now + wait
 
 
+# --- key pools --------------------------------------------------------------------------------
+
+_pools: dict[str, KeyPoolManager] = {}
+_pools_lock = threading.Lock()
+
+
+def key_pool(provider: str, keys: tuple[str, ...]) -> KeyPoolManager:
+    """The provider's pool for these keys (rebuilt when .env's keys change)."""
+    with _pools_lock:
+        pool = _pools.get(provider)
+        if pool is None or pool.keys != tuple(dict.fromkeys(keys)):
+            pool = _pools[provider] = KeyPoolManager(keys)
+        return pool
+
+
+def _all_resting(name: str, pool: KeyPoolManager, hint: float | None = None) -> ProviderError:
+    """Every key is resting: say whether from rate limits (wait) or refusals (fix .env). The
+    pool holds that state, so the provider's own breaker is left alone (counts=False)."""
+    n = len(pool)
+    which = "its key" if n == 1 else f"all {n} keys"
+    reasons = {k.reason for k in pool.status() if not k.available}
+    if reasons and all(r.startswith("refused") for r in reasons):
+        return ProviderError(
+            f"{name} refused {which}; check {name.upper()}_API_KEYS in .env", counts=False
+        )
+    return ProviderError(
+        f"{name} free-tier rate limit reached on {which}",
+        counts=False,
+        rate_limited=True,
+        retry_after=hint if hint is not None else (pool.retry_in() or None),
+    )
+
+
 # --- providers --------------------------------------------------------------------------------
 
 
@@ -186,6 +229,10 @@ class Provider(Protocol):
     def complete(
         self, messages: Messages, *, size: Size, temperature: float, agent: str
     ) -> Completion: ...
+
+    def detail(self) -> str:
+        """One line for the status panel when the provider is ready."""
+        ...
 
 
 @lru_cache
@@ -211,20 +258,114 @@ def _excerpt(r: httpx.Response) -> str:
     return " ".join(str(text).split())[:300]
 
 
-class Gemini:
-    name = "gemini"
+def _keys_detail(pool: KeyPoolManager) -> str:
+    n, ok = len(pool), pool.available_count()
+    return "Ready" if n == 1 else f"Ready: {ok} of {n} keys available"
+
+
+@lru_cache
+def _groq_client(key: str, timeout: float) -> "Groq":
+    from groq import Groq  # imported lazily so MOCK_MODE never needs network config
+
+    # No SDK retries: a rate-limited key is skipped for the next one at once (core/key_pool).
+    return Groq(api_key=key, max_retries=0, timeout=timeout)
+
+
+class GroqProvider:
+    name = "groq"
+
+    def pool(self) -> KeyPoolManager:
+        return key_pool(self.name, settings().groq_api_keys)
 
     def unavailable(self) -> str:
         s = settings()
-        return "" if s.gemini_api_key and s.gemini_model else "GEMINI_API_KEY is not set"
+        if not s.groq_api_keys:
+            return "GROQ_API_KEYS is not set"
+        return "" if s.model_large and s.model_small else "GROQ_MODEL_LARGE/SMALL are not set"
 
     def model(self, size: Size) -> str:
-        return settings().gemini_model
+        s = settings()
+        return s.model_large if size == "large" else s.model_small
+
+    def detail(self) -> str:
+        return _keys_detail(self.pool())
 
     def complete(
         self, messages: Messages, *, size: Size, temperature: float, agent: str
     ) -> Completion:
+        import groq
+
+        s, pool, model = settings(), self.pool(), self.model(size)
+        keys = pool.order()
+        if not keys:
+            raise _all_resting("Groq", pool)
+        hint: float | None = None
+        for key in keys:
+            t0 = time.perf_counter()
+            try:
+                r = _groq_client(key, s.groq_timeout_s).chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    response_format={"type": "json_object"},
+                )
+            except groq.RateLimitError as e:
+                hint = _retry_after(e.response.headers)
+                pool.rate_limited(key, hint)
+                log.info("%s: a Groq key is rate-limited; next key", agent)
+                continue
+            except (groq.AuthenticationError, groq.PermissionDeniedError):
+                pool.refused(key, "refused by Groq")
+                log.warning("%s: Groq refused a key; it rests for an hour", agent)
+                continue
+            except groq.NotFoundError as e:
+                raise ProviderError(
+                    f"Groq no longer serves model {model!r}. Update GROQ_MODEL_LARGE / "
+                    "GROQ_MODEL_SMALL in .env (see console.groq.com/docs/models).",
+                    cooldown=ROUTER_BROKEN_COOLDOWN_S,
+                ) from e
+            except groq.BadRequestError as e:
+                # Groq rejects output that is not valid JSON in json_object mode: repairable.
+                if "json_validate_failed" in str(e):
+                    pool.success(key, time.perf_counter() - t0)
+                    raise InvalidJson(str(e)) from e
+                raise ProviderError(f"Groq rejected the request: {e}", counts=False) from e
+            except groq.APITimeoutError as e:  # the model, not the key: move to the next tier
+                raise ProviderError(f"Groq timed out after {s.groq_timeout_s:g} s") from e
+            except groq.APIError as e:  # connection errors and HTTP 5xx
+                raise ProviderError(f"Groq API error: {e}") from e
+            pool.success(key, time.perf_counter() - t0)
+            u = r.usage
+            return Completion(
+                r.choices[0].message.content or "",
+                u.prompt_tokens,
+                u.completion_tokens,
+                self.name,
+                model,
+            )
+        raise _all_resting("Groq", pool, hint)
+
+
+class Gemini:
+    name = "gemini"
+
+    def pool(self) -> KeyPoolManager:
+        return key_pool(self.name, settings().gemini_api_keys)
+
+    def unavailable(self) -> str:
         s = settings()
+        if not s.gemini_api_keys:
+            return "GEMINI_API_KEYS is not set"
+        return "" if s.gemini_model else "GEMINI_MODEL is not set"
+
+    def model(self, size: Size) -> str:
+        return settings().gemini_model
+
+    def detail(self) -> str:
+        return _keys_detail(self.pool())
+
+    @staticmethod
+    def body(messages: Messages, temperature: float) -> dict:
         system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
         body: dict = {
             "contents": [
@@ -242,136 +383,76 @@ class Gemini:
         }
         if system:
             body["systemInstruction"] = {"parts": [{"text": system}]}
-        try:
-            r = _http().post(
-                GEMINI_URL.format(model=s.gemini_model),
-                json=body,
-                headers={"x-goog-api-key": s.gemini_api_key},
-                timeout=CLOUD_TIMEOUT_S,
-            )
-        except httpx.HTTPError as e:
-            raise ProviderError(f"Gemini is unreachable ({type(e).__name__})") from e
-        if r.status_code == 429:
-            raise ProviderError(
-                "Gemini rate limit reached", rate_limited=True, retry_after=_retry_after(r.headers)
-            )
-        if r.status_code == 404:
-            raise ProviderError(
-                f"Gemini does not serve model {s.gemini_model!r}. Update GEMINI_MODEL in .env "
-                "(see ai.google.dev/gemini-api/docs/models).",
-                cooldown=ROUTER_BROKEN_COOLDOWN_S,
-            )
-        if r.status_code in (401, 403):
-            raise ProviderError(
-                f"Gemini refused the API key: {_excerpt(r)}", cooldown=ROUTER_BROKEN_COOLDOWN_S
-            )
-        if r.status_code == 400:
-            raise ProviderError(f"Gemini rejected the request: {_excerpt(r)}", counts=False)
-        if r.status_code >= 400:
-            raise ProviderError(f"Gemini API error {r.status_code}: {_excerpt(r)}")
-        data = r.json()
-        candidates = data.get("candidates") or []
-        if not candidates:  # blocked by a safety filter: the request, not the service
-            blocked = (data.get("promptFeedback") or {}).get("blockReason", "no candidates")
-            raise ProviderError(f"Gemini returned no answer ({blocked})", counts=False)
-        parts = (candidates[0].get("content") or {}).get("parts") or []
-        text = "".join(p.get("text", "") for p in parts if not p.get("thought"))
-        usage = data.get("usageMetadata") or {}
-        return Completion(
-            text,
-            int(usage.get("promptTokenCount", 0)),
-            int(usage.get("candidatesTokenCount", 0)),
-            self.name,
-            s.gemini_model,
-        )
-
-
-# Agents a student is waiting on: they take Groq's interactive lane (key 1).
-INTERACTIVE_AGENTS = frozenset({"interviewer", "evaluator", "bullet"})
-
-
-def keys_for(agent: str) -> list[str]:
-    """Groq's keys in the order `agent` tries them: its lane's key, then the other."""
-    pool = list(settings().groq_api_keys)
-    if len(pool) < 2:
-        return pool
-    lane = 0 if agent in INTERACTIVE_AGENTS else 1
-    return [pool[lane], pool[1 - lane]]
-
-
-@lru_cache
-def _groq_client(key: str) -> "Groq":
-    from groq import Groq  # imported lazily so MOCK_MODE never needs network config
-
-    # With a second key, fail over fast instead of backing off on an exhausted one.
-    retries = 4 if len(settings().groq_api_keys) < 2 else 1
-    return Groq(api_key=key, max_retries=retries, timeout=CLOUD_TIMEOUT_S)
-
-
-class GroqProvider:
-    """Keys form a pool of one or two (GROQ_API_KEY_1, GROQ_API_KEY_2). Agents a student waits
-    on use key 1, background work key 2; a 429 on one key fails over to the other once. Groq
-    limits quota per organisation, so a second key adds headroom only if it belongs to another
-    one. With one key, 429 backoff is the SDK's own (max_retries)."""
-
-    name = "groq"
-
-    def unavailable(self) -> str:
-        s = settings()
-        if not s.groq_api_keys:
-            return "GROQ_API_KEY is not set"
-        return "" if s.model_large and s.model_small else "GROQ_MODEL_LARGE/SMALL are not set"
-
-    def model(self, size: Size) -> str:
-        s = settings()
-        return s.model_large if size == "large" else s.model_small
+        return body
 
     def complete(
         self, messages: Messages, *, size: Size, temperature: float, agent: str
     ) -> Completion:
-        import groq
-
-        model = self.model(size)
-        keys = keys_for(agent)
-        for n, key in enumerate(keys):
+        s, pool = settings(), self.pool()
+        keys = pool.order()
+        if not keys:
+            raise _all_resting("Gemini", pool)
+        body, hint = self.body(messages, temperature), None
+        for key in keys:
+            t0 = time.perf_counter()
             try:
-                r = _groq_client(key).chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=temperature,
-                    response_format={"type": "json_object"},
+                r = _http().post(
+                    GEMINI_URL.format(model=s.gemini_model),
+                    json=body,
+                    headers={"x-goog-api-key": key},
+                    timeout=s.gemini_timeout_s,
                 )
-                break
-            except groq.RateLimitError as e:
-                if n + 1 < len(keys):
-                    log.warning("%s: Groq key %d rate-limited; trying key %d", agent, n + 1, n + 2)
-                    continue
+            except httpx.TimeoutException as e:
+                raise ProviderError(f"Gemini timed out after {s.gemini_timeout_s:g} s") from e
+            except httpx.HTTPError as e:
+                raise ProviderError(f"Gemini is unreachable ({type(e).__name__})") from e
+            if r.status_code == 429:
+                hint = _retry_after(r.headers)
+                pool.rate_limited(key, hint)
+                log.info("%s: a Gemini key is rate-limited; next key", agent)
+                continue
+            if r.status_code in (401, 403):
+                pool.refused(key, "refused by Gemini")
+                log.warning("%s: Gemini refused a key: %s", agent, _excerpt(r))
+                continue
+            if r.status_code == 404:
                 raise ProviderError(
-                    "Groq free-tier rate limit reached",
-                    rate_limited=True,
-                    retry_after=_retry_after(e.response.headers),
-                ) from e
-            except groq.NotFoundError as e:
-                raise ProviderError(
-                    f"Groq no longer serves model {model!r}. Update GROQ_MODEL_LARGE / "
-                    "GROQ_MODEL_SMALL in .env (see console.groq.com/docs/models).",
+                    f"Gemini does not serve model {s.gemini_model!r}. Update GEMINI_MODEL in .env "
+                    "(see ai.google.dev/gemini-api/docs/models).",
                     cooldown=ROUTER_BROKEN_COOLDOWN_S,
-                ) from e
-            except groq.BadRequestError as e:
-                # Groq rejects output that is not valid JSON in json_object mode: repairable.
-                if "json_validate_failed" in str(e):
-                    raise InvalidJson(str(e)) from e
-                raise ProviderError(f"Groq rejected the request: {e}", counts=False) from e
-            except groq.APIError as e:  # includes connection errors and timeouts
-                raise ProviderError(f"Groq API error: {e}") from e
-        u = r.usage
-        return Completion(
-            r.choices[0].message.content or "",
-            u.prompt_tokens,
-            u.completion_tokens,
-            self.name,
-            model,
-        )
+                )
+            if r.status_code == 400:
+                raise ProviderError(f"Gemini rejected the request: {_excerpt(r)}", counts=False)
+            if r.status_code >= 400:
+                raise ProviderError(f"Gemini API error {r.status_code}: {_excerpt(r)}")
+            pool.success(key, time.perf_counter() - t0)
+            data = r.json()
+            candidates = data.get("candidates") or []
+            if not candidates:  # blocked by a safety filter: the request, not the service
+                blocked = (data.get("promptFeedback") or {}).get("blockReason", "no candidates")
+                raise ProviderError(f"Gemini returned no answer ({blocked})", counts=False)
+            parts = (candidates[0].get("content") or {}).get("parts") or []
+            text = "".join(p.get("text", "") for p in parts if not p.get("thought"))
+            usage = data.get("usageMetadata") or {}
+            return Completion(
+                text,
+                int(usage.get("promptTokenCount", 0)),
+                int(usage.get("candidatesTokenCount", 0)),
+                self.name,
+                s.gemini_model,
+            )
+        raise _all_resting("Gemini", pool, hint)
+
+
+def _ping(base_url: str, timeout: float = OLLAMA_PING_TIMEOUT_S) -> bool:
+    """Does anything accept TCP connections at the URL's host and port within `timeout`?"""
+    parts = urlsplit(base_url)
+    port = parts.port or (443 if parts.scheme == "https" else 80)
+    try:
+        with socket.create_connection((parts.hostname or "localhost", port), timeout=timeout):
+            return True
+    except OSError:
+        return False
 
 
 class Ollama:
@@ -379,10 +460,13 @@ class Ollama:
 
     def __init__(self, clock: Callable[[], float] = time.monotonic) -> None:
         self._clock = clock
-        self._checked: tuple[float, str, str] | None = None  # (when, base_url, reason)
+        self._checked: tuple[float, str, str, str] | None = None  # (when, url, model, reason)
 
     def model(self, size: Size) -> str:
         return settings().ollama_model
+
+    def detail(self) -> str:
+        return "Ready"
 
     def forget(self) -> None:
         self._checked = None
@@ -391,15 +475,15 @@ class Ollama:
         s = settings()
         if not (s.ollama_base_url and s.ollama_model):
             return "OLLAMA_BASE_URL is not set"
-        now = self._clock()
-        if (
-            self._checked
-            and self._checked[1] == s.ollama_base_url
-            and now - self._checked[0] < OLLAMA_HEALTH_TTL_S
-        ):
-            return self._checked[2]
-        reason = self._probe(s.ollama_base_url, s.ollama_model)
-        self._checked = (now, s.ollama_base_url, reason)
+        if not _ping(s.ollama_base_url):  # every request: refused at once, or 200 ms at most
+            self.forget()
+            return f"Ollama is not running at {s.ollama_base_url}"
+        now, c = self._clock(), self._checked
+        key = (s.ollama_base_url, s.ollama_model)
+        if c and (c[1], c[2]) == key and now - c[0] < OLLAMA_HEALTH_TTL_S:
+            return c[3]
+        reason = self._probe(*key)
+        self._checked = (now, *key, reason)
         return reason
 
     @staticmethod
@@ -409,11 +493,27 @@ class Ollama:
             r.raise_for_status()
             names = {m.get("name", "") for m in r.json().get("models", [])}
         except (httpx.HTTPError, ValueError, AttributeError):
-            return f"Ollama is not running at {base}"
+            return f"Ollama is not answering at {base}"
         wanted = {model, f"{model}:latest"}
         if not (names & wanted or any(n.split(":")[0] == model for n in names)):
             return f"Ollama has not pulled {model!r} (run: ollama pull {model})"
         return ""
+
+    @staticmethod
+    def payload(messages: Messages, model: str) -> dict:
+        s = settings()
+        return {
+            "model": model,
+            "messages": messages,
+            "stream": False,
+            "format": "json",
+            "keep_alive": OLLAMA_KEEP_ALIVE,  # stays loaded: no reload before the next request
+            "options": {
+                "num_ctx": s.ollama_num_ctx,
+                "num_predict": s.ollama_num_predict,
+                "temperature": OLLAMA_TEMPERATURE,
+            },
+        }
 
     def complete(
         self, messages: Messages, *, size: Size, temperature: float, agent: str
@@ -422,13 +522,7 @@ class Ollama:
         try:
             r = _http().post(
                 f"{s.ollama_base_url}/api/chat",
-                json={
-                    "model": s.ollama_model,
-                    "messages": messages,
-                    "stream": False,
-                    "format": "json",
-                    "options": {"temperature": temperature},
-                },
+                json=self.payload(messages, s.ollama_model),
                 timeout=OLLAMA_TIMEOUT_S,
             )
         except httpx.HTTPError as e:
@@ -451,7 +545,7 @@ class Ollama:
         )
 
 
-PROVIDERS: dict[str, Provider] = {p.name: p for p in (Gemini(), GroqProvider(), Ollama())}
+PROVIDERS: dict[str, Provider] = {p.name: p for p in (GroqProvider(), Gemini(), Ollama())}
 _breakers: dict[str, CircuitBreaker] = {}
 _breakers_lock = threading.Lock()
 
@@ -461,11 +555,52 @@ def breaker(name: str) -> CircuitBreaker:
         return _breakers.setdefault(name, CircuitBreaker())
 
 
+# --- the prompt cache -------------------------------------------------------------------------
+
+_cache: PromptCache | None = None
+_cache_lock = threading.Lock()
+
+
+def prompt_cache() -> PromptCache:
+    global _cache
+    with _cache_lock:
+        path = settings().ai_cache_path
+        if _cache is None or _cache.path != path:
+            _cache = PromptCache(path)
+        return _cache
+
+
+def _cacheable(agent: str) -> bool:
+    return settings().ai_cache and agent in AI_CACHE_AGENTS
+
+
+def cached(messages: Messages, *, size: Size, temperature: float, agent: str) -> Completion | None:
+    """The stored answer to this exact request, or None."""
+    if not _cacheable(agent):
+        return None
+    entry = prompt_cache().get(request_key(messages, size, temperature, agent))
+    return Completion(entry.text, 0, 0, CACHE, entry.label) if entry else None
+
+
+def remember(
+    messages: Messages, text: str, label: str, *, size: Size, temperature: float, agent: str
+) -> None:
+    """Store an answer that passed validation (piq/llm.py calls this; never an invalid one)."""
+    if _cacheable(agent) and not label.startswith(f"{CACHE}:"):
+        prompt_cache().put(request_key(messages, size, temperature, agent), text, label)
+
+
 def reset() -> None:
-    """Close every breaker and forget health checks (tests; or after fixing .env)."""
+    """Close every breaker, empty the key pools, forget health checks and drop the in-memory
+    cache (tests; or after fixing .env)."""
+    global _cache
     with _breakers_lock:
         _breakers.clear()
-    ollama = PROVIDERS["ollama"]
+    with _pools_lock:
+        _pools.clear()
+    with _cache_lock:
+        _cache = None
+    ollama = PROVIDERS.get("ollama")
     if isinstance(ollama, Ollama):
         ollama.forget()
 
@@ -474,8 +609,11 @@ def reset() -> None:
 
 
 def complete(messages: Messages, *, size: Size, temperature: float, agent: str) -> Completion:
-    """The first healthy provider's answer. Raises InvalidJson (repairable; the provider is up)
-    or AllProvidersDown."""
+    """The cached answer, else the first healthy provider's. Raises InvalidJson (repairable;
+    the provider is up) or AllProvidersDown."""
+    hit = cached(messages, size=size, temperature=temperature, agent=agent)
+    if hit:
+        return hit
     failures: dict[str, str] = {}
     skipped: dict[str, str] = {}
     hints: list[float | None] = []
@@ -510,11 +648,9 @@ def complete(messages: Messages, *, size: Size, temperature: float, agent: str) 
             if e.rate_limited:
                 limited += 1
                 hints.append(e.retry_after)
-            log.warning("%s: %s failed (%s); trying the next provider", agent, name, e)
+            log.info("%s: %s could not answer (%s); next tier", agent, name, e)
             continue
         b.success()
-        if failures:
-            log.info("%s: answered by %s after %s failed", agent, name, ", ".join(failures))
         return out
     known = [h for h in hints if h]
     raise AllProvidersDown(
@@ -537,15 +673,21 @@ def status() -> list[ProviderStatus]:
     """Every configured provider in routing order, for the sidebar and the faculty page."""
     out = []
     for name in settings().ai_providers:
-        why = PROVIDERS[name].unavailable()
+        provider = PROVIDERS[name]
+        why = provider.unavailable()
         b = breaker(name)
+        pool = getattr(provider, "pool", None)
         if why:
             out.append(ProviderStatus(name, LABELS[name], "off", why))
         elif not b.allow():
             detail = f"Paused for {b.retry_in():.0f} s: {b.reason}"
             out.append(ProviderStatus(name, LABELS[name], "paused", detail))
+        elif pool and not pool().available_count():
+            rest = pool().retry_in()
+            detail = f"All keys resting after rate limits; back in {rest:.0f} s"
+            out.append(ProviderStatus(name, LABELS[name], "paused", detail))
         else:
-            out.append(ProviderStatus(name, LABELS[name], "ready", "Ready"))
+            out.append(ProviderStatus(name, LABELS[name], "ready", provider.detail()))
     return out
 
 

@@ -25,14 +25,28 @@ USN_RE = re.compile(r"^[A-Z0-9]{4,20}$")  # a student's USN, upper-cased: 4-20 l
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 DB_CONNECT_TIMEOUT = 3  # seconds to wait for PostgreSQL before the telemetry layer uses SQLite
 # --- Layer 3: the AI and speech routers (core/) --------------------------------------
-AI_PROVIDER_NAMES = ("gemini", "groq", "ollama")  # every provider core/ai_router.py knows
+# Speed first: Groq (fastest cloud), Gemini, a local Ollama; then the offline tier.
+AI_PROVIDER_NAMES = ("groq", "gemini", "ollama")  # every provider core/ai_router.py knows
 ROUTER_FAILURE_THRESHOLD = 2  # failures in a row that open a provider's circuit breaker
 ROUTER_COOLDOWN_S = 60  # seconds an open breaker skips its provider before one trial request
 ROUTER_BROKEN_COOLDOWN_S = 3600  # a retired model or a refused key: skip for an hour
-CLOUD_TIMEOUT_S = 60  # seconds to wait for Gemini or Groq
+KEY_COOLDOWN_S = 60  # a rate-limited key rests this long (or the server's retry-after)
+KEY_LATENCY_WEIGHT = 0.3  # weight of the newest sample in a key's moving-average latency
+GROQ_TIMEOUT_S = 4.0  # default per-request timeouts (GROQ_TIMEOUT_S / GEMINI_TIMEOUT_S in .env)
+GEMINI_TIMEOUT_S = 5.0
 OLLAMA_TIMEOUT_S = 180  # a local model on a laptop CPU is slow
-OLLAMA_PROBE_TIMEOUT_S = 1.0  # the health check (GET /api/tags) must answer within this
-OLLAMA_HEALTH_TTL_S = 30  # seconds a health-check answer is reused
+OLLAMA_PING_TIMEOUT_S = 0.2  # the TCP ping before every Ollama request
+OLLAMA_PROBE_TIMEOUT_S = 1.0  # the model check (GET /api/tags) must answer within this
+OLLAMA_HEALTH_TTL_S = 30  # seconds the model check's answer is reused
+OLLAMA_KEEP_ALIVE = -1  # keep the model loaded in RAM/VRAM between requests
+OLLAMA_TEMPERATURE = 0.2  # small local models keep to valid JSON far better when cool
+OLLAMA_NUM_CTX = 2048  # defaults; OLLAMA_NUM_CTX / OLLAMA_NUM_PREDICT in .env override
+OLLAMA_NUM_PREDICT = 512
+# Prompt cache (core/ai_cache.py): only answers that should not vary for the same input.
+# Quizzes and interview questions are left out: a student regenerating one wants new ones.
+AI_CACHE_AGENTS = frozenset({"planner", "critic", "evaluator"})
+AI_CACHE_MAX_ENTRIES = 500
+AI_CACHE_TTL_S = 7 * 24 * 3600
 TTS_TIMEOUT_S = 20  # seconds to wait for ElevenLabs before the browser voice takes over
 TTS_MAX_CHARS = 2500  # text sent for synthesis; longer text is cut at the last full sentence
 # --- the six-step journey and the faculty dashboard (piq/journey.py, piq/cohort.py) ----------
@@ -194,18 +208,26 @@ class Settings:
     max_critic_retries: int
     mock_mode: bool
     seed_demo: bool = False  # recreate the demo student on start when the DB is empty
-    # GROQ_API_KEY_1 (interactive lane) and GROQ_API_KEY_2 (background lane); GROQ_API_KEY alone
-    # still works as a one-key pool. See piq/llm.py for the lanes and failover.
+    # GROQ_API_KEYS (comma-separated) plus GROQ_API_KEY and the older GROQ_API_KEY_1/_2: one
+    # round-robin pool (core/key_pool.py).
     groq_api_keys: tuple[str, ...] = ()
     # Telemetry layer (database/): PostgreSQL when DATABASE_URL answers, else this SQLite file.
     database_url: str = ""
     telemetry_db_path: Path = DATA_DIR / "placement_nexus.db"
     # Layer 3 (core/ai_router.py): providers tried in this order; empty key or URL = skipped.
     ai_providers: tuple[str, ...] = AI_PROVIDER_NAMES
-    gemini_api_key: str = ""
+    gemini_api_key: str = ""  # the first key of the Gemini pool
+    gemini_api_keys: tuple[str, ...] = ()
     gemini_model: str = ""
     ollama_base_url: str = ""
     ollama_model: str = ""
+    groq_timeout_s: float = GROQ_TIMEOUT_S
+    gemini_timeout_s: float = GEMINI_TIMEOUT_S
+    ollama_num_ctx: int = OLLAMA_NUM_CTX
+    ollama_num_predict: int = OLLAMA_NUM_PREDICT
+    ai_cache: bool = True  # evaluation/run_eval.py turns it off
+    ai_cache_path: Path = DATA_DIR / ".ai_cache.json"
+    audio_cache_dir: Path = DATA_DIR / ".audio_cache"
     # true: when no provider answers, serve the deterministic offline tier (piq/mock.py) instead
     # of an error. evaluation/run_eval.py turns it off: offline answers would void its results.
     offline_fallback: bool = True
@@ -220,6 +242,23 @@ class Settings:
 
 def _flag(name: str, default: str) -> bool:
     return os.getenv(name, default).strip().lower() in {"1", "true", "yes"}
+
+
+def key_pool(*names: str) -> tuple[str, ...]:
+    """Every key in these variables, in order, without repeats: each may hold one key or a
+    comma-separated list (GROQ_API_KEYS=key1,key2,key3)."""
+    keys = (k.strip() for name in names for k in os.getenv(name, "").split(","))
+    return tuple(dict.fromkeys(k for k in keys if k))
+
+
+def _number[N: (int, float)](name: str, default: N) -> N:
+    try:
+        value = type(default)(os.getenv(name, "").strip() or default)
+    except ValueError as e:
+        raise ConfigError(f"{name} must be a number") from e
+    if value <= 0:
+        raise ConfigError(f"{name} must be above zero")
+    return value
 
 
 def _providers(raw: str) -> tuple[str, ...]:
@@ -237,13 +276,9 @@ def _providers(raw: str) -> tuple[str, ...]:
 def settings() -> Settings:
     # PIQ_DOTENV lets tests point at a non-existent file so the developer's .env never leaks in.
     load_dotenv(os.getenv("PIQ_DOTENV", ROOT / ".env"))
-    pool = tuple(
-        dict.fromkeys(
-            k
-            for k in (os.getenv("GROQ_API_KEY_1", ""), os.getenv("GROQ_API_KEY_2", ""))
-            if k.strip()
-        )
-    ) or tuple(k for k in (os.getenv("GROQ_API_KEY", ""),) if k.strip())
+    # GROQ_API_KEY_1/_2 are the earlier two-key names; they still join the pool.
+    pool = key_pool("GROQ_API_KEYS", "GROQ_API_KEY_1", "GROQ_API_KEY_2", "GROQ_API_KEY")
+    gemini = key_pool("GEMINI_API_KEYS", "GEMINI_API_KEY")
     s = Settings(
         groq_api_key=pool[0] if pool else "",
         groq_api_keys=pool,
@@ -253,16 +288,25 @@ def settings() -> Settings:
         max_critic_retries=int(os.getenv("MAX_CRITIC_RETRIES", "2")),
         mock_mode=_flag("MOCK_MODE", "true"),
         seed_demo=_flag("SEED_DEMO", "false"),
-        database_url=os.getenv("DATABASE_URL", "").strip(),
+        # SUPABASE_DB_URL is a hosted PostgreSQL URL by another name; DATABASE_URL wins.
+        database_url=(os.getenv("DATABASE_URL", "") or os.getenv("SUPABASE_DB_URL", "")).strip(),
         telemetry_db_path=Path(
             os.getenv("TELEMETRY_DB_PATH", str(DATA_DIR / "placement_nexus.db"))
         ),
         ai_providers=_providers(os.getenv("AI_PROVIDERS", ",".join(AI_PROVIDER_NAMES))),
-        gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
+        gemini_api_key=gemini[0] if gemini else "",
+        gemini_api_keys=gemini,
         gemini_model=os.getenv("GEMINI_MODEL", "").strip(),
         ollama_base_url=os.getenv("OLLAMA_BASE_URL", "").strip().rstrip("/"),
         ollama_model=os.getenv("OLLAMA_MODEL", "").strip(),
         offline_fallback=_flag("AI_OFFLINE_FALLBACK", "true"),
+        groq_timeout_s=_number("GROQ_TIMEOUT_S", GROQ_TIMEOUT_S),
+        gemini_timeout_s=_number("GEMINI_TIMEOUT_S", GEMINI_TIMEOUT_S),
+        ollama_num_ctx=_number("OLLAMA_NUM_CTX", OLLAMA_NUM_CTX),
+        ollama_num_predict=_number("OLLAMA_NUM_PREDICT", OLLAMA_NUM_PREDICT),
+        ai_cache=_flag("AI_CACHE", "true"),
+        ai_cache_path=Path(os.getenv("AI_CACHE_PATH", str(DATA_DIR / ".ai_cache.json"))),
+        audio_cache_dir=Path(os.getenv("AUDIO_CACHE_DIR", str(DATA_DIR / ".audio_cache"))),
         elevenlabs_api_key=os.getenv("ELEVENLABS_API_KEY", "").strip(),
         elevenlabs_voice_id=os.getenv("ELEVENLABS_VOICE_ID", "").strip(),
         elevenlabs_model=os.getenv("ELEVENLABS_MODEL", "").strip(),
@@ -272,11 +316,14 @@ def settings() -> Settings:
         # A provider with no key (or URL) is simply skipped by the router; one that is half set
         # up (a key without its model) is a mistake worth stopping for.
         half_set = {
-            "GROQ_API_KEY_1 (or GROQ_API_KEY)": (
+            "GROQ_API_KEYS (or GROQ_API_KEY)": (
                 s.groq_api_key,
                 {"GROQ_MODEL_LARGE": s.model_large, "GROQ_MODEL_SMALL": s.model_small},
             ),
-            "GEMINI_API_KEY": (s.gemini_api_key, {"GEMINI_MODEL": s.gemini_model}),
+            "GEMINI_API_KEYS (or GEMINI_API_KEY)": (
+                s.gemini_api_key,
+                {"GEMINI_MODEL": s.gemini_model},
+            ),
             "OLLAMA_BASE_URL": (s.ollama_base_url, {"OLLAMA_MODEL": s.ollama_model}),
         }
         for key, (value, needs) in half_set.items():

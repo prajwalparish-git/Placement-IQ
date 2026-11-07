@@ -67,6 +67,9 @@ class Fake:
     def model(self, size: str) -> str:
         return f"{self.name}-model"
 
+    def detail(self) -> str:
+        return "Ready"
+
     def complete(self, messages, *, size, temperature, agent) -> Completion:
         self.calls += 1
         reply = self.replies.pop(0)
@@ -261,9 +264,9 @@ def test_gemini_request_and_response_shape(gemini_env, http):
 @pytest.mark.parametrize(
     ("code", "headers", "match", "state"),
     [
-        (429, {"retry-after": "9"}, "rate limit", "open"),
+        (429, {"retry-after": "9"}, "rate limit", "closed"),  # the key rests, not the provider
         (404, {}, "GEMINI_MODEL", "open"),
-        (403, {}, "refused the API key", "open"),
+        (403, {}, "refused its key", "closed"),  # the key rests for an hour
         (400, {}, "rejected the request", "closed"),
         (503, {}, "Gemini API error 503", "closed"),  # one failure; the threshold is two
     ],
@@ -286,6 +289,7 @@ def test_gemini_unreachable_is_a_provider_failure(gemini_env, http):
 
 @pytest.fixture
 def ollama_env(monkeypatch):
+    monkeypatch.setattr(ai_router, "_ping", lambda url, timeout=0.2: True)  # nothing listens
     monkeypatch.setenv("MOCK_MODE", "false")
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama.test:11434/")
     monkeypatch.setenv("OLLAMA_MODEL", "llama3")
@@ -299,6 +303,8 @@ def _ollama(tags: list[str], status: int = 200):
             return httpx.Response(status, json={"models": [{"name": t} for t in tags]})
         body = json.loads(request.content)
         assert body["format"] == "json" and body["stream"] is False
+        assert body["keep_alive"] == -1  # the model stays loaded between requests
+        assert body["options"] == {"num_ctx": 2048, "num_predict": 512, "temperature": 0.2}
         return httpx.Response(
             200,
             json={"message": {"content": '{"ok": true}'}, "prompt_eval_count": 4, "eval_count": 2},
@@ -323,11 +329,29 @@ def test_ollama_without_the_model_pulled_is_skipped_with_the_command(ollama_env,
     assert "ollama pull llama3" in exc.value.skipped["ollama"]
 
 
-def test_ollama_not_running_is_skipped(ollama_env, http):
+def test_ollama_not_running_is_skipped_by_the_ping_without_any_request(
+    ollama_env, http, monkeypatch
+):
+    monkeypatch.setattr(ai_router, "_ping", lambda url, timeout=0.2: False)
+    seen = http(_ollama(["llama3"]))
+    with pytest.raises(AllProvidersDown) as exc:
+        _complete()
+    assert "not running" in exc.value.skipped["ollama"] and seen == []
+
+
+def test_ollama_that_pings_but_does_not_answer_is_skipped(ollama_env, http):
     def refuse(request):
         raise httpx.ConnectError("refused", request=request)
 
     http(refuse)
     with pytest.raises(AllProvidersDown) as exc:
         _complete()
-    assert "not running" in exc.value.skipped["ollama"]
+    assert "not answering" in exc.value.skipped["ollama"]
+
+
+def test_ping_is_a_fast_tcp_check():
+    import time
+
+    t0 = time.perf_counter()
+    assert ai_router._ping("http://127.0.0.1:9", timeout=0.2) is False  # nothing on port 9
+    assert time.perf_counter() - t0 < 1.0

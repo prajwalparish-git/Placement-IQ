@@ -19,8 +19,11 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("DB_PATH", str(tmp_path / "test.db"))
     monkeypatch.setenv("MAX_CRITIC_RETRIES", "2")
     monkeypatch.setenv("TELEMETRY_DB_PATH", str(tmp_path / "telemetry.db"))
+    monkeypatch.setenv("AI_CACHE_PATH", str(tmp_path / "ai_cache.json"))
+    monkeypatch.setenv("AUDIO_CACHE_DIR", str(tmp_path / "audio_cache"))
     for k in (
         "GROQ_API_KEY",
+        "GROQ_API_KEYS",
         "GROQ_API_KEY_1",
         "GROQ_API_KEY_2",
         "GROQ_MODEL_LARGE",
@@ -30,6 +33,13 @@ def isolated(tmp_path, monkeypatch):
         "AI_PROVIDERS",
         "AI_OFFLINE_FALLBACK",
         "GEMINI_API_KEY",
+        "GEMINI_API_KEYS",
+        "GROQ_TIMEOUT_S",
+        "GEMINI_TIMEOUT_S",
+        "OLLAMA_NUM_CTX",
+        "OLLAMA_NUM_PREDICT",
+        "AI_CACHE",
+        "SUPABASE_DB_URL",
         "GEMINI_MODEL",
         "OLLAMA_BASE_URL",
         "OLLAMA_MODEL",

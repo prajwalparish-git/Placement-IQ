@@ -9,8 +9,8 @@ import httpx
 import pytest
 
 from core import ai_router
-from piq import db, llm, mock
-from piq.config import settings
+from piq import db, llm, mock, offline
+from piq.config import KEY_COOLDOWN_S, settings
 from piq.schemas import InterviewTurn
 
 VALID = {"question": "Tell me more?", "intent": "i", "is_followup": False, "is_final": False}
@@ -177,14 +177,14 @@ def test_live_rate_limit_carries_retry_after(live):
     assert isinstance(exc.value, llm.LLMError)  # the UI's existing error path still applies
 
 
-def test_live_rate_limit_without_hint(live):
+def test_live_rate_limit_without_hint_reports_the_key_cooldown(live):
     live(_rate_limit({}))
-    with pytest.raises(llm.RateLimited, match="Try again shortly") as exc:
+    with pytest.raises(llm.RateLimited, match=f"about {KEY_COOLDOWN_S} s") as exc:
         _call()
-    assert exc.value.retry_after is None
+    assert exc.value.retry_after == pytest.approx(KEY_COOLDOWN_S, abs=1)  # the key's rest
 
 
-# --- the two-key pool: lanes and failover ------------------------------------------------
+# --- the key pool: round robin and failover ----------------------------------------------
 
 
 @pytest.fixture
@@ -201,7 +201,7 @@ def pool(monkeypatch):
     def install(*replies) -> FakeGroq:
         fake = FakeGroq(*replies)
 
-        def client(key):
+        def client(key, timeout):
             used.append(key)
             return fake
 
@@ -211,12 +211,12 @@ def pool(monkeypatch):
     return install, used
 
 
-def test_interactive_agents_use_key_one_and_background_agents_key_two(pool):
+def test_requests_take_the_keys_in_turn(pool):
     install, used = pool
-    install(json.dumps(VALID), json.dumps(VALID))
-    _call()  # the interviewer: a student is waiting
-    llm.call(InterviewTurn, agent="planner", system="s", user="u", context={})
-    assert used == ["key-one", "key-two"]
+    install(json.dumps(VALID), json.dumps(VALID), json.dumps(VALID))
+    for _ in range(3):
+        _call()
+    assert used == ["key-one", "key-two", "key-one"]  # round robin
     assert settings().groq_api_key == "key-one"
 
 
@@ -241,7 +241,20 @@ def test_both_keys_rate_limited_raises_rate_limited(pool):
 def test_one_key_still_works_and_needs_no_numbered_keys(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "only")
     settings.cache_clear()
-    assert settings().groq_api_keys == ("only",) and ai_router.keys_for("interviewer") == ["only"]
+    assert settings().groq_api_keys == ("only",)
+    assert ai_router.PROVIDERS["groq"].pool().order() == ["only"]
+
+
+def test_comma_separated_pools_merge_with_single_keys_without_repeats(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEYS", " a , b,,c ")
+    monkeypatch.setenv("GROQ_API_KEY", "b")
+    monkeypatch.setenv("GROQ_API_KEY_1", "d")
+    monkeypatch.setenv("GEMINI_API_KEYS", "g1,g2")
+    monkeypatch.setenv("GEMINI_API_KEY", "g3")
+    settings.cache_clear()
+    s = settings()
+    assert s.groq_api_keys == ("a", "b", "c", "d") and s.groq_api_key == "a"
+    assert s.gemini_api_keys == ("g1", "g2", "g3") and s.gemini_api_key == "g1"
 
 
 # --- the offline tier: no provider answers ---------------------------------------------------
@@ -250,7 +263,7 @@ def test_one_key_still_works_and_needs_no_numbered_keys(monkeypatch):
 def test_no_provider_set_up_is_served_by_the_offline_tier(monkeypatch):
     monkeypatch.setenv("MOCK_MODE", "false")
     settings.cache_clear()
-    monkeypatch.setattr(mock, "respond", lambda agent, ctx: VALID)
+    monkeypatch.setattr(offline, "respond", lambda agent, ctx: VALID)
     out, _ = _call()
     assert out == InterviewTurn(**VALID)  # the deterministic answer, validated like any other
     [row] = _rows()
@@ -260,7 +273,7 @@ def test_no_provider_set_up_is_served_by_the_offline_tier(monkeypatch):
 def test_a_failing_provider_falls_back_to_the_offline_tier(live, monkeypatch):
     monkeypatch.setenv("AI_OFFLINE_FALLBACK", "true")
     settings.cache_clear()
-    monkeypatch.setattr(mock, "respond", lambda agent, ctx: VALID)
+    monkeypatch.setattr(offline, "respond", lambda agent, ctx: VALID)
     live(_status_error(groq.InternalServerError, 500, "boom"))
     out, _ = _call()
     assert out == InterviewTurn(**VALID) and _rows()[0]["model_used"] == "offline"
@@ -283,5 +296,5 @@ def test_offline_tier_off_and_nothing_set_up_names_the_keys(monkeypatch):
     monkeypatch.setenv("MOCK_MODE", "false")
     monkeypatch.setenv("AI_OFFLINE_FALLBACK", "false")
     settings.cache_clear()
-    with pytest.raises(llm.LLMError, match="GEMINI_API_KEY, GROQ_API_KEY or OLLAMA_BASE_URL"):
+    with pytest.raises(llm.LLMError, match="GROQ_API_KEYS, GEMINI_API_KEYS or OLLAMA_BASE_URL"):
         _call()

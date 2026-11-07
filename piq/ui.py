@@ -95,13 +95,13 @@ def sidebar_context(mock_mode: bool, ai: str = "") -> None:
                 color="gray",
                 help="Answers come from built-in samples; no AI service is called.",
             )
-        elif ai == "Offline rules":
+        elif ai == "Offline rules":  # quiet on purpose: the student can keep working as usual
             st.badge(
-                "Offline: rule-based answers",
-                icon=":material/cloud_off:",
-                color="orange",
-                help="No AI provider is reachable. Answers come from built-in rules and banks "
-                "until one is back.",
+                "Built-in answers",
+                icon=":material/offline_bolt:",
+                color="gray",
+                help="Answers come from the question bank and built-in rules until an AI "
+                "service is reachable again.",
             )
         elif ai:
             st.badge(

@@ -363,11 +363,19 @@ def env_status(root: Path = ROOT) -> dict[str, bool]:
             if "=" in line and not line.lstrip().startswith("#"):
                 key, _, value = line.partition("=")
                 values[key.strip()] = value.strip().strip('"').strip("'")
-    keys = ("GEMINI_API_KEY", "GROQ_API_KEY", "ELEVENLABS_API_KEY", "DATABASE_URL")
-    status = {k: bool(values.get(k)) for k in keys}
-    status["GROQ_API_KEY"] = status["GROQ_API_KEY"] or bool(values.get("GROQ_API_KEY_1"))
-    status["MOCK_MODE=false"] = values.get("MOCK_MODE", "true").lower() in ("false", "0", "no")
-    return status
+
+    def any_of(*names: str) -> bool:
+        return any(values.get(n) for n in names)
+
+    return {
+        "GROQ_API_KEYS": any_of(
+            "GROQ_API_KEYS", "GROQ_API_KEY", "GROQ_API_KEY_1", "GROQ_API_KEY_2"
+        ),
+        "GEMINI_API_KEYS": any_of("GEMINI_API_KEYS", "GEMINI_API_KEY"),
+        "ELEVENLABS_API_KEY": any_of("ELEVENLABS_API_KEY"),
+        "DATABASE_URL": any_of("DATABASE_URL", "SUPABASE_DB_URL"),
+        "MOCK_MODE=false": values.get("MOCK_MODE", "true").lower() in ("false", "0", "no"),
+    }
 
 
 def summary(system: str, made_env: bool, root: Path = ROOT) -> str:
@@ -392,11 +400,11 @@ def summary(system: str, made_env: bool, root: Path = ROOT) -> str:
         f"     {S.dim(str(root / '.env'))}",
         "",
         row("MOCK_MODE=false", "turn on live AI (true = offline demo answers)"),
-        row("GEMINI_API_KEY", "primary AI provider (aistudio.google.com/apikey)"),
-        row("GROQ_API_KEY", "second provider, and speech-to-text"),
-        f"  {S.dim('    or OLLAMA_BASE_URL + OLLAMA_MODEL for a local model')}",
+        row("GROQ_API_KEYS", "fastest cloud AI; one key or key1,key2,..."),
+        row("GEMINI_API_KEYS", "second cloud AI (aistudio.google.com/apikey)"),
+        f"  {S.dim('    either one is enough; Ollama and built-in answers cover the rest')}",
         row("ELEVENLABS_API_KEY", "optional: a natural voice (else the browser's)"),
-        row("DATABASE_URL", "optional: PostgreSQL (else local SQLite)"),
+        row("DATABASE_URL", "optional: PostgreSQL or SUPABASE_DB_URL (else SQLite)"),
         "",
         f"  {S.dim('With nothing filled in, the app still runs, in mock mode.')}",
         "",
